@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=edge"/>
+<title>Test results - AssertServiceTest</title>
+<link href="../css/base-style.css" rel="stylesheet" type="text/css"/>
+<link href="../css/style.css" rel="stylesheet" type="text/css"/>
+<script src="../js/report.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="content">
+<h1>AssertServiceTest</h1>
+<div class="breadcrumbs">
+<a href="../index.html">all</a> &gt; 
+<a href="../packages/com.factstore.html">com.factstore</a> &gt; AssertServiceTest</div>
+<div id="summary">
+<table>
+<tr>
+<td>
+<div class="summaryGroup">
+<table>
+<tr>
+<td>
+<div class="infoBox" id="tests">
+<div class="counter">5</div>
+<p>tests</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="failures">
+<div class="counter">0</div>
+<p>failures</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="ignored">
+<div class="counter">0</div>
+<p>ignored</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="duration">
+<div class="counter">1.478s</div>
+<p>duration</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td>
+<div class="infoBox success" id="successRate">
+<div class="percent">100%</div>
+<p>successful</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div id="tabs">
+<ul class="tabLinks">
+<li>
+<a href="#tab0">Tests</a>
+</li>
+<li>
+<a href="#tab1">Standard output</a>
+</li>
+</ul>
+<div id="tab0" class="tab">
+<h2>Tests</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tr>
+<td class="success">all required attestations passed returns COMPLIANT()</td>
+<td class="success">0.025s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">failed attestation not counted as passed()</td>
+<td class="success">0.051s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">flow with no required types returns COMPLIANT()</td>
+<td class="success">1.285s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">missing required attestation returns NON_COMPLIANT()</td>
+<td class="success">0.106s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">no artifacts found returns NON_COMPLIANT()</td>
+<td class="success">0.011s</td>
+<td class="success">passed</td>
+</tr>
+</table>
+</div>
+<div id="tab1" class="tab">
+<h2>Standard output</h2>
+<span class="code">
+<pre>21:23:29.341 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.factstore.AssertServiceTest]: AssertServiceTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+21:23:29.565 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.factstore.FactstoreApplication for test class com.factstore.AssertServiceTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-03-10T21:23:30.472Z  INFO 4415 --- [    Test worker] com.factstore.AssertServiceTest          : Starting AssertServiceTest using Java 17.0.18 with PID 4415 (started by runner in /home/runner/work/Factstore/Factstore/backend)
+2026-03-10T21:23:30.479Z  INFO 4415 --- [    Test worker] com.factstore.AssertServiceTest          : No active profile set, falling back to 1 default profile: &quot;default&quot;
+2026-03-10T21:23:32.108Z  INFO 4415 --- [    Test worker] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-10T21:23:32.184Z  INFO 4415 --- [    Test worker] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 65 ms. Found 5 JPA repository interfaces.
+2026-03-10T21:23:32.870Z  INFO 4415 --- [    Test worker] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-03-10T21:23:32.927Z  INFO 4415 --- [    Test worker] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-03-10T21:23:32.969Z  INFO 4415 --- [    Test worker] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-03-10T21:23:33.196Z  INFO 4415 --- [    Test worker] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-10T21:23:33.221Z  INFO 4415 --- [    Test worker] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-10T21:23:33.403Z  INFO 4415 --- [    Test worker] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:factstore user=SA
+2026-03-10T21:23:33.405Z  INFO 4415 --- [    Test worker] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-03-10T21:23:33.429Z  WARN 4415 --- [    Test worker] org.hibernate.orm.deprecation            : HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-10T21:23:34.325Z  INFO 4415 --- [    Test worker] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-10T21:23:34.371Z  INFO 4415 --- [    Test worker] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-10T21:23:35.824Z  WARN 4415 --- [    Test worker] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-10T21:23:36.341Z  INFO 4415 --- [    Test worker] o.s.b.a.h2.H2ConsoleAutoConfiguration    : H2 console available at '/h2-console'. Database available at 'jdbc:h2:mem:factstore'
+2026-03-10T21:23:36.440Z  INFO 4415 --- [    Test worker] com.factstore.AssertServiceTest          : Started AssertServiceTest in 6.596 seconds (process running for 8.835)
+2026-03-10T21:23:37.355Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: 5b84e99a-0a6e-4557-9644-28a849798c4e - flow-empty-982816050895
+2026-03-10T21:23:37.687Z  INFO 4415 --- [    Test worker] com.factstore.service.TrailService       : Created trail: 99b0fd7c-78cb-4600-ac6c-c685c281946b for flow: 5b84e99a-0a6e-4557-9644-28a849798c4e
+2026-03-10T21:23:37.707Z  INFO 4415 --- [    Test worker] com.factstore.service.ArtifactService    : Reported artifact: c584c8f7-67c6-401d-a05f-38b79b8bf37e digest=sha256:empty983325495302
+2026-03-10T21:23:37.787Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: a65aa1bb-dce9-4321-b203-658ba69d0641 - flow-983412065992
+2026-03-10T21:23:37.807Z  INFO 4415 --- [    Test worker] com.factstore.service.TrailService       : Created trail: 78ca69cd-4eb9-4123-aeb4-1dfee5b9b80c for flow: a65aa1bb-dce9-4321-b203-658ba69d0641
+2026-03-10T21:23:37.824Z  INFO 4415 --- [    Test worker] c.factstore.service.AttestationService   : Recorded attestation: 50c39120-028a-4732-af14-7dc20a917bc1 type=junit status=PASSED
+2026-03-10T21:23:37.832Z  INFO 4415 --- [    Test worker] com.factstore.service.ArtifactService    : Reported artifact: d4a9a383-30c0-4d78-bd62-7b6e8d985dee digest=sha256:983462844983
+2026-03-10T21:23:37.860Z  INFO 4415 --- [    Test worker] com.factstore.service.AssertService      : Artifact sha256:983462844983 is NON_COMPLIANT for flow a65aa1bb-dce9-4321-b203-658ba69d0641; missing: [snyk]
+2026-03-10T21:23:37.881Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: 94c83232-03cd-4398-a35d-fa73de2d58f9 - flow-983513082683
+2026-03-10T21:23:37.888Z  INFO 4415 --- [    Test worker] com.factstore.service.TrailService       : Created trail: aa5345fd-75e8-42db-a5bf-7c69a62927b2 for flow: 94c83232-03cd-4398-a35d-fa73de2d58f9
+2026-03-10T21:23:37.895Z  INFO 4415 --- [    Test worker] c.factstore.service.AttestationService   : Recorded attestation: 6438acd1-9859-4fff-bfe2-bc3e251f89b0 type=junit status=FAILED
+2026-03-10T21:23:37.910Z  INFO 4415 --- [    Test worker] com.factstore.service.ArtifactService    : Reported artifact: de060d01-1475-4e3d-8784-392e371a23b6 digest=sha256:983533141240
+2026-03-10T21:23:37.919Z  INFO 4415 --- [    Test worker] com.factstore.service.AssertService      : Artifact sha256:983533141240 is NON_COMPLIANT for flow 94c83232-03cd-4398-a35d-fa73de2d58f9; missing: [junit]
+2026-03-10T21:23:37.929Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: 68438927-a742-4026-bb22-07ee99525cdd - flow-983563942168
+2026-03-10T21:23:37.932Z  INFO 4415 --- [    Test worker] com.factstore.service.TrailService       : Created trail: b5d34f58-ac5e-42d9-8ccb-891420f75699 for flow: 68438927-a742-4026-bb22-07ee99525cdd
+2026-03-10T21:23:37.935Z  INFO 4415 --- [    Test worker] c.factstore.service.AttestationService   : Recorded attestation: 0e6525d3-1eeb-48aa-8f70-5ca5e84b0e5d type=junit status=PASSED
+2026-03-10T21:23:37.937Z  INFO 4415 --- [    Test worker] c.factstore.service.AttestationService   : Recorded attestation: 3ccc32e8-1779-4032-b9ab-a550003cab4f type=snyk status=PASSED
+2026-03-10T21:23:37.939Z  INFO 4415 --- [    Test worker] com.factstore.service.ArtifactService    : Reported artifact: 3c60b0a8-140e-4ef0-9340-0f3c7d30e711 digest=sha256:983574692667
+2026-03-10T21:23:37.946Z  INFO 4415 --- [    Test worker] com.factstore.service.AssertService      : Artifact sha256:983574692667 is COMPLIANT for flow 68438927-a742-4026-bb22-07ee99525cdd
+2026-03-10T21:23:37.956Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: a1d8d262-7001-48a8-908a-9adc8041644e - flow-no-art-983589874122
+</pre>
+</span>
+</div>
+</div>
+<div id="footer">
+<p>
+<div>
+<label class="hidden" id="label-for-line-wrapping-toggle" for="line-wrapping-toggle">Wrap lines
+<input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
+</label>
+</div>Generated by 
+<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 10, 2026, 9:23:38 PM</p>
+</div>
+</div>
+</body>
+</html>

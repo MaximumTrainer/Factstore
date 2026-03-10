@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.factstore.FlowServiceTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-03-10T21:23:38" hostname="runnervm0kj6c" time="0.12">
+  <properties/>
+  <testcase name="create flow with duplicate name throws ConflictException()" classname="com.factstore.FlowServiceTest" time="0.02"/>
+  <testcase name="create flow succeeds()" classname="com.factstore.FlowServiceTest" time="0.014"/>
+  <testcase name="get flow by unknown id throws NotFoundException()" classname="com.factstore.FlowServiceTest" time="0.012"/>
+  <testcase name="list flows returns all flows()" classname="com.factstore.FlowServiceTest" time="0.023"/>
+  <testcase name="update flow updates fields()" classname="com.factstore.FlowServiceTest" time="0.012"/>
+  <testcase name="delete flow removes it()" classname="com.factstore.FlowServiceTest" time="0.02"/>
+  <testcase name="delete non-existent flow throws NotFoundException()" classname="com.factstore.FlowServiceTest" time="0.007"/>
+  <system-out><![CDATA[2026-03-10T21:23:38.147Z  INFO 4415 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.factstore.FlowServiceTest]: FlowServiceTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-10T21:23:38.150Z  INFO 4415 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.factstore.FactstoreApplication for test class com.factstore.FlowServiceTest
+2026-03-10T21:23:38.168Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: 062e9d60-77a7-4e5e-afc2-77466994f964 - dup-flow
+2026-03-10T21:23:38.188Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: d42228d0-4ed1-4466-a5c7-2e68b8561968 - test-flow
+2026-03-10T21:23:38.217Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: dd07cae1-47a6-46e2-8f0b-719acacbdb4b - flow-a
+2026-03-10T21:23:38.223Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: 13416c3f-123f-4b7d-8b46-529938c63850 - flow-b
+2026-03-10T21:23:38.243Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: c1e526ad-b4ed-45a5-a9d6-8b2ee03acd64 - upd-flow
+2026-03-10T21:23:38.255Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Created flow: b2b484f3-bba5-4ca2-847a-38e5ad00b274 - del-flow
+2026-03-10T21:23:38.264Z  INFO 4415 --- [    Test worker] com.factstore.service.FlowService        : Deleted flow: b2b484f3-bba5-4ca2-847a-38e5ad00b274
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
