@@ -19,6 +19,10 @@ permissions:
   contents: read
   repository-projects: write
 
+# To enable automatic project board addition, create a classic PAT with
+# 'repo' and 'project' scopes, then add it as a repository secret named
+# PROJECT_TOKEN (Settings → Secrets and variables → Actions → New repository secret).
+
 jobs:
   create-issues:
     name: Create GitHub Issues from Feature Files
@@ -40,6 +44,9 @@ jobs:
         id: create_issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PROJECT_TOKEN must be a classic PAT with 'repo' + 'project' scopes.
+          # Without it, issues are created but not added to the project board.
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           REPO: ${{ github.repository }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           PROJECT_NUMBER: '3'
@@ -145,19 +152,26 @@ jobs:
               created_issues.append(issue_url)
 
           if not dry_run and created_issues:
-              print(f"\n--- Adding {len(created_issues)} issues to project #{project_number} ---")
-              for issue_url in created_issues:
-                  add_cmd = [
-                      'gh', 'project', 'item-add', project_number,
-                      '--owner', project_owner,
-                      '--url', issue_url
-                  ]
-                  add_result = subprocess.run(add_cmd, capture_output=True, text=True)
-                  if add_result.returncode == 0:
-                      print(f"  Added to project: {issue_url}")
-                  else:
-                      # Non-fatal: issue was created, project add may fail due to permissions
-                      print(f"  WARNING: Could not add to project ({add_result.stderr.strip()}): {issue_url}")
+              project_token = os.environ.get('PROJECT_TOKEN', '')
+              if not project_token:
+                  print(f"\n--- Skipping project board addition (no PROJECT_TOKEN secret set) ---")
+                  print(f"    To add issues to project #{project_number}, create a classic PAT with")
+                  print(f"    'repo' + 'project' scopes and add it as a repository secret named PROJECT_TOKEN.")
+              else:
+                  print(f"\n--- Adding {len(created_issues)} issues to project #{project_number} ---")
+                  env_with_project = os.environ.copy()
+                  env_with_project['GH_TOKEN'] = project_token
+                  for issue_url in created_issues:
+                      add_cmd = [
+                          'gh', 'project', 'item-add', project_number,
+                          '--owner', project_owner,
+                          '--url', issue_url
+                      ]
+                      add_result = subprocess.run(add_cmd, capture_output=True, text=True, env=env_with_project)
+                      if add_result.returncode == 0:
+                          print(f"  Added to project: {issue_url}")
+                      else:
+                          print(f"  WARNING: Could not add to project ({add_result.stderr.strip()}): {issue_url}")
 
           print(f"\nDone. Processed {len(feature_files)} feature files.")
           PYTHON_SCRIPT
@@ -172,4 +186,11 @@ jobs:
           echo "**Project**: https://github.com/users/MaximumTrainer/projects/3" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Feature files processed from \`requirements/features/\`." >> $GITHUB_STEP_SUMMARY
-          echo "Check the [project board](https://github.com/users/MaximumTrainer/projects/3/views/1) to see the created issues." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -z "${{ secrets.PROJECT_TOKEN }}" ]; then
+            echo "⚠️ **Project board**: Issues were NOT added to the project board automatically." >> $GITHUB_STEP_SUMMARY
+            echo "To enable this, create a classic PAT with \`repo\` + \`project\` scopes and add it as a repository secret named \`PROJECT_TOKEN\`." >> $GITHUB_STEP_SUMMARY
+            echo "Then re-run this workflow." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Issues added to [project board](https://github.com/users/MaximumTrainer/projects/3/views/1)." >> $GITHUB_STEP_SUMMARY
+          fi
