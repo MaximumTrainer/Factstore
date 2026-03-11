@@ -1,0 +1,92 @@
+package com.factstore.application
+
+import com.factstore.core.domain.Attestation
+import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.TrailStatus
+import com.factstore.core.port.inbound.IAttestationService
+import com.factstore.core.port.inbound.IEvidenceVaultService
+import com.factstore.core.port.outbound.IAttestationRepository
+import com.factstore.core.port.outbound.ITrailRepository
+import com.factstore.dto.AttestationResponse
+import com.factstore.dto.CreateAttestationRequest
+import com.factstore.dto.EvidenceFileResponse
+import com.factstore.exception.NotFoundException
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+import java.util.UUID
+
+@Service
+@Transactional
+class AttestationService(
+    private val attestationRepository: IAttestationRepository,
+    private val trailRepository: ITrailRepository,
+    private val evidenceVaultService: IEvidenceVaultService
+) : IAttestationService {
+
+    private val log = LoggerFactory.getLogger(AttestationService::class.java)
+
+    override fun recordAttestation(trailId: UUID, request: CreateAttestationRequest): AttestationResponse {
+        if (!trailRepository.existsById(trailId)) throw NotFoundException("Trail not found: $trailId")
+        val attestation = Attestation(
+            trailId = trailId,
+            type = request.type,
+            status = request.status,
+            details = request.details
+        )
+        val saved = attestationRepository.save(attestation)
+        if (request.status == AttestationStatus.FAILED) {
+            markTrailNonCompliant(trailId)
+        }
+        log.info("Recorded attestation: ${saved.id} type=${saved.type} status=${saved.status}")
+        return saved.toResponse()
+    }
+
+    @Transactional(readOnly = true)
+    override fun listAttestations(trailId: UUID): List<AttestationResponse> {
+        if (!trailRepository.existsById(trailId)) throw NotFoundException("Trail not found: $trailId")
+        return attestationRepository.findByTrailId(trailId).map { it.toResponse() }
+    }
+
+    override fun uploadEvidence(
+        trailId: UUID,
+        attestationId: UUID,
+        fileName: String,
+        contentType: String,
+        content: ByteArray
+    ): EvidenceFileResponse {
+        val attestation = attestationRepository.findById(attestationId)
+            ?: throw NotFoundException("Attestation not found: $attestationId")
+        if (attestation.trailId != trailId) throw NotFoundException("Attestation $attestationId does not belong to trail $trailId")
+
+        val evidenceFile = evidenceVaultService.store(attestationId, fileName, contentType, content)
+
+        attestation.evidenceFileHash = evidenceFile.sha256Hash
+        attestation.evidenceFileName = evidenceFile.fileName
+        attestation.evidenceFileSizeBytes = evidenceFile.fileSizeBytes
+        attestationRepository.save(attestation)
+
+        log.info("Uploaded evidence for attestation: $attestationId hash=${evidenceFile.sha256Hash}")
+        return evidenceFile.toResponse()
+    }
+
+    private fun markTrailNonCompliant(trailId: UUID) {
+        val trail = trailRepository.findById(trailId) ?: return
+        trail.status = TrailStatus.NON_COMPLIANT
+        trail.updatedAt = Instant.now()
+        trailRepository.save(trail)
+    }
+}
+
+fun Attestation.toResponse() = AttestationResponse(
+    id = id,
+    trailId = trailId,
+    type = type,
+    status = status,
+    evidenceFileHash = evidenceFileHash,
+    evidenceFileName = evidenceFileName,
+    evidenceFileSizeBytes = evidenceFileSizeBytes,
+    details = details,
+    createdAt = createdAt
+)

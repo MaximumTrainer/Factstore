@@ -22,46 +22,71 @@ This document describes the design, architecture, and development requirements f
 
 ## Architecture
 
-### Backend — Spring Boot / Kotlin
+### Hexagonal Architecture (Ports and Adapters)
 
-The backend follows a strict **layered architecture**:
+The backend is structured as a **Hexagonal Architecture**. The Dependency Rule is strict: **dependencies always point inward**. Adapters know about ports; ports know about the domain. The domain and application layers know about nothing outside themselves.
 
 ```
-HTTP Request
-    │
-    ▼
-Controller        ← maps HTTP to service calls; minimal validation
-    │
-    ▼
-Service           ← owns all business logic and transaction boundaries, enforces most validation
-    │
-    ▼
-Repository        ← Spring Data JPA; no business logic here
-    │
-    ▼
-Domain / DB       ← JPA entities mapped to H2 (dev) tables
+   ┌─────────────────────────────────────────────┐
+   │            Driving Adapters                  │
+   │    adapter/inbound/web/ (REST Controllers)   │
+   └──────────────────┬──────────────────────────┘
+                      │ calls via inbound port
+   ┌──────────────────▼──────────────────────────┐
+   │             Inbound Ports                    │
+   │    core/port/inbound/ (IFlowService, …)      │
+   └──────────────────┬──────────────────────────┘
+                      │ implemented by
+   ┌──────────────────▼──────────────────────────┐
+   │           Application Layer                  │
+   │    application/ (FlowService, …)             │
+   └──────────────────┬──────────────────────────┘
+                      │ calls via outbound port
+   ┌──────────────────▼──────────────────────────┐
+   │             Outbound Ports                   │
+   │   core/port/outbound/ (IFlowRepository, …)   │
+   └──────────────────┬──────────────────────────┘
+                      │ implemented by
+   ┌──────────────────▼──────────────────────────┐
+   │            Driven Adapters                   │
+   │  adapter/outbound/persistence/ (JPA Adapters)│
+   └─────────────────────────────────────────────┘
 ```
 
-Controllers never talk directly to repositories. Services own `@Transactional` boundaries. Domain objects are plain JPA entities; all request/response shapes are expressed as DTOs.
+### Package Layout (`backend/src/main/kotlin/com/factstore/`)
 
-**Package layout** (`backend/src/main/kotlin/com/factstore/`):
+| Package | Layer | Responsibility |
+|---|---|---|
+| `core/domain/` | Domain | Business entities — `Flow`, `Trail`, `Attestation`, `Artifact`, `EvidenceFile` |
+| `core/port/inbound/` | Inbound Ports | Service interfaces — `IFlowService`, `ITrailService`, `IAttestationService`, `IArtifactService`, `IAssertService`, `IComplianceService`, `IEvidenceVaultService` |
+| `core/port/outbound/` | Outbound Ports | Repository interfaces — `IFlowRepository`, `ITrailRepository`, `IAttestationRepository`, `IArtifactRepository`, `IEvidenceFileRepository` |
+| `application/` | Application | Use case implementations — `FlowService`, `TrailService`, `AttestationService`, `ArtifactService`, `AssertService`, `EvidenceVaultService`, `ComplianceService` |
+| `adapter/inbound/web/` | Driving Adapter | REST controllers — `FlowController`, `TrailController`, `AttestationController`, `ArtifactController`, `AssertController`, `ComplianceController` |
+| `adapter/outbound/persistence/` | Driven Adapter | JPA repository interfaces (`*RepositoryJpa`) + adapter classes (`*RepositoryAdapter`) |
+| `dto/` | Shared | Request and response DTOs (`Dtos.kt`) |
+| `exception/` | Shared | `Exceptions.kt` + `GlobalExceptionHandler.kt` |
+| `config/` | Shared | `CorsConfig.kt`, `OpenApiConfig.kt` |
 
-| Package | Responsibility |
-|---|---|
-| `controller/` | REST endpoints — `FlowController`, `TrailController`, `AttestationController`, `AssertController`, `ArtifactController`, `ComplianceController` |
-| `service/` | Business logic — `FlowService`, `TrailService`, `AttestationService`, `AssertService`, `ArtifactService`, `EvidenceVaultService`, `ComplianceService` |
-| `repository/` | Spring Data JPA repositories — one per aggregate root |
-| `domain/` | JPA entities — `Flow`, `Trail`, `Attestation`, `Artifact`, `EvidenceFile` |
-| `dto/` | Request and response DTOs (`Dtos.kt`) |
-| `exception/` | `Exceptions.kt` (domain exceptions) and `GlobalExceptionHandler.kt` |
-| `config/` | `CorsConfig.kt`, `OpenApiConfig.kt` |
+### Key Design Decisions
 
-**Key design decisions**:
 - UUIDs as primary keys for all entities.
 - `ConflictException` (HTTP 409) is thrown when a uniqueness constraint is violated (e.g. duplicate Flow name).
 - `NotFoundException` (HTTP 404) is thrown for any lookup that returns no result.
 - `GlobalExceptionHandler` converts domain exceptions to consistent JSON error responses.
 - OpenAPI / Swagger UI is served at `/swagger-ui.html`; the spec is at `/api-docs`.
+- Outbound port interfaces use Kotlin-idiomatic nullable returns (`Flow?`) instead of Java `Optional`.
+
+### The Dependency Rule
+
+> **The Domain and Application layers must never import from `adapter.*` or any Spring/JPA-specific type.**
+
+Enforced by package structure:
+- `core/domain/` — no imports from `application`, `adapter`, Spring, or JPA
+- `core/port/` — imports only from `core/domain/` and `dto/`
+- `application/` — imports only from `core/`, `dto/`, and `exception/`
+- `adapter/inbound/web/` — imports from `core/port/inbound/` and `dto/`
+- `adapter/outbound/persistence/` — imports from `core/port/outbound/` and `core/domain/`
+
 
 ### Frontend — Vue 3 / TypeScript
 
@@ -116,7 +141,13 @@ Repeat this cycle for every logical unit of work, no matter how small.
 
 ### Backend Tests
 
-Backend tests live in `backend/src/test/kotlin/com/factstore/`. They use `@SpringBootTest` with `@Transactional` rollback so each test runs against a clean database state. Do not use mocks unless testing code that cannot run without an external system.
+Backend tests live in `backend/src/test/kotlin/com/factstore/`. Two kinds of tests are expected:
+
+1. **Integration tests** (`@SpringBootTest` + `@Transactional`) — wires the full Spring context with H2 and tests end-to-end service behaviour. These live directly in `com.factstore` (e.g. `FlowServiceTest`).
+
+2. **Unit tests** (no Spring context) — test a single service in complete isolation using an in-memory mock adapter (e.g. `InMemoryFlowRepository`). These live in `com.factstore.core` (e.g. `FlowServiceUnitTest`). This is the preferred style for new business-logic tests because they run instantly and require no database.
+
+**Mock adapters** for driven ports live in `backend/src/test/kotlin/com/factstore/adapter/mock/`. To test a new service in isolation, create an `InMemory*Repository` that implements the corresponding `I*Repository` port, then instantiate the service directly in your test's `@BeforeEach`.
 
 **Run all backend tests:**
 ```bash
@@ -185,6 +216,22 @@ Both jobs must be green before a PR is merged.
 
 Before opening a pull request, verify each item:
 
+### Dependency Rule compliance
+- [ ] No class in `core/domain/` or `core/port/` imports from `application/`, `adapter/`, or any Spring/JPA type.
+- [ ] No class in `application/` imports from `adapter/`.
+- [ ] `adapter/inbound/web/` controllers depend on inbound port **interfaces** (`IFlowService`, etc.), not concrete service classes.
+- [ ] `adapter/outbound/persistence/` adapters depend on JPA repositories and implement outbound port **interfaces** (`IFlowRepository`, etc.).
+
+### Where to add a new feature
+1. **Add the outbound port first** — define the new data-access method in `core/port/outbound/I*Repository.kt`.
+2. **Implement the adapter** — implement the method in the corresponding `*RepositoryAdapter` and `*RepositoryJpa` in `adapter/outbound/persistence/`.
+3. **Add the inbound port** — define the new use case in `core/port/inbound/I*Service.kt`.
+4. **Implement the service** — implement the method in `application/*Service.kt` (injecting only port interfaces, never concrete adapters).
+5. **Add the web adapter** — expose the endpoint in `adapter/inbound/web/*Controller.kt` (using the inbound port interface).
+6. **Write the unit test first** — test the service in isolation using a mock adapter in `src/test/.../adapter/mock/`.
+7. **Add an integration test** if HTTP-level or database behaviour needs verification.
+
+### General checks
 - [ ] A failing test was written **before** the production code (Red step completed).
 - [ ] All new behaviour is covered by at least one test.
 - [ ] All existing tests still pass (`./gradlew test` and `npm run build`).
