@@ -15,6 +15,7 @@ A **Supply Chain Compliance Fact Store** — a full-stack web application for tr
 - [Running the Project](#running-the-project)
 - [Running Tests](#running-tests)
 - [API Documentation](#api-documentation)
+- [Documentation](#documentation)
 
 ---
 
@@ -278,3 +279,15 @@ All REST endpoints are grouped under the `/api/v1` base path.
 GitHub Actions runs on every push to `main` or any `copilot/**` branch, and on pull requests targeting `main`. The pipeline runs backend build + tests and frontend build in parallel.
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for details.
+
+---
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [USER_GUIDE.md](USER_GUIDE.md) | Comprehensive user guide — setup, use cases, security, and lifecycle management. |
+| [API_REFERENCE.md](API_REFERENCE.md) | Complete REST API reference with all endpoints, schemas, and examples. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines, coding conventions, and pull request process. |
+| [SECURITY.md](SECURITY.md) | Security policy, vulnerability reporting, and deployment hardening. |
+| [BACKLOG.md](BACKLOG.md) | Feature backlog and roadmap. |
