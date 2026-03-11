@@ -96,15 +96,15 @@ class WebhookService(
             return configs.firstOrNull()
         }
         return configs.firstOrNull { config ->
-            verifySignature(payload, signature, config.secretHash)
+            verifySignature(payload, signature, config.secret)
         }
     }
 
-    internal fun verifySignature(payload: String, signature: String, secretHash: String): Boolean {
+    internal fun verifySignature(payload: String, signature: String, secret: String): Boolean {
         return try {
             val rawSignature = signature.removePrefix("sha256=")
             val mac = Mac.getInstance("HmacSHA256")
-            mac.init(SecretKeySpec(secretHash.toByteArray(), "HmacSHA256"))
+            mac.init(SecretKeySpec(secret.toByteArray(), "HmacSHA256"))
             val computed = mac.doFinal(payload.toByteArray()).joinToString("") { "%02x".format(it) }
             computed.equals(rawSignature, ignoreCase = true)
         } catch (e: Exception) {

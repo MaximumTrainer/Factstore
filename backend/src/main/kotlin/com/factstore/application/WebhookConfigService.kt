@@ -12,7 +12,6 @@ import com.factstore.exception.NotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.security.MessageDigest
 import java.util.UUID
 
 @Service
@@ -31,7 +30,7 @@ class WebhookConfigService(
         }
         val config = WebhookConfig(
             source = request.source,
-            secretHash = hashSecret(request.secret),
+            secret = request.secret,
             flowId = request.flowId
         )
         val saved = webhookConfigRepository.save(config)
@@ -57,13 +56,6 @@ class WebhookConfigService(
             throw NotFoundException("Webhook config not found: $configId")
         }
         return webhookDeliveryRepository.findByWebhookConfigId(configId).map { it.toResponse() }
-    }
-
-    companion object {
-        fun hashSecret(secret: String): String {
-            val digest = MessageDigest.getInstance("SHA-256")
-            return digest.digest(secret.toByteArray()).joinToString("") { "%02x".format(it) }
-        }
     }
 }
 

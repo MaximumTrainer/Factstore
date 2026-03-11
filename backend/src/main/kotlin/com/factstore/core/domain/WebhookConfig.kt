@@ -16,8 +16,8 @@ class WebhookConfig(
     @Column(nullable = false)
     var source: WebhookSource,
 
-    @Column(name = "secret_hash", nullable = false)
-    var secretHash: String,
+    @Column(name = "secret", nullable = false)
+    var secret: String,
 
     @Column(name = "flow_id", nullable = false)
     var flowId: UUID,

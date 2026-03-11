@@ -11,6 +11,7 @@
     </div>
 
     <div v-if="loading" class="text-center text-gray-500 py-12">Loading...</div>
+    <div v-else-if="loadError" class="text-center text-red-600 py-12">{{ loadError }}</div>
     <div v-else-if="configs.length === 0" class="text-center text-gray-500 py-12">
       No webhook configurations found. Create one to get started.
     </div>
@@ -56,6 +57,8 @@
       </table>
     </div>
 
+    <div v-if="deleteError" class="mt-4 text-sm text-red-600">{{ deleteError }}</div>
+
     <!-- Deliveries Panel -->
     <div v-if="selectedConfig" class="mt-8">
       <div class="flex items-center justify-between mb-4">
@@ -68,6 +71,7 @@
         >Close</button>
       </div>
       <div v-if="deliveriesLoading" class="text-center text-gray-500 py-8">Loading deliveries...</div>
+      <div v-else-if="deliveriesError" class="text-center text-red-600 py-8">{{ deliveriesError }}</div>
       <div v-else-if="deliveries.length === 0" class="text-center text-gray-500 py-8">No deliveries yet.</div>
       <div v-else class="bg-white shadow rounded-lg overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
@@ -171,6 +175,9 @@ const deliveriesLoading = ref(false)
 const showModal = ref(false)
 const submitting = ref(false)
 const formError = ref('')
+const loadError = ref('')
+const deleteError = ref('')
+const deliveriesError = ref('')
 
 const form = ref({ source: 'GENERIC', flowId: '', secret: '' })
 
@@ -200,6 +207,7 @@ async function submitConfig() {
 }
 
 async function handleDelete(id: string) {
+  deleteError.value = ''
   try {
     await deleteWebhookConfig(id)
     configs.value = configs.value.filter(c => c.id !== id)
@@ -208,18 +216,20 @@ async function handleDelete(id: string) {
       deliveries.value = []
     }
   } catch {
-    // silently fail
+    deleteError.value = 'Failed to delete webhook config. Please try again.'
   }
 }
 
 async function viewDeliveries(config: WebhookConfig) {
   selectedConfig.value = config
   deliveriesLoading.value = true
+  deliveriesError.value = ''
   try {
     const res = await getWebhookDeliveries(config.id)
     deliveries.value = res.data
   } catch {
     deliveries.value = []
+    deliveriesError.value = 'Failed to load deliveries. Please try again.'
   } finally {
     deliveriesLoading.value = false
   }
@@ -254,7 +264,7 @@ onMounted(async () => {
     configs.value = configsRes.data
     flows.value = flowsRes.data
   } catch {
-    // silently fail
+    loadError.value = 'Failed to load data. Please refresh the page.'
   } finally {
     loading.value = false
   }
