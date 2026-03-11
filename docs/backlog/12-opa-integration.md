@@ -69,7 +69,12 @@ deny["Release requires PCI-DSS approval"] {
 ```bash
 curl -X POST http://opa-server:8181/v1/data/compliance \
     -H "Content-Type: application/json" \
-    -d @fact.json
+    -d '{
+      "input": {
+        "event_type": "Security Scan",
+        "status": "PASSED"
+      }
+    }'
 ```
 
 If the response includes `"allow": true`, the pipeline proceeds. Otherwise, it halts.

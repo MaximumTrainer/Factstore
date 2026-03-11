@@ -87,25 +87,25 @@ This backlog tracks all features required to build a **compliance-grade Fact Sto
 
 ## Fact Structure (JSON Example)
 
-Each fact represents a verifiable piece of evidence associated with a software release, security check, or compliance event:
+Each fact represents a verifiable piece of evidence associated with a software release, security check, or compliance event. The example below is a **conceptual schema** illustrating the data model — the actual REST API uses camelCase field names and UUID identifiers consistent with the Factstore DTOs:
 
 ```json
 {
-  "fact_id": "fact-12345",
+  "factId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "timestamp": "2025-02-20T14:05:30Z",
   "system": "CI/CD Pipeline",
-  "event_type": "Security Scan",
-  "related_entity": {
+  "eventType": "Security Scan",
+  "relatedEntity": {
     "type": "software_release",
     "id": "release-v1.2.3"
   },
   "status": "PASSED",
   "details": {
     "tool": "OWASP ZAP",
-    "critical_vulnerabilities": 0,
-    "high_vulnerabilities": 2,
-    "medium_vulnerabilities": 5,
-    "low_vulnerabilities": 10
+    "criticalVulnerabilities": 0,
+    "highVulnerabilities": 2,
+    "mediumVulnerabilities": 5,
+    "lowVulnerabilities": 10
   },
   "approvals": [
     {
@@ -113,7 +113,7 @@ Each fact represents a verifiable piece of evidence associated with a software r
       "timestamp": "2025-02-20T15:00:00Z"
     }
   ],
-  "evidence_url": "https://evidence-store.company.com/fact-12345"
+  "evidenceUrl": "https://evidence-store.company.com/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 

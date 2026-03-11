@@ -15,7 +15,7 @@ Financial services regulations require that compliance evidence be stored secure
 - **Access control** with fine-grained policies and audit logging
 - **Dynamic secrets** for database credentials and cloud provider tokens
 
-Currently, the Fact Store's evidence vault stores files locally with no encryption or access control. In a production financial services environment, this is insufficient.
+Currently, the Fact Store's evidence vault stores evidence content in the application database (for example, as BLOBs) with no dedicated encryption or fine-grained access control. In a production financial services environment, this is insufficient.
 
 ## Requirements
 
@@ -31,9 +31,9 @@ Currently, the Fact Store's evidence vault stores files locally with no encrypti
 Store evidence artifacts in Vault with structured paths:
 
 ```
-vault kv put secret/evidence/release-v1.2.3 \
-    security_scan="Passed" \
-    compliance_report="s3://company-compliance/reports/release-v1.2.3.pdf"
+vault kv put secret/evidence/software_release/release-v1.2.3/security_scan \
+    result="Passed" \
+    report_url="s3://company-compliance/reports/release-v1.2.3.pdf"
 ```
 
 Path structure: `secret/evidence/{entity_type}/{entity_id}/{evidence_type}`

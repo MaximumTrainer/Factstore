@@ -97,7 +97,9 @@ services:
   grafana:
     image: grafana/grafana:latest
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      # Set via environment or .env file; for local development you may use 'admin',
+      # but never use 'admin' as the admin password in shared or production environments.
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
     volumes:
       - ./monitoring/dashboards:/var/lib/grafana/dashboards
       - ./monitoring/provisioning:/etc/grafana/provisioning

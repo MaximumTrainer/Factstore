@@ -57,7 +57,7 @@ interface IImmutableLedger {
     fun recordFact(fact: LedgerFact): LedgerReceipt
     fun verifyFact(factId: UUID): VerificationResult
     fun getHistory(factId: UUID): List<LedgerEntry>
-    fun verifyChainIntegrity(from: Timestamp, to: Timestamp): ChainVerificationResult
+    fun verifyChainIntegrity(from: Instant, to: Instant): ChainVerificationResult
 }
 ```
 
@@ -95,7 +95,7 @@ interface IImmutableLedger {
 
 ```json
 {
-    "factId": "fact-12345",
+    "factId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "verified": true,
     "contentHash": "sha256:abc123...",
     "chainPosition": 42,

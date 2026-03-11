@@ -81,9 +81,9 @@ jobs:
 
       - name: Create Trail
         run: |
-          TRAIL_ID=$(curl -s -X POST http://factstore/api/v1/trails \
+          TRAIL_ID=$(curl -s -X POST http://factstore:8080/api/v1/trails \
             -H "Content-Type: application/json" \
-            -d '{"flowId": "$FLOW_ID", "gitCommit": "${{ github.sha }}"}' \
+            -d "$(jq -n --arg flow_id "$FLOW_ID" --arg git_commit "${{ github.sha }}" '{flowId:$flow_id, gitCommit:$git_commit}')" \
             | jq -r '.id')
           echo "TRAIL_ID=$TRAIL_ID" >> $GITHUB_ENV
 
