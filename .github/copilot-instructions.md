@@ -7,7 +7,7 @@ Factstore is a Supply Chain Compliance Fact Store — a full-stack web applicati
 ## Tech Stack
 
 ### Backend
-- **Language:** Kotlin 2.0 on Java 21
+- **Language:** Kotlin 2.0.20 on Java 21
 - **Framework:** Spring Boot 3.2.5 with Spring Data JPA
 - **Database:** H2 (in-memory)
 - **Build tool:** Gradle with Kotlin DSL
@@ -102,7 +102,7 @@ frontend/src/
 
 ## Key Rules
 
-- **Dependency rule:** Domain and application layers must never import from `adapter` or any external framework.
+- **Dependency rule:** Domain and application layers must not import from `adapter` packages. They may use their current external frameworks (e.g., JPA annotations in `core/domain/*`, Spring `@Service`/`@Transactional` in `application/*`).
 - **All REST endpoints** are under the `/api/v1` base path.
 - **Frontend proxies** API calls to the backend via Vite's dev server proxy (`/api` → `http://localhost:8080`).
 - **UUIDs** are used as primary keys for all entities.
