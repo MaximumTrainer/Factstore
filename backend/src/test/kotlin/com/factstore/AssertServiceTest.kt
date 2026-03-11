@@ -1,9 +1,8 @@
 package com.factstore
 
-import com.factstore.domain.AttestationStatus
+import com.factstore.core.domain.AttestationStatus
 import com.factstore.dto.*
-import com.factstore.repository.*
-import com.factstore.service.*
+import com.factstore.application.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired

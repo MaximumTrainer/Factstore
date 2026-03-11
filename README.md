@@ -40,42 +40,92 @@ When a software artifact is built, a **trail** captures provenance metadata (Git
 
 ## Architecture
 
-Factstore follows a standard **three-tier architecture**:
+Factstore is built on **Hexagonal Architecture** (Ports and Adapters), where the core business logic is fully isolated from external systems. Dependencies always point **inward**: adapters depend on ports, ports depend on the domain — never the other way around.
 
 ```
-┌─────────────────────────────────────────┐
-│          Frontend (Vue 3 SPA)           │
-│   Browser  ─►  Vite Dev Server :5173    │
-└───────────────────┬─────────────────────┘
-                    │ HTTP / REST (Axios)
-┌───────────────────▼─────────────────────┐
-│        Backend (Spring Boot API)        │
-│            REST API  :8080              │
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │  Controllers  (REST endpoints)   │   │
-│  │  Services     (business logic)   │   │
-│  │  Repositories (data access)      │   │
-│  │  Entities     (JPA/Hibernate)    │   │
-│  └──────────────────────────────────┘   │
-└───────────────────┬─────────────────────┘
-                    │ JDBC
-┌───────────────────▼─────────────────────┐
-│       H2 In-Memory Database             │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    Frontend (Vue 3 SPA)                         │
+│              Browser  ─►  Vite Dev Server :5173                 │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │ HTTP / REST (Axios)
+┌──────────────────────────────▼──────────────────────────────────┐
+│                  Backend (Spring Boot :8080)                     │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │            DRIVING ADAPTERS (Inbound)                   │    │
+│  │         adapter/inbound/web/ (REST Controllers)         │    │
+│  └───────────────────────────┬─────────────────────────────┘    │
+│                              │ calls via                        │
+│  ┌───────────────────────────▼─────────────────────────────┐    │
+│  │              INBOUND PORTS (Driving)                    │    │
+│  │         core/port/inbound/ (IFlowService, etc.)         │    │
+│  └───────────────────────────┬─────────────────────────────┘    │
+│                              │ implemented by                   │
+│  ┌───────────────────────────▼─────────────────────────────┐    │
+│  │             APPLICATION LAYER (Use Cases)               │    │
+│  │         application/ (FlowService, AssertService, …)    │    │
+│  └──────────┬──────────────────────────────────────────────┘    │
+│             │ calls via                                         │
+│  ┌──────────▼──────────────────────────────────────────────┐    │
+│  │             OUTBOUND PORTS (Driven)                     │    │
+│  │      core/port/outbound/ (IFlowRepository, etc.)        │    │
+│  └──────────┬──────────────────────────────────────────────┘    │
+│             │ implemented by                                    │
+│  ┌──────────▼──────────────────────────────────────────────┐    │
+│  │           DRIVEN ADAPTERS (Outbound)                    │    │
+│  │  adapter/outbound/persistence/ (JPA Repository Adapters)│    │
+│  └──────────┬──────────────────────────────────────────────┘    │
+└─────────────┼────────────────────────────────────────────────────┘
+              │ JDBC
+┌─────────────▼────────────────────────────────────────────────────┐
+│                   H2 In-Memory Database                          │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Why Hexagonal Architecture?
+
+- **Swap storage backends without touching logic.** Replace the H2 JPA adapter with an ElasticSearch or Vector DB adapter by writing a new `IFlowRepository` implementation — zero changes to `FlowService`.
+- **Add new delivery mechanisms freely.** Add a REST API, CLI, or message-queue consumer by writing a new driving adapter against the inbound port interfaces.
+- **Test business logic without infrastructure.** The `InMemoryFlowRepository` mock adapter lets `FlowService` be unit-tested in a plain JUnit test with no Spring context or database.
+
+### Backend Package Layout
+
+```
+com.factstore/
+├── core/
+│   ├── domain/           ← Business entities (Flow, Trail, Artifact, Attestation, EvidenceFile)
+│   └── port/
+│       ├── inbound/      ← Driving port interfaces (IFlowService, IAssertService, …)
+│       └── outbound/     ← Driven port interfaces (IFlowRepository, ITrailRepository, …)
+├── application/          ← Use case implementations (FlowService, AssertService, …)
+├── adapter/
+│   ├── inbound/
+│   │   └── web/          ← Driving adapters: REST Controllers
+│   └── outbound/
+│       └── persistence/  ← Driven adapters: JPA Repository + Adapter classes
+├── dto/                  ← Request / response DTOs
+├── exception/            ← Domain exceptions and global error handler
+└── config/               ← CORS and OpenAPI configuration
 ```
 
 ### Backend Layers
 
 | Layer | Package | Responsibility |
 |-------|---------|---------------|
-| Controller | `controller/` | REST endpoints, request validation |
-| Service | `service/` | Business logic, compliance checking |
-| Repository | `repository/` | JPA data access |
-| Domain | `domain/` | JPA entities (`Flow`, `Trail`, `Artifact`, `Attestation`, `EvidenceFile`) |
+| Domain | `core/domain/` | Business entities (`Flow`, `Trail`, `Artifact`, `Attestation`, `EvidenceFile`) |
+| Inbound Ports | `core/port/inbound/` | Service interfaces (`IFlowService`, `IAssertService`, …) |
+| Outbound Ports | `core/port/outbound/` | Repository interfaces (`IFlowRepository`, `ITrailRepository`, …) |
+| Application | `application/` | Use case implementations (depend only on port interfaces) |
+| Web Adapters | `adapter/inbound/web/` | REST controllers (depend on inbound port interfaces) |
+| Persistence Adapters | `adapter/outbound/persistence/` | JPA implementations of outbound ports |
 | DTO | `dto/` | Request/response objects decoupled from entities |
 | Exception | `exception/` | Custom exceptions and global error handler |
 | Config | `config/` | CORS policy and OpenAPI/Swagger setup |
+
+### Dependency Rule
+
+> **Dependencies always point inward.** The domain and application layers never import from `adapter` or any external framework. Adapters depend on port interfaces; port interfaces depend only on the domain and DTOs.
+
 
 ### Domain Model
 

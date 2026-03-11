@@ -4,8 +4,7 @@ import com.factstore.dto.CreateFlowRequest
 import com.factstore.dto.UpdateFlowRequest
 import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
-import com.factstore.repository.FlowRepository
-import com.factstore.service.FlowService
+import com.factstore.application.FlowService
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -20,9 +19,6 @@ class FlowServiceTest {
 
     @Autowired
     lateinit var flowService: FlowService
-
-    @Autowired
-    lateinit var flowRepository: FlowRepository
 
     @Test
     fun `create flow succeeds`() {

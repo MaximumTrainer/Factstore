@@ -1,7 +1,7 @@
 package com.factstore.dto
 
-import com.factstore.domain.AttestationStatus
-import com.factstore.domain.TrailStatus
+import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.TrailStatus
 import java.time.Instant
 import java.util.UUID
 

@@ -1,10 +1,10 @@
 package com.factstore
 
-import com.factstore.domain.AttestationStatus
-import com.factstore.domain.TrailStatus
+import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.TrailStatus
 import com.factstore.dto.*
-import com.factstore.repository.TrailRepository
-import com.factstore.service.*
+import com.factstore.core.port.outbound.ITrailRepository
+import com.factstore.application.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -19,7 +19,7 @@ class AttestationServiceTest {
     @Autowired lateinit var flowService: FlowService
     @Autowired lateinit var trailService: TrailService
     @Autowired lateinit var attestationService: AttestationService
-    @Autowired lateinit var trailRepository: TrailRepository
+    @Autowired lateinit var trailRepository: ITrailRepository
 
     private fun setupTrail(): UUID {
         val flow = flowService.createFlow(CreateFlowRequest("flow-att-${System.nanoTime()}", "desc", listOf("junit")))
@@ -46,7 +46,7 @@ class AttestationServiceTest {
     fun `record FAILED attestation marks trail NON_COMPLIANT`() {
         val trailId = setupTrail()
         attestationService.recordAttestation(trailId, CreateAttestationRequest("snyk", AttestationStatus.FAILED))
-        val trail = trailRepository.findById(trailId).get()
+        val trail = trailRepository.findById(trailId)!!
         assertEquals(TrailStatus.NON_COMPLIANT, trail.status)
     }
 
