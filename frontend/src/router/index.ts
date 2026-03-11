@@ -5,6 +5,7 @@ import FlowDetailView from '../views/FlowDetailView.vue'
 import TrailDetailView from '../views/TrailDetailView.vue'
 import AssertView from '../views/AssertView.vue'
 import EvidenceVaultView from '../views/EvidenceVaultView.vue'
+import IntegrationsView from '../views/IntegrationsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,7 +15,8 @@ const router = createRouter({
     { path: '/flows/:id', component: FlowDetailView },
     { path: '/trails/:id', component: TrailDetailView },
     { path: '/assert', component: AssertView },
-    { path: '/evidence', component: EvidenceVaultView }
+    { path: '/evidence', component: EvidenceVaultView },
+    { path: '/integrations', component: IntegrationsView }
   ]
 })
 

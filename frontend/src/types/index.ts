@@ -54,3 +54,22 @@ export interface AssertResult {
   missingAttestations: string[]
   failedAttestations: string[]
 }
+
+export interface WebhookConfig {
+  id: string
+  source: 'GITHUB' | 'JENKINS' | 'CIRCLECI' | 'GITLAB' | 'GENERIC'
+  flowId: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface WebhookDelivery {
+  id: string
+  webhookConfigId: string
+  deliveryId: string
+  source: 'GITHUB' | 'JENKINS' | 'CIRCLECI' | 'GITLAB' | 'GENERIC'
+  eventType: string | null
+  status: 'SUCCESS' | 'FAILED' | 'DUPLICATE'
+  statusMessage: string | null
+  receivedAt: string
+}

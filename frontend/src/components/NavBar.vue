@@ -31,7 +31,8 @@ const links = [
   { to: '/', label: 'Dashboard' },
   { to: '/flows', label: 'Flows' },
   { to: '/assert', label: 'Assert' },
-  { to: '/evidence', label: 'Evidence Vault' }
+  { to: '/evidence', label: 'Evidence Vault' },
+  { to: '/integrations', label: 'Integrations' }
 ]
 
 function isActive(path: string): boolean {
