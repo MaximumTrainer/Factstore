@@ -1,6 +1,6 @@
 # 18 — Immutable Ledger Support
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #28](https://github.com/MaximumTrainer/Factstore/issues/28)
 
 ## Summary
 

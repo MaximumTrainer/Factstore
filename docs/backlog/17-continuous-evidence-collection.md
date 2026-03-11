@@ -1,6 +1,6 @@
 # 17 — Continuous Evidence Collection Pipeline
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #27](https://github.com/MaximumTrainer/Factstore/issues/27)
 
 ## Summary
 

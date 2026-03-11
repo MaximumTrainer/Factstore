@@ -1,6 +1,6 @@
 # 15 — Regulatory Compliance Framework (SOX, PCI-DSS, GDPR)
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #25](https://github.com/MaximumTrainer/Factstore/issues/25)
 
 ## Summary
 

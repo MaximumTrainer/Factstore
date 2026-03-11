@@ -1,6 +1,6 @@
 # 12 — OPA (Open Policy Agent) Integration
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #22](https://github.com/MaximumTrainer/Factstore/issues/22)
 
 ## Summary
 

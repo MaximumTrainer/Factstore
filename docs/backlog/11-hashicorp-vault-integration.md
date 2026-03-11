@@ -1,6 +1,6 @@
 # 11 — HashiCorp Vault Integration
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #21](https://github.com/MaximumTrainer/Factstore/issues/21)
 
 ## Summary
 

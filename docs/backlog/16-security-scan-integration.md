@@ -1,6 +1,6 @@
 # 16 — Security Scan Integration (OWASP)
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #26](https://github.com/MaximumTrainer/Factstore/issues/26)
 
 ## Summary
 

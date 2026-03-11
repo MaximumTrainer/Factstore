@@ -1,6 +1,6 @@
 # 13 — Jira & Confluence Integration
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #23](https://github.com/MaximumTrainer/Factstore/issues/23)
 
 ## Summary
 

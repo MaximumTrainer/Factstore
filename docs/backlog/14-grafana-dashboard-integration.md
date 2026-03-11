@@ -1,6 +1,6 @@
 # 14 — Grafana Dashboard Integration
 
-> **Status:** 🆕 New — No existing GitHub issue
+> **Status:** ✅ Existing — [GitHub Issue #24](https://github.com/MaximumTrainer/Factstore/issues/24)
 
 ## Summary
 
