@@ -30,10 +30,10 @@ The backend follows a strict **layered architecture**:
 HTTP Request
     │
     ▼
-Controller        ← validates input, maps HTTP to service calls
+Controller        ← maps HTTP to service calls; minimal validation
     │
     ▼
-Service           ← owns all business logic and transaction boundaries
+Service           ← owns all business logic and transaction boundaries, enforces most validation
     │
     ▼
 Repository        ← Spring Data JPA; no business logic here
@@ -147,7 +147,7 @@ cd frontend
 npm run test:e2e
 ```
 
-The dev server (`npm run dev`) must be running before executing E2E tests locally. In CI the Playwright config starts it automatically.
+The dev server (`npm run dev`) must be running before executing E2E tests; Playwright does not start it automatically in any environment (including CI), so any workflow that runs E2E tests must start the dev server explicitly before invoking `npm run test:e2e`.
 
 ---
 
@@ -190,6 +190,6 @@ Before opening a pull request, verify each item:
 - [ ] All existing tests still pass (`./gradlew test` and `npm run build`).
 - [ ] No business logic has been placed in Controllers or Repositories.
 - [ ] New endpoints follow the existing REST conventions and return appropriate HTTP status codes.
-- [ ] New domain exceptions extend the existing exception hierarchy and are handled by `GlobalExceptionHandler`.
+- [ ] New domain exceptions follow the existing exception pattern and are handled by `GlobalExceptionHandler`.
 - [ ] New TypeScript types are added to `frontend/src/types/index.ts`.
 - [ ] CI is green on the pull request.
