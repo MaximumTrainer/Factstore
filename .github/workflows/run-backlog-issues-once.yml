@@ -1,12 +1,9 @@
 name: "Run Backlog Issue Creation (one-time)"
 
-# Temporary workflow — runs once on merge to main, then delete this file.
+# Temporary workflow — triggers on push to this branch. Delete after issues are created.
 on:
   push:
-    branches: [main]
-    paths:
-      - 'scripts/create-backlog-issues.js'
-      - '.github/workflows/run-backlog-issues-once.yml'
+    branches: [copilot/create-github-issues-from-backlog]
 
 permissions:
   issues: write
