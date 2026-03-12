@@ -25,7 +25,7 @@ class ApiKeyAuthFilter(private val apiKeyService: IApiKeyService) : OncePerReque
     companion object {
         private const val API_KEY_HEADER = "X-API-Key"
         private const val AUTHORIZATION_HEADER = "Authorization"
-        private const val BEARER_PREFIX = "ApiKey "
+        private const val API_KEY_PREFIX = "ApiKey "
     }
 
     override fun doFilterInternal(
@@ -54,8 +54,8 @@ class ApiKeyAuthFilter(private val apiKeyService: IApiKeyService) : OncePerReque
         if (!directHeader.isNullOrBlank()) return directHeader
 
         val authHeader = request.getHeader(AUTHORIZATION_HEADER)
-        if (!authHeader.isNullOrBlank() && authHeader.startsWith(BEARER_PREFIX)) {
-            return authHeader.removePrefix(BEARER_PREFIX).trim()
+        if (!authHeader.isNullOrBlank() && authHeader.startsWith(API_KEY_PREFIX)) {
+            return authHeader.removePrefix(API_KEY_PREFIX).trim()
         }
         return null
     }

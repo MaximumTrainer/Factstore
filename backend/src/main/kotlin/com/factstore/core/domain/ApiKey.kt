@@ -27,7 +27,7 @@ class ApiKey(
      * Used for efficient database lookup before BCrypt verification.
      * Example: "fsp_abcde12" (personal) or "fss_abcde12" (service)
      */
-    @Column(name = "key_prefix", nullable = false, length = 16)
+    @Column(name = "key_prefix", nullable = false, length = 12)
     val keyPrefix: String,
 
     /**

@@ -67,7 +67,10 @@ class EvidenceVaultService(private val evidenceFileRepository: IEvidenceFileRepo
     override fun verifyIntegrity(id: UUID): Boolean {
         val file = evidenceFileRepository.findById(id) ?: return false
         if (file.content == null) {
-            // External references cannot have their content verified server-side
+            // External-URL references store only metadata (hash, size) here; the binary
+            // lives on the customer's own infrastructure and cannot be re-fetched by the
+            // server.  We return true to indicate that the record itself is consistent,
+            // but callers should be aware that the remote file has NOT been re-hashed.
             log.warn("Integrity check skipped for external evidence file: $id (url=${file.externalUrl})")
             return true
         }

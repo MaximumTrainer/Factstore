@@ -43,4 +43,10 @@ class EvidenceFile(
      */
     @Column(name = "external_url", nullable = true, columnDefinition = "TEXT")
     val externalUrl: String? = null
-)
+) {
+    init {
+        require((content != null) xor (externalUrl != null)) {
+            "Exactly one of 'content' or 'externalUrl' must be non-null for an EvidenceFile"
+        }
+    }
+}
