@@ -11,6 +11,7 @@ import java.util.UUID
 interface ArtifactRepositoryJpa : JpaRepository<Artifact, UUID> {
     fun findByTrailId(trailId: UUID): List<Artifact>
     fun findBySha256Digest(sha256Digest: String): List<Artifact>
+    fun findBySha256DigestStartingWith(prefix: String): List<Artifact>
 }
 
 @Component
@@ -18,4 +19,5 @@ class ArtifactRepositoryAdapter(private val jpa: ArtifactRepositoryJpa) : IArtif
     override fun save(artifact: Artifact): Artifact = jpa.save(artifact)
     override fun findByTrailId(trailId: UUID): List<Artifact> = jpa.findByTrailId(trailId)
     override fun findBySha256Digest(sha256Digest: String): List<Artifact> = jpa.findBySha256Digest(sha256Digest)
+    override fun findBySha256DigestStartingWith(prefix: String): List<Artifact> = jpa.findBySha256DigestStartingWith(prefix)
 }
