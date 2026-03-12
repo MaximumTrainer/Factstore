@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pacts-frontend
-          path: pacts/
+          path: pacts/factstore-frontend-factstore-backend.json
           if-no-files-found: error
 
   cli-contract:
@@ -99,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pacts-cli
-          path: pacts/
+          path: pacts/factstore-cli-factstore-backend.json
           if-no-files-found: error
 
   backend-contract:
