@@ -250,3 +250,63 @@ data class CreateJiraTicketRequest(
     val summary: String,
     val issueType: String = "Task"
 )
+
+// Slack Integration DTOs
+data class ConfigureSlackRequest(
+    val botToken: String,
+    val signingSecret: String,
+    val channel: String
+)
+
+data class SlackConfigResponse(
+    val id: UUID,
+    val orgSlug: String,
+    val channel: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+data class SlackCommandResponse(
+    val responseType: String = "in_channel",
+    val text: String
+)
+
+data class TrailNonCompliantNotificationRequest(
+    val trailId: UUID,
+    val flowName: String,
+    val missingAttestationTypes: List<String>,
+    val failedAttestationTypes: List<String>,
+    val trailUrl: String? = null
+)
+
+data class ApprovalRequestedNotificationRequest(
+    val approvalId: String,
+    val artifactSha: String,
+    val targetEnvironment: String,
+    val requiredApprovers: List<String>
+)
+
+// Slack Notification Events
+sealed class SlackNotification {
+    data class TrailNonCompliant(
+        val trailId: UUID,
+        val flowName: String,
+        val missingAttestationTypes: List<String>,
+        val failedAttestationTypes: List<String>,
+        val trailUrl: String? = null
+    ) : SlackNotification()
+
+    data class ApprovalRequested(
+        val approvalId: String,
+        val artifactSha: String,
+        val targetEnvironment: String,
+        val requiredApprovers: List<String>
+    ) : SlackNotification()
+
+    data class ApprovalDecision(
+        val approvalId: String,
+        val decision: String,
+        val decidedBy: String,
+        val comment: String? = null
+    ) : SlackNotification()
+}
