@@ -20,7 +20,7 @@ type Config struct {
 	Token string
 }
 
-// Load initialises Viper and returns the current configuration.
+// Load initializes Viper and returns the current configuration.
 func Load() (*Config, error) {
 	viper.SetConfigName(".factstore")
 	viper.SetConfigType("yaml")

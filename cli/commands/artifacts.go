@@ -36,7 +36,7 @@ var artifactsListCmd = &cobra.Command{
 		}
 		rows := make([][]string, len(artifacts))
 		for i, a := range artifacts {
-			rows[i] = []string{a.ID, a.ImageName, a.ImageTag, a.Registry, a.Sha256Digest[:minLen(a.Sha256Digest, 16)], a.ReportedBy, a.ReportedAt}
+			rows[i] = []string{a.ID, a.ImageName, a.ImageTag, a.Registry, truncate(a.Sha256Digest, 16), a.ReportedBy, a.ReportedAt}
 		}
 		output.PrintTable([]string{"ID", "IMAGE", "TAG", "REGISTRY", "SHA256", "REPORTED BY", "REPORTED AT"}, rows)
 		return nil

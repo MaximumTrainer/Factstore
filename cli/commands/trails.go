@@ -33,7 +33,7 @@ var trailsListCmd = &cobra.Command{
 		}
 		rows := make([][]string, len(trails))
 		for i, t := range trails {
-			rows[i] = []string{t.ID, t.FlowID, t.GitBranch, t.GitCommitSha[:minLen(t.GitCommitSha, 8)], t.GitAuthor, t.Status, t.CreatedAt}
+			rows[i] = []string{t.ID, t.FlowID, t.GitBranch, truncate(t.GitCommitSha, 8), t.GitAuthor, t.Status, t.CreatedAt}
 		}
 		output.PrintTable([]string{"ID", "FLOW ID", "BRANCH", "COMMIT", "AUTHOR", "STATUS", "CREATED AT"}, rows)
 		return nil
@@ -130,12 +130,12 @@ var trailsCreateCmd = &cobra.Command{
 	},
 }
 
-// minLen returns n if len(s) >= n, otherwise len(s).
-func minLen(s string, n int) int {
-	if len(s) < n {
-		return len(s)
+// truncate returns s[:n] if len(s) >= n, otherwise s. Safe for empty strings.
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
 	}
-	return n
+	return s[:n]
 }
 
 func init() {
