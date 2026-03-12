@@ -27,7 +27,7 @@ CREATE TABLE trails (
     created_at            TIMESTAMPTZ  NOT NULL,
     updated_at            TIMESTAMPTZ  NOT NULL,
     CONSTRAINT pk_trails PRIMARY KEY (id),
-    CONSTRAINT fk_trails_flow FOREIGN KEY (flow_id) REFERENCES flows (id)
+    CONSTRAINT fk_trails_flow FOREIGN KEY (flow_id) REFERENCES flows (id) ON DELETE CASCADE
 );
 
 CREATE TABLE artifacts (
@@ -91,7 +91,7 @@ CREATE TABLE webhook_deliveries (
     status_message    TEXT,
     received_at       TIMESTAMPTZ  NOT NULL,
     CONSTRAINT pk_webhook_deliveries PRIMARY KEY (id),
-    CONSTRAINT fk_webhook_deliveries_config FOREIGN KEY (webhook_config_id) REFERENCES webhook_configs (id)
+    CONSTRAINT fk_webhook_deliveries_config FOREIGN KEY (webhook_config_id) REFERENCES webhook_configs (id) ON DELETE CASCADE
 );
 
 CREATE TABLE jira_configs (

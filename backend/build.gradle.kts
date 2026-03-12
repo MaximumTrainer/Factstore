@@ -45,6 +45,7 @@ tasks.withType<Test> {
 
 tasks.named<Test>("test") {
     exclude("**/pact/**")
+    exclude("**/migration/**")
 }
 
 tasks.register<Test>("contractTest") {
@@ -54,6 +55,15 @@ tasks.register<Test>("contractTest") {
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform()
     include("**/pact/**")
+}
+
+tasks.register<Test>("migrationTest") {
+    description = "Validates Flyway migrations against a real PostgreSQL instance"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    include("**/migration/**")
 }
 
 tasks.bootJar {

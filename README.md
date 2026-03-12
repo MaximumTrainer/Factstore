@@ -221,7 +221,7 @@ Factstore uses **PostgreSQL 16** for persistent storage. Schema migrations are m
 
 ### Option A: Docker Compose (Recommended)
 
-The included `docker-compose.yml` starts both PostgreSQL and the backend:
+The included `docker-compose.yml` starts PostgreSQL and the backend (built from the root `Dockerfile`):
 
 ```bash
 # Start only the database (for local development with `./gradlew bootRun`)
@@ -231,15 +231,15 @@ docker compose up -d postgres
 docker compose up --build
 ```
 
-The Docker Compose stack uses these default credentials (matching the application defaults):
+The Docker Compose stack uses these credentials — set them as environment variables or update `docker-compose.yml` before starting:
 
-| Variable | Value |
-|----------|-------|
+| Variable | Default in Compose |
+|----------|--------------------|
 | `DB_HOST` | `postgres` (Docker network) / `localhost` (from host) |
 | `DB_PORT` | `5432` |
 | `DB_NAME` | `factstore` |
-| `DB_USERNAME` | `factstore` |
-| `DB_PASSWORD` | `factstore` |
+| `DB_USERNAME` | `factstore` *(set explicitly — no application default)* |
+| `DB_PASSWORD` | `factstore` *(set explicitly — no application default)* |
 
 ### Option B: External PostgreSQL
 
