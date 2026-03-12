@@ -53,3 +53,9 @@ tasks.register<Test>("contractTest") {
     useJUnitPlatform()
     include("**/pact/**")
 }
+
+tasks.bootJar {
+    manifest {
+        attributes["Implementation-Version"] = project.version
+    }
+}
