@@ -71,6 +71,7 @@ class ApiKeyService(
             keyPrefix = saved.keyPrefix,
             isActive = saved.isActive,
             createdAt = saved.createdAt,
+            lastUsedAt = null,
             plainTextKey = plainTextKey
         )
     }

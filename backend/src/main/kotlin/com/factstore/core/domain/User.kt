@@ -16,7 +16,7 @@ class User(
     @Column(nullable = false)
     var name: String,
 
-    @Column(name = "github_id")
+    @Column(name = "github_id", unique = true)
     var githubId: String? = null,
 
     @Column(name = "created_at", nullable = false)

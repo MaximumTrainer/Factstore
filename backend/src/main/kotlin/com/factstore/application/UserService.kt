@@ -24,6 +24,9 @@ class UserService(private val userRepository: IUserRepository) : IUserService {
         if (userRepository.existsByEmail(request.email)) {
             throw ConflictException("User with email '${request.email}' already exists")
         }
+        if (request.githubId != null && userRepository.findByGithubId(request.githubId) != null) {
+            throw ConflictException("User with GitHub ID '${request.githubId}' already exists")
+        }
         val user = User(
             email = request.email,
             name = request.name,
@@ -56,16 +59,41 @@ class UserService(private val userRepository: IUserRepository) : IUserService {
     }
 
     override fun findOrCreateByGithub(githubId: String, email: String, name: String): UserResponse {
-        val existing = userRepository.findByGithubId(githubId)
-            ?: userRepository.findByEmail(email)
-        if (existing != null) {
-            if (existing.githubId == null) {
-                existing.githubId = githubId
-                existing.updatedAt = Instant.now()
-                userRepository.save(existing)
-            }
-            return existing.toResponse()
+        // 1. Try to resolve by GitHub ID first – this is the canonical link.
+        val existingByGithub = userRepository.findByGithubId(githubId)
+        if (existingByGithub != null) {
+            return existingByGithub.toResponse()
         }
+
+        // 2. Fall back to lookup by email for potential first-time GitHub linking.
+        val existingByEmail = userRepository.findByEmail(email)
+        if (existingByEmail != null) {
+            when {
+                existingByEmail.githubId == null -> {
+                    // Link this GitHub account to the existing user.
+                    existingByEmail.githubId = githubId
+                    existingByEmail.updatedAt = Instant.now()
+                    userRepository.save(existingByEmail)
+                    return existingByEmail.toResponse()
+                }
+                existingByEmail.githubId == githubId -> {
+                    // Idempotent case: email is already linked to this GitHub account.
+                    return existingByEmail.toResponse()
+                }
+                else -> {
+                    // Security-sensitive: email is already linked to a different GitHub account.
+                    log.warn(
+                        "GitHub OAuth conflict for email={} incomingGithubId={} existingGithubId={}",
+                        email, githubId, existingByEmail.githubId
+                    )
+                    throw ConflictException(
+                        "User with email '$email' is already linked to a different GitHub account"
+                    )
+                }
+            }
+        }
+
+        // 3. No matching user – create a new one linked to this GitHub account.
         val user = User(email = email, name = name, githubId = githubId)
         val saved = userRepository.save(user)
         log.info("Created user via GitHub OAuth: ${saved.id} githubId=$githubId")

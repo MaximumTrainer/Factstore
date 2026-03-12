@@ -37,7 +37,7 @@ class SecurityConfig(
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
-            .csrf { it.disable() }
+            .csrf { csrf -> csrf.ignoringRequestMatchers("/api/v1/**") }
             // Allow H2 console frames (dev only)
             .headers { headers -> headers.frameOptions { it.sameOrigin() } }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED) }

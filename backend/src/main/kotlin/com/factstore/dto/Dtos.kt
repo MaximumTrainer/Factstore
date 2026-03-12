@@ -366,6 +366,7 @@ data class ApiKeyCreatedResponse(
     val keyPrefix: String,
     val isActive: Boolean,
     val createdAt: Instant,
+    val lastUsedAt: Instant?,
     /** The full plain-text key. Shown exactly once; never persisted in clear text. */
     val plainTextKey: String
 )

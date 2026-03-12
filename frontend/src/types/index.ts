@@ -165,8 +165,18 @@ export interface ApiKey {
 /**
  * Returned only at creation time; includes the plain-text key shown exactly once.
  * The caller must store it securely — it cannot be retrieved again.
+ * Note: `lastUsedAt` is always null on creation.
  */
-export interface ApiKeyCreated extends ApiKey {
+export interface ApiKeyCreated {
+  id: string
+  userId: string
+  name: string
+  type: ApiKeyType
+  /** First 12 characters of the key — safe to display for identification. */
+  keyPrefix: string
+  isActive: boolean
+  createdAt: string
+  lastUsedAt: string | null
   plainTextKey: string
 }
 

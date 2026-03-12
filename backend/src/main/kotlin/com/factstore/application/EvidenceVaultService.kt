@@ -55,7 +55,7 @@ class EvidenceVaultService(private val evidenceFileRepository: IEvidenceFileRepo
             externalUrl = externalUrl
         )
         val saved = evidenceFileRepository.save(evidenceFile)
-        log.info("Stored external evidence reference: ${saved.id} url=$externalUrl sha256=$sha256Hash")
+        log.info("Stored external evidence reference: ${saved.id} host=${redactUrl(externalUrl)} sha256=$sha256Hash")
         return saved
     }
 
@@ -71,7 +71,7 @@ class EvidenceVaultService(private val evidenceFileRepository: IEvidenceFileRepo
             // lives on the customer's own infrastructure and cannot be re-fetched by the
             // server.  We return true to indicate that the record itself is consistent,
             // but callers should be aware that the remote file has NOT been re-hashed.
-            log.warn("Integrity check skipped for external evidence file: $id (url=${file.externalUrl})")
+            log.warn("Integrity check skipped for external evidence file: $id (host=${redactUrl(file.externalUrl)})")
             return true
         }
         val recomputed = computeSha256(file.content)
@@ -85,6 +85,27 @@ class EvidenceVaultService(private val evidenceFileRepository: IEvidenceFileRepo
         val digest = MessageDigest.getInstance("SHA-256")
         val hashBytes = digest.digest(bytes)
         return hashBytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Strips query parameters and fragments from a URL before logging to prevent leaking
+     * pre-signed credentials or other sensitive query parameters (e.g., AWS S3 X-Amz-Signature).
+     * Falls back to scheme + authority when path parsing fails, and "<redacted>" only when
+     * the URL cannot be parsed at all.
+     */
+    private fun redactUrl(url: String?): String? {
+        if (url == null) return null
+        return try {
+            val uri = java.net.URI(url)
+            val safe = java.net.URI(uri.scheme, uri.authority, uri.path, null, null)
+            safe.toString()
+        } catch (_: Exception) {
+            // URL is malformed; log only scheme+authority if we can extract them cheaply,
+            // otherwise fall back to a generic placeholder.
+            val schemeEnd = url.indexOf("://")
+            val hostEnd = if (schemeEnd >= 0) url.indexOf('/', schemeEnd + 3).takeIf { it >= 0 } ?: url.length else -1
+            if (hostEnd > 0) url.substring(0, hostEnd) + "/<path-redacted>" else "<redacted>"
+        }
     }
 }
 

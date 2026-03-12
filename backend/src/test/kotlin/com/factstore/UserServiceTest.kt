@@ -112,4 +112,21 @@ class UserServiceTest {
         assertEquals("gh-new-link", resp.githubId)
         assertEquals("linkme@example.com", resp.email)
     }
+
+    @Test
+    fun `findOrCreateByGithub throws ConflictException when email is linked to different github id`() {
+        // User already has a different GitHub ID linked to this email
+        userService.createUser(CreateUserRequest("conflict@example.com", "Conflict", githubId = "gh-original"))
+        assertThrows<ConflictException> {
+            userService.findOrCreateByGithub("gh-different", "conflict@example.com", "Conflict")
+        }
+    }
+
+    @Test
+    fun `createUser with duplicate githubId throws ConflictException`() {
+        userService.createUser(CreateUserRequest("first@example.com", "First", githubId = "gh-taken"))
+        assertThrows<ConflictException> {
+            userService.createUser(CreateUserRequest("second@example.com", "Second", githubId = "gh-taken"))
+        }
+    }
 }
