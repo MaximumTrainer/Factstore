@@ -9,6 +9,9 @@ frontend/node_modules/
 frontend/playwright-report/
 frontend/test-results/
 
+# CLI build artifacts
+cli/node_modules/
+
 # IDE files
 .idea/
 *.iml
@@ -25,3 +28,4 @@ Thumbs.db
 # Environment
 .env
 .env.local
+cli/bin/
