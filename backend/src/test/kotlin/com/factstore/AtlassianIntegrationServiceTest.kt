@@ -121,6 +121,18 @@ class AtlassianIntegrationServiceTest {
         assertEquals("Compliance Review - v1.2.3", ticket.summary)
         assertEquals("COMP", ticket.projectKey)
         assertEquals(trailId, ticket.trailId)
+        assertTrue(ticket.ticketKey.startsWith("COMP-PENDING-"))
+    }
+
+    @Test
+    fun `pending ticket keys are unique across multiple local tickets`() {
+        jiraIntegrationService.saveConfig(
+            JiraConfigRequest("https://invalid-jira.example.com", "user@test.com", "token", "COMP")
+        )
+        val trailId = UUID.randomUUID()
+        val ticket1 = jiraIntegrationService.createTicketForTrail(trailId, "First ticket", "Task")
+        val ticket2 = jiraIntegrationService.createTicketForTrail(trailId, "Second ticket", "Task")
+        assertNotEquals(ticket1.ticketKey, ticket2.ticketKey)
     }
 
     @Test

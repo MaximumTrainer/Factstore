@@ -122,7 +122,7 @@ class JiraIntegrationService(
         } catch (ex: Exception) {
             log.warn("Failed to create Jira ticket via API, recording locally: ${ex.message}")
             JiraTicket(
-                ticketKey = "${config.defaultProjectKey}-PENDING",
+                ticketKey = "${config.defaultProjectKey}-PENDING-${UUID.randomUUID().toString().substring(0, 8).uppercase()}",
                 summary = summary,
                 status = "Pending",
                 issueType = issueType,

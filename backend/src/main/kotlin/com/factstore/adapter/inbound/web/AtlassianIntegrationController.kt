@@ -5,6 +5,7 @@ import com.factstore.core.port.inbound.IJiraIntegrationService
 import com.factstore.dto.*
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
@@ -47,7 +48,7 @@ class AtlassianIntegrationController(
     @PostMapping("/jira/tickets")
     @Operation(summary = "Create a Jira ticket for a trail")
     fun createJiraTicket(@RequestBody request: CreateJiraTicketRequest): ResponseEntity<JiraTicketResponse> =
-        ResponseEntity.ok(
+        ResponseEntity.status(HttpStatus.CREATED).body(
             jiraIntegrationService.createTicketForTrail(request.trailId, request.summary, request.issueType)
         )
 
