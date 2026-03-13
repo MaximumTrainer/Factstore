@@ -125,6 +125,67 @@ export interface JiraSyncResponse {
   message: string
 }
 
+// Service Account management
+export interface ServiceAccount {
+  id: string
+  name: string
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateServiceAccountRequest {
+  name: string
+  description?: string
+}
+
+export interface UpdateServiceAccountRequest {
+  name?: string
+  description?: string
+}
+
+// API Key management
+export type OwnerType = 'USER' | 'SERVICE_ACCOUNT'
+
+export interface ApiKey {
+  id: string
+  ownerId: string
+  ownerType: OwnerType
+  label: string
+  /** First 12 characters of the key — safe to display for identification. */
+  keyPrefix: string
+  isActive: boolean
+  createdAt: string
+  lastUsedAt: string | null
+  ttlDays: number | null
+  expiresAt: string | null
+}
+
+/**
+ * Returned only at creation time; includes the plain-text key shown exactly once.
+ * The caller must store it securely — it cannot be retrieved again.
+ */
+export interface ApiKeyCreated {
+  id: string
+  ownerId: string
+  ownerType: OwnerType
+  label: string
+  keyPrefix: string
+  isActive: boolean
+  createdAt: string
+  lastUsedAt: string | null
+  ttlDays: number | null
+  expiresAt: string | null
+  plainTextKey: string
+}
+
+export interface CreateApiKeyRequest {
+  ownerId: string
+  label: string
+  ownerType: OwnerType
+  ttlDays?: number
+}
+
 // User management
 export interface User {
   id: string
@@ -145,45 +206,6 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string
   githubId?: string
-}
-
-// API Key management
-export type ApiKeyType = 'PERSONAL' | 'SERVICE'
-
-export interface ApiKey {
-  id: string
-  userId: string
-  name: string
-  type: ApiKeyType
-  /** First 12 characters of the key — safe to display for identification. */
-  keyPrefix: string
-  isActive: boolean
-  createdAt: string
-  lastUsedAt: string | null
-}
-
-/**
- * Returned only at creation time; includes the plain-text key shown exactly once.
- * The caller must store it securely — it cannot be retrieved again.
- * Note: `lastUsedAt` is always null on creation.
- */
-export interface ApiKeyCreated {
-  id: string
-  userId: string
-  name: string
-  type: ApiKeyType
-  /** First 12 characters of the key — safe to display for identification. */
-  keyPrefix: string
-  isActive: boolean
-  createdAt: string
-  lastUsedAt: string | null
-  plainTextKey: string
-}
-
-export interface CreateApiKeyRequest {
-  userId: string
-  name: string
-  type: ApiKeyType
 }
 
 // Audit Log

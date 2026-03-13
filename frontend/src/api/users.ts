@@ -17,9 +17,9 @@ export const updateUser = (id: string, data: UpdateUserRequest) =>
 export const deleteUser = (id: string) =>
   client.delete(`/users/${id}`)
 
-// API Key endpoints
-export const getApiKeysForUser = (userId: string) =>
-  client.get<ApiKey[]>(`/api-keys/users/${userId}`)
+// API Key endpoints (user-owned keys)
+export const getApiKeysForOwner = (ownerId: string) =>
+  client.get<ApiKey[]>(`/api-keys/owners/${ownerId}`)
 
 /**
  * Creates a new API key and returns it with the plain-text key included.

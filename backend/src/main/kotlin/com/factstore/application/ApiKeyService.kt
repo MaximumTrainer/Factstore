@@ -1,7 +1,7 @@
 package com.factstore.application
 
 import com.factstore.core.domain.ApiKey
-import com.factstore.core.domain.ApiKeyType
+import com.factstore.core.domain.OwnerType
 import com.factstore.core.port.inbound.IApiKeyService
 import com.factstore.core.port.outbound.IApiKeyRepository
 import com.factstore.core.port.outbound.IUserRepository
@@ -25,6 +25,10 @@ class ApiKeyService(
     private val passwordEncoder: BCryptPasswordEncoder
 ) : IApiKeyService {
 
+    companion object {
+        private const val SECONDS_PER_DAY = 86_400L
+    }
+
     private val log = LoggerFactory.getLogger(ApiKeyService::class.java)
     private val secureRandom = SecureRandom()
 
@@ -32,54 +36,49 @@ class ApiKeyService(
      * Generates a cryptographically secure API key, hashes it with BCrypt, persists the
      * hash, and returns the plain-text key exactly once to the caller.
      *
-     * Key format: `fsp_<64 hex chars>` (personal) or `fss_<64 hex chars>` (service).
+     * Key format: `fsp_<64 hex chars>` (user/personal) or `fss_<64 hex chars>` (service account).
      * The prefix stored in the database is the first 12 characters of the full key,
      * which is used for an efficient indexed lookup before the BCrypt comparison.
      */
     override fun createApiKey(request: CreateApiKeyRequest): ApiKeyCreatedResponse {
-        if (!userRepository.existsById(request.userId)) {
-            throw NotFoundException("User not found: ${request.userId}")
+        if (request.ownerType == OwnerType.USER && !userRepository.existsById(request.ownerId)) {
+            throw NotFoundException("User not found: ${request.ownerId}")
         }
 
         val randomBytes = ByteArray(32)
         secureRandom.nextBytes(randomBytes)
         val randomHex = randomBytes.joinToString("") { "%02x".format(it) }
 
-        val typePrefix = when (request.type) {
-            ApiKeyType.PERSONAL -> "fsp"
-            ApiKeyType.SERVICE -> "fss"
+        val typePrefix = when (request.ownerType) {
+            OwnerType.USER -> "fsp"
+            OwnerType.SERVICE_ACCOUNT -> "fss"
         }
         val plainTextKey = "${typePrefix}_$randomHex"
         val keyPrefix = plainTextKey.take(12)
         val hashedKey = passwordEncoder.encode(plainTextKey)
 
+        val expiresAt = request.ttlDays?.let { days ->
+            Instant.now().plusSeconds(days.toLong() * SECONDS_PER_DAY)
+        }
+
         val apiKey = ApiKey(
-            userId = request.userId,
-            type = request.type,
-            name = request.name,
+            ownerId = request.ownerId,
+            ownerType = request.ownerType,
+            label = request.label,
             keyPrefix = keyPrefix,
-            hashedKey = hashedKey
+            hashedKey = hashedKey,
+            ttlDays = request.ttlDays,
+            expiresAt = expiresAt
         )
         val saved = apiKeyRepository.save(apiKey)
-        log.info("Created API key: ${saved.id} type=${saved.type} prefix=${saved.keyPrefix}")
+        log.info("Created API key: ${saved.id} ownerType=${saved.ownerType} prefix=${saved.keyPrefix}")
 
-        return ApiKeyCreatedResponse(
-            id = saved.id,
-            userId = saved.userId,
-            name = saved.name,
-            type = saved.type,
-            keyPrefix = saved.keyPrefix,
-            isActive = saved.isActive,
-            createdAt = saved.createdAt,
-            lastUsedAt = null,
-            plainTextKey = plainTextKey
-        )
+        return saved.toCreatedResponse(plainTextKey)
     }
 
     @Transactional(readOnly = true)
-    override fun listApiKeysForUser(userId: UUID): List<ApiKeyResponse> {
-        if (!userRepository.existsById(userId)) throw NotFoundException("User not found: $userId")
-        return apiKeyRepository.findByUserId(userId).map { it.toResponse() }
+    override fun listApiKeysForOwner(ownerId: UUID): List<ApiKeyResponse> {
+        return apiKeyRepository.findByOwnerId(ownerId).map { it.toResponse() }
     }
 
     override fun revokeApiKey(id: UUID) {
@@ -93,15 +92,19 @@ class ApiKeyService(
      * Validates a raw key from an incoming request:
      * 1. Extracts the prefix (first 12 chars) for indexed database lookup.
      * 2. Iterates matching active keys and verifies the BCrypt hash.
-     * 3. Updates [ApiKey.lastUsedAt] on success.
+     * 3. Rejects expired keys (when [ApiKey.expiresAt] is set and in the past).
+     * 4. Updates [ApiKey.lastUsedAt] on success.
      */
     override fun validateApiKey(rawKey: String): ApiKeyResponse? {
         if (rawKey.length < 12) return null
         val prefix = rawKey.take(12)
-        val candidates = apiKeyRepository.findByKeyPrefix(prefix).filter { it.isActive }
+        val now = Instant.now()
+        val candidates = apiKeyRepository.findByKeyPrefix(prefix).filter { key ->
+            key.isActive && (key.expiresAt == null || key.expiresAt.isAfter(now))
+        }
         for (candidate in candidates) {
             if (passwordEncoder.matches(rawKey, candidate.hashedKey)) {
-                candidate.lastUsedAt = Instant.now()
+                candidate.lastUsedAt = now
                 apiKeyRepository.save(candidate)
                 return candidate.toResponse()
             }
@@ -112,11 +115,27 @@ class ApiKeyService(
 
 fun ApiKey.toResponse() = ApiKeyResponse(
     id = id,
-    userId = userId,
-    name = name,
-    type = type,
+    ownerId = ownerId,
+    ownerType = ownerType,
+    label = label,
     keyPrefix = keyPrefix,
     isActive = isActive,
     createdAt = createdAt,
-    lastUsedAt = lastUsedAt
+    lastUsedAt = lastUsedAt,
+    ttlDays = ttlDays,
+    expiresAt = expiresAt
+)
+
+fun ApiKey.toCreatedResponse(plainTextKey: String) = ApiKeyCreatedResponse(
+    id = id,
+    ownerId = ownerId,
+    ownerType = ownerType,
+    label = label,
+    keyPrefix = keyPrefix,
+    isActive = isActive,
+    createdAt = createdAt,
+    lastUsedAt = lastUsedAt,
+    ttlDays = ttlDays,
+    expiresAt = expiresAt,
+    plainTextKey = plainTextKey
 )
