@@ -3,6 +3,7 @@ package com.factstore.dto
 import com.factstore.core.domain.ApiKeyType
 import com.factstore.core.domain.AttestationStatus
 import com.factstore.core.domain.DeliveryStatus
+import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.TrailStatus
 import com.factstore.core.domain.WebhookSource
 import java.time.Instant
@@ -333,6 +334,24 @@ data class UserResponse(
     val githubId: String?,
     val createdAt: Instant,
     val updatedAt: Instant
+)
+
+// Organisation Member DTOs
+data class InviteMemberRequest(
+    val email: String,
+    val role: MemberRole
+)
+
+data class UpdateMemberRoleRequest(
+    val role: MemberRole
+)
+
+data class MemberResponse(
+    val userId: UUID,
+    val email: String,
+    val name: String,
+    val role: MemberRole,
+    val joinedAt: Instant
 )
 
 // API Key DTOs
