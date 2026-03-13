@@ -100,6 +100,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getEnvironments, createEnvironment } from '../api/environments'
+import { useEnvironmentTypeBadge } from '../composables/useEnvironmentTypeBadge'
 import type { Environment, EnvironmentType } from '../types'
 
 const environments = ref<Environment[]>([])
@@ -114,20 +115,12 @@ const form = ref<{ name: string; type: EnvironmentType; description: string }>({
   description: ''
 })
 
+const { typeBadgeClass } = useEnvironmentTypeBadge()
+
 function closeModal() {
   showModal.value = false
   form.value = { name: '', type: 'K8S', description: '' }
   formError.value = ''
-}
-
-function typeBadgeClass(type: string) {
-  const map: Record<string, string> = {
-    K8S: 'bg-blue-100 text-blue-800',
-    S3: 'bg-yellow-100 text-yellow-800',
-    LAMBDA: 'bg-purple-100 text-purple-800',
-    GENERIC: 'bg-gray-100 text-gray-800'
-  }
-  return map[type] ?? 'bg-gray-100 text-gray-800'
 }
 
 async function submitEnvironment() {
@@ -138,7 +131,8 @@ async function submitEnvironment() {
     const res = await getEnvironments()
     environments.value = res.data
     closeModal()
-  } catch {
+  } catch (err) {
+    console.error('Failed to register environment', err)
     formError.value = 'Failed to register environment. Please try again.'
   } finally {
     submitting.value = false
@@ -149,8 +143,8 @@ onMounted(async () => {
   try {
     const res = await getEnvironments()
     environments.value = res.data
-  } catch {
-    // silently fail
+  } catch (err) {
+    console.error('Failed to load environments', err)
   } finally {
     loading.value = false
   }

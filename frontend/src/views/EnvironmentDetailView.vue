@@ -182,6 +182,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getEnvironment, listSnapshots, getLatestSnapshot, recordSnapshot } from '../api/environments'
+import { useEnvironmentTypeBadge } from '../composables/useEnvironmentTypeBadge'
 import type { Environment, EnvironmentSnapshot } from '../types'
 
 const route = useRoute()
@@ -201,15 +202,7 @@ const snapshotForm = ref({
   artifacts: [] as Array<{ artifactSha256: string; artifactName: string; artifactTag: string; instanceCount: number }>
 })
 
-function typeBadgeClass(type: string) {
-  const map: Record<string, string> = {
-    K8S: 'bg-blue-100 text-blue-800',
-    S3: 'bg-yellow-100 text-yellow-800',
-    LAMBDA: 'bg-purple-100 text-purple-800',
-    GENERIC: 'bg-gray-100 text-gray-800'
-  }
-  return map[type] ?? 'bg-gray-100 text-gray-800'
-}
+const { typeBadgeClass } = useEnvironmentTypeBadge()
 
 function toggleSnapshot(index: number) {
   expandedIndex.value = expandedIndex.value === index ? null : index
@@ -241,7 +234,8 @@ async function submitSnapshot() {
     snapshots.value = snapsRes.data
     latestSnapshot.value = latestRes.data
     closeRecordModal()
-  } catch {
+  } catch (err) {
+    console.error('Failed to record snapshot', err)
     snapshotFormError.value = 'Failed to record snapshot. Please try again.'
   } finally {
     recordingSnapshot.value = false
@@ -257,8 +251,8 @@ onMounted(async () => {
       const latestRes = await getLatestSnapshot(id)
       latestSnapshot.value = latestRes.data
     }
-  } catch {
-    // silently fail
+  } catch (err) {
+    console.error('Failed to load environment data', err)
   } finally {
     loading.value = false
   }
