@@ -3,6 +3,7 @@ package com.factstore.dto
 import com.factstore.core.domain.ApiKeyType
 import com.factstore.core.domain.AttestationStatus
 import com.factstore.core.domain.DeliveryStatus
+import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.TrailStatus
 import com.factstore.core.domain.WebhookSource
@@ -500,4 +501,104 @@ data class ApiKeyCreatedResponse(
     val lastUsedAt: Instant?,
     /** The full plain-text key. Shown exactly once; never persisted in clear text. */
     val plainTextKey: String
+)
+
+// Environment DTOs
+data class CreateEnvironmentRequest(
+    val name: String,
+    val type: EnvironmentType,
+    val description: String = ""
+)
+
+data class UpdateEnvironmentRequest(
+    val name: String? = null,
+    val type: EnvironmentType? = null,
+    val description: String? = null
+)
+
+data class EnvironmentResponse(
+    val id: UUID,
+    val name: String,
+    val type: EnvironmentType,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Policy DTOs
+data class CreatePolicyRequest(
+    val name: String,
+    val enforceProvenance: Boolean = false,
+    val enforceTrailCompliance: Boolean = false,
+    val requiredAttestationTypes: List<String> = emptyList()
+)
+
+data class UpdatePolicyRequest(
+    val name: String? = null,
+    val enforceProvenance: Boolean? = null,
+    val enforceTrailCompliance: Boolean? = null,
+    val requiredAttestationTypes: List<String>? = null
+)
+
+data class PolicyResponse(
+    val id: UUID,
+    val name: String,
+    val enforceProvenance: Boolean,
+    val enforceTrailCompliance: Boolean,
+    val requiredAttestationTypes: List<String>,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// PolicyAttachment DTOs
+data class CreatePolicyAttachmentRequest(
+    val policyId: UUID,
+    val environmentId: UUID
+)
+
+data class PolicyAttachmentResponse(
+    val id: UUID,
+    val policyId: UUID,
+    val environmentId: UUID,
+    val createdAt: Instant
+)
+
+// LogicalEnvironment DTOs
+data class CreateLogicalEnvironmentRequest(
+    val name: String,
+    val description: String = ""
+)
+
+data class UpdateLogicalEnvironmentRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class LogicalEnvironmentResponse(
+    val id: UUID,
+    val name: String,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Organisation DTOs
+data class CreateOrganisationRequest(
+    val slug: String,
+    val name: String,
+    val description: String = ""
+)
+
+data class UpdateOrganisationRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class OrganisationResponse(
+    val id: UUID,
+    val slug: String,
+    val name: String,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )
