@@ -2,9 +2,13 @@ package com.factstore.dto
 
 import com.factstore.core.domain.ApiKeyType
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.ChannelType
 import com.factstore.core.domain.DeliveryStatus
 import com.factstore.core.domain.MemberRole
+import com.factstore.core.domain.NotificationDeliveryStatus
+import com.factstore.core.domain.NotificationSeverity
 import com.factstore.core.domain.TrailStatus
+import com.factstore.core.domain.TriggerEvent
 import com.factstore.core.domain.WebhookSource
 import java.time.Instant
 import java.util.UUID
@@ -500,4 +504,73 @@ data class ApiKeyCreatedResponse(
     val lastUsedAt: Instant?,
     /** The full plain-text key. Shown exactly once; never persisted in clear text. */
     val plainTextKey: String
+)
+
+// Notification Rule DTOs
+data class CreateNotificationRuleRequest(
+    val name: String,
+    val triggerEvent: TriggerEvent,
+    val channelType: ChannelType,
+    val channelConfig: String = "{}",
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null
+)
+
+data class UpdateNotificationRuleRequest(
+    val name: String? = null,
+    val isActive: Boolean? = null,
+    val triggerEvent: TriggerEvent? = null,
+    val channelType: ChannelType? = null,
+    val channelConfig: String? = null,
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null
+)
+
+data class NotificationRuleResponse(
+    val id: UUID,
+    val name: String,
+    val isActive: Boolean,
+    val triggerEvent: TriggerEvent,
+    val channelType: ChannelType,
+    val channelConfig: String,
+    val filterFlowId: UUID?,
+    val filterEnvironmentId: UUID?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Notification Delivery DTOs
+data class NotificationDeliveryResponse(
+    val id: UUID,
+    val ruleId: UUID,
+    val eventType: String,
+    val payload: String?,
+    val status: NotificationDeliveryStatus,
+    val sentAt: Instant,
+    val error: String?,
+    val attemptCount: Int
+)
+
+// In-app Notification DTOs
+data class NotificationResponse(
+    val id: UUID,
+    val title: String,
+    val message: String,
+    val severity: NotificationSeverity,
+    val isRead: Boolean,
+    val entityType: String?,
+    val entityId: UUID?,
+    val createdAt: Instant
+)
+
+data class NotificationEvent(
+    val triggerEvent: TriggerEvent,
+    val title: String,
+    val message: String,
+    val severity: NotificationSeverity = NotificationSeverity.INFO,
+    val entityType: String? = null,
+    val entityId: UUID? = null,
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null,
+    val extraPayload: Map<String, Any?> = emptyMap()
 )

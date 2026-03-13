@@ -9,6 +9,8 @@ import IntegrationsView from '../views/IntegrationsView.vue'
 import AtlassianIntegrationsView from '../views/AtlassianIntegrationsView.vue'
 import LedgerView from '../views/LedgerView.vue'
 import SearchView from '../views/SearchView.vue'
+import NotificationsView from '../views/NotificationsView.vue'
+import NotificationRulesView from '../views/NotificationRulesView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,7 +24,9 @@ const router = createRouter({
     { path: '/search', component: SearchView },
     { path: '/integrations', component: IntegrationsView },
     { path: '/integrations/atlassian', component: AtlassianIntegrationsView },
-    { path: '/ledger', component: LedgerView }
+    { path: '/ledger', component: LedgerView },
+    { path: '/notifications', component: NotificationsView },
+    { path: '/notifications/rules', component: NotificationRulesView }
   ]
 })
 
