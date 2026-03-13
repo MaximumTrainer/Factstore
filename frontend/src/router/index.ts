@@ -25,7 +25,7 @@ const router = createRouter({
     { path: '/integrations', component: IntegrationsView },
     { path: '/integrations/atlassian', component: AtlassianIntegrationsView },
     { path: '/environments', component: EnvironmentsView },
-    { path: '/environments/:id', component: EnvironmentDetailView }
+    { path: '/environments/:id', component: EnvironmentDetailView },
     { path: '/ledger', component: LedgerView }
   ]
 })
