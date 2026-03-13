@@ -182,30 +182,37 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
     }
 
     override fun listEntries(offset: Int, limit: Int): List<LedgerEntry> {
-        val all = mutableListOf<LedgerEntry>()
+        val page = mutableListOf<LedgerEntry>()
+        val safeOffset = offset.coerceAtLeast(0)
         driver.execute { txn: TransactionExecutor ->
+            // Iterate with an index counter so only the requested window is collected,
+            // avoiding loading the entire ledger into memory.
             val result = txn.execute("SELECT * FROM FactLedger")
+            var index = 0
             result.forEach { doc ->
-                val struct = doc as? IonStruct ?: return@forEach
-                all.add(
-                    LedgerEntry(
-                        entryId = (struct.get("documentId") as? IonText)?.stringValue() ?: "",
-                        factId = UUID.fromString(
-                            (struct.get("factId") as? IonText)?.stringValue()
-                                ?: UUID.randomUUID().toString()
-                        ),
-                        eventType = (struct.get("eventType") as? IonText)?.stringValue() ?: "",
-                        contentHash = (struct.get("contentHash") as? IonText)?.stringValue() ?: "",
-                        previousHash = "",
-                        timestamp = Instant.now(),
-                        metadata = emptyMap()
-                    )
-                )
+                if (index >= safeOffset && page.size < limit) {
+                    val struct = doc as? IonStruct
+                    if (struct != null) {
+                        page.add(
+                            LedgerEntry(
+                                entryId = (struct.get("documentId") as? IonText)?.stringValue() ?: "",
+                                factId = UUID.fromString(
+                                    (struct.get("factId") as? IonText)?.stringValue()
+                                        ?: UUID.randomUUID().toString()
+                                ),
+                                eventType = (struct.get("eventType") as? IonText)?.stringValue() ?: "",
+                                contentHash = (struct.get("contentHash") as? IonText)?.stringValue() ?: "",
+                                previousHash = "",
+                                timestamp = Instant.now(),
+                                metadata = emptyMap()
+                            )
+                        )
+                    }
+                }
+                index++
             }
         }
-        val from = offset.coerceAtLeast(0)
-        val to = (from + limit).coerceAtMost(all.size)
-        return if (from >= all.size) emptyList() else all.subList(from, to)
+        return page
     }
 
     override fun countEntries(): Long {
