@@ -24,8 +24,23 @@ class OrganisationMemberService(
     private val log = LoggerFactory.getLogger(OrganisationMemberService::class.java)
 
     @Transactional(readOnly = true)
-    override fun listMembers(orgSlug: String): List<MemberResponse> =
-        membershipRepository.findByOrgSlug(orgSlug).map { it.toResponse() }
+    override fun listMembers(orgSlug: String): List<MemberResponse> {
+        val memberships = membershipRepository.findByOrgSlug(orgSlug)
+        val userIds = memberships.map { it.userId }.toSet()
+        val usersById = userRepository.findAllById(userIds).associateBy { it.id }
+        return memberships.map { membership ->
+            // Users are referenced via FK; a missing entry here indicates data corruption.
+            val user = usersById[membership.userId]
+                ?: throw IllegalStateException("Data corruption: membership references unknown user '${membership.userId}'")
+            MemberResponse(
+                userId = membership.userId,
+                email = user.email,
+                name = user.name,
+                role = membership.role,
+                joinedAt = membership.joinedAt
+            )
+        }
+    }
 
     override fun inviteMember(orgSlug: String, request: InviteMemberRequest): MemberResponse {
         val user = userRepository.findByEmail(request.email)
@@ -38,9 +53,21 @@ class OrganisationMemberService(
             userId = user.id,
             role = request.role
         )
-        val saved = membershipRepository.save(membership)
+        val saved = try {
+            membershipRepository.save(membership)
+        } catch (ex: ConflictException) {
+            // The adapter translates a unique-constraint violation into ConflictException so
+            // concurrent invites racing past the existsByOrgSlugAndUserId check are also caught.
+            throw ConflictException("User '${request.email}' is already a member of organisation '$orgSlug'")
+        }
         log.info("Invited user=${user.id} to org=$orgSlug role=${request.role}")
-        return saved.toResponse()
+        return MemberResponse(
+            userId = saved.userId,
+            email = user.email,
+            name = user.name,
+            role = saved.role,
+            joinedAt = saved.joinedAt
+        )
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +99,7 @@ class OrganisationMemberService(
         return MemberResponse(
             userId = userId,
             email = user.email,
-            displayName = user.name,
+            name = user.name,
             role = role,
             joinedAt = joinedAt
         )

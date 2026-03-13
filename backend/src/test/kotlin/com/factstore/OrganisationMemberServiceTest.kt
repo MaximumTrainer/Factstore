@@ -34,7 +34,7 @@ class OrganisationMemberServiceTest {
         val member = memberService.inviteMember(orgSlug, InviteMemberRequest(user.email, MemberRole.MEMBER))
         assertEquals(user.id, member.userId)
         assertEquals("invite@example.com", member.email)
-        assertEquals("Invite User", member.displayName)
+        assertEquals("Invite User", member.name)
         assertEquals(MemberRole.MEMBER, member.role)
 
         val members = memberService.listMembers(orgSlug)

@@ -2,6 +2,8 @@ package com.factstore.adapter.outbound.persistence
 
 import com.factstore.core.domain.OrganisationMembership
 import com.factstore.core.port.outbound.IOrganisationMembershipRepository
+import com.factstore.exception.ConflictException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Repository
@@ -23,6 +25,10 @@ class OrganisationMembershipRepositoryAdapter(
         jpa.findByOrgSlugAndUserId(orgSlug, userId)
     override fun existsByOrgSlugAndUserId(orgSlug: String, userId: UUID): Boolean =
         jpa.existsByOrgSlugAndUserId(orgSlug, userId)
-    override fun save(membership: OrganisationMembership): OrganisationMembership = jpa.save(membership)
+    override fun save(membership: OrganisationMembership): OrganisationMembership = try {
+        jpa.saveAndFlush(membership)
+    } catch (ex: DataIntegrityViolationException) {
+        throw ConflictException("User '${membership.userId}' is already a member of organisation '${membership.orgSlug}'")
+    }
     override fun delete(membership: OrganisationMembership) = jpa.delete(membership)
 }

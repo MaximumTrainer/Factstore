@@ -349,7 +349,7 @@ data class UpdateMemberRoleRequest(
 data class MemberResponse(
     val userId: UUID,
     val email: String,
-    val displayName: String,
+    val name: String,
     val role: MemberRole,
     val joinedAt: Instant
 )
