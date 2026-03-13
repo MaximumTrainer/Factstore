@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -20,7 +21,7 @@ type Client struct {
 // NewClient constructs a new Factstore API client.
 func NewClient(baseURL, apiToken string) *Client {
 	return &Client{
-		baseURL:  baseURL,
+		baseURL:  strings.TrimRight(baseURL, "/"),
 		apiToken: apiToken,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -87,7 +88,7 @@ type FlowRequest struct {
 type FlowUpdateRequest struct {
 	Name                    *string  `json:"name,omitempty"`
 	Description             *string  `json:"description,omitempty"`
-	RequiredAttestationTypes []string `json:"requiredAttestationTypes,omitempty"`
+	RequiredAttestationTypes []string `json:"requiredAttestationTypes"`
 }
 
 type FlowResponse struct {
@@ -253,7 +254,7 @@ type PolicyUpdateRequest struct {
 	Name                    *string  `json:"name,omitempty"`
 	EnforceProvenance       *bool    `json:"enforceProvenance,omitempty"`
 	EnforceTrailCompliance  *bool    `json:"enforceTrailCompliance,omitempty"`
-	RequiredAttestationTypes []string `json:"requiredAttestationTypes,omitempty"`
+	RequiredAttestationTypes []string `json:"requiredAttestationTypes"`
 }
 
 type PolicyResponse struct {

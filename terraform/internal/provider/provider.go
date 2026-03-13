@@ -65,13 +65,21 @@ func (p *FactstoreProvider) Configure(ctx context.Context, req provider.Configur
 	}
 
 	baseURL := os.Getenv("FACTSTORE_BASE_URL")
-	if !config.BaseURL.IsNull() {
+	if !config.BaseURL.IsNull() && !config.BaseURL.IsUnknown() {
 		baseURL = config.BaseURL.ValueString()
 	}
 
 	apiToken := os.Getenv("FACTSTORE_API_TOKEN")
-	if !config.APIToken.IsNull() {
+	if !config.APIToken.IsNull() && !config.APIToken.IsUnknown() {
 		apiToken = config.APIToken.ValueString()
+	}
+
+	if config.BaseURL.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("base_url"),
+			"Unknown Factstore Base URL",
+			"The provider cannot be configured with an unknown base_url value. Ensure the value is known at provider configuration time.",
+		)
 	}
 
 	if baseURL == "" {
