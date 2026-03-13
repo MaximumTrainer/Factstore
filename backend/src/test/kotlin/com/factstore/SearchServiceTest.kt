@@ -108,4 +108,26 @@ class SearchServiceTest {
         assertEquals("release", found!!.metadata["gitBranch"])
         assertEquals(flow.id.toString(), found.metadata["flowId"])
     }
+
+    @Test
+    fun `search with invalid type throws BadRequestException`() {
+        val ex = assertThrows(com.factstore.exception.BadRequestException::class.java) {
+            searchService.search("anything", "invalid-type")
+        }
+        assertTrue(ex.message!!.contains("invalid-type"))
+    }
+
+    @Test
+    fun `search trims leading and trailing whitespace`() {
+        val flow = flowService.createFlow(CreateFlowRequest("search-trim-flow-${System.nanoTime()}", "desc"))
+        val uniqueBranch = "trim-test-branch-${System.nanoTime()}"
+        trailService.createTrail(CreateTrailRequest(
+            flowId = flow.id, gitCommitSha = "trim123", gitBranch = uniqueBranch,
+            gitAuthor = "trimmer", gitAuthorEmail = "t@t.com"
+        ))
+
+        val result = searchService.search("  $uniqueBranch  ", "trail")
+        assertTrue(result.total > 0, "Expected to find result for trimmed query")
+        assertEquals(uniqueBranch, result.query, "Echoed query should be trimmed")
+    }
 }

@@ -223,7 +223,7 @@ export interface TrailComplianceSummary {
 }
 
 export interface FlowComplianceReport {
-  flowId: string
+  flowId: string | null
   flowName: string
   from: string | null
   to: string | null

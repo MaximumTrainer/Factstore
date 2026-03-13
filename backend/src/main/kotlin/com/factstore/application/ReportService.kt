@@ -41,18 +41,20 @@ class ReportService(
         val trails = when {
             flowId != null && from != null && to != null ->
                 trailRepository.findByFlowIdAndCreatedAtBetween(flowId, from, to)
+            flowId != null && from != null ->
+                trailRepository.findByFlowIdAndCreatedAtAfter(flowId, from)
+            flowId != null && to != null ->
+                trailRepository.findByFlowIdAndCreatedAtBefore(flowId, to)
             flowId != null ->
-                trailRepository.findByFlowId(flowId).let { list ->
-                    if (from != null) list.filter { it.createdAt >= from } else list
-                }.let { list ->
-                    if (to != null) list.filter { it.createdAt <= to } else list
-                }
+                trailRepository.findByFlowId(flowId)
+            from != null && to != null ->
+                trailRepository.findByCreatedAtBetween(from, to)
+            from != null ->
+                trailRepository.findByCreatedAtAfter(from)
+            to != null ->
+                trailRepository.findByCreatedAtBefore(to)
             else ->
-                trailRepository.findAll().let { list ->
-                    if (from != null) list.filter { it.createdAt >= from } else list
-                }.let { list ->
-                    if (to != null) list.filter { it.createdAt <= to } else list
-                }
+                trailRepository.findAll()
         }
 
         val compliant = trails.count { it.status == TrailStatus.COMPLIANT }

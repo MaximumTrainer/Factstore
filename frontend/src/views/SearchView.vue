@@ -36,11 +36,13 @@
       <div v-else>
         <p class="text-sm text-gray-500 mb-3">{{ results.length }} result{{ results.length !== 1 ? 's' : '' }} for <strong>{{ lastQuery }}</strong></p>
         <div class="space-y-3">
-          <div
+          <button
             v-for="item in results"
-            :key="item.id"
-            class="bg-white rounded-lg shadow p-4 hover:bg-gray-50 cursor-pointer flex items-start justify-between"
+            :key="`${item.type}-${item.id}`"
+            type="button"
+            class="w-full bg-white rounded-lg shadow p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-start justify-between text-left"
             @click="navigateTo(item)"
+            @keydown.enter="navigateTo(item)"
           >
             <div class="flex items-start gap-3">
               <span
@@ -68,8 +70,8 @@
                 </div>
               </div>
             </div>
-            <span class="text-indigo-600 text-sm ml-4 flex-shrink-0">View →</span>
-          </div>
+            <span class="text-indigo-600 text-sm ml-4 flex-shrink-0" aria-hidden="true">View →</span>
+          </button>
         </div>
       </div>
     </div>

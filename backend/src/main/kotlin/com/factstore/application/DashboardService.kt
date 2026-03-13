@@ -16,21 +16,19 @@ class DashboardService(
 ) : IDashboardService {
 
     override fun getStats(): DashboardStatsResponse {
-        val flows = flowRepository.findAll()
-        val trails = trailRepository.findAll()
-
-        val compliant = trails.count { it.status == TrailStatus.COMPLIANT }
-        val nonCompliant = trails.count { it.status == TrailStatus.NON_COMPLIANT }
-        val pending = trails.count { it.status == TrailStatus.PENDING }
-        val total = trails.size
+        val totalFlows = flowRepository.countAll()
+        val totalTrails = trailRepository.countAll()
+        val compliant = trailRepository.countByStatus(TrailStatus.COMPLIANT)
+        val nonCompliant = trailRepository.countByStatus(TrailStatus.NON_COMPLIANT)
+        val pending = trailRepository.countByStatus(TrailStatus.PENDING)
 
         return DashboardStatsResponse(
-            totalFlows = flows.size,
-            totalTrails = total,
-            compliantTrails = compliant,
-            nonCompliantTrails = nonCompliant,
-            pendingTrails = pending,
-            complianceRate = complianceRateOf(compliant, total)
+            totalFlows = totalFlows.toInt(),
+            totalTrails = totalTrails.toInt(),
+            compliantTrails = compliant.toInt(),
+            nonCompliantTrails = nonCompliant.toInt(),
+            pendingTrails = pending.toInt(),
+            complianceRate = complianceRateOf(compliant.toInt(), totalTrails.toInt())
         )
     }
 }

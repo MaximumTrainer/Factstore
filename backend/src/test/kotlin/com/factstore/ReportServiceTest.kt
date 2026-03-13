@@ -112,4 +112,39 @@ class ReportServiceTest {
             reportService.getAuditTrailExport(UUID.randomUUID())
         }
     }
+
+    @Test
+    fun `getComplianceReport with only from filter excludes older trails`() {
+        val flow = flowService.createFlow(CreateFlowRequest("report-from-flow-${System.nanoTime()}", "desc"))
+        createTrailForFlow(flow.id)
+
+        // future from — should exclude the trail just created
+        val futureFrom = Instant.now().plusSeconds(3600)
+        val report = reportService.getComplianceReport(flow.id, futureFrom, null)
+        assertEquals(0, report.totalTrails)
+    }
+
+    @Test
+    fun `getComplianceReport with only to filter excludes future trails`() {
+        val flow = flowService.createFlow(CreateFlowRequest("report-to-flow-${System.nanoTime()}", "desc"))
+        createTrailForFlow(flow.id)
+
+        // past to — should exclude the trail just created
+        val pastTo = Instant.now().minusSeconds(3600)
+        val report = reportService.getComplianceReport(flow.id, null, pastTo)
+        assertEquals(0, report.totalTrails)
+    }
+
+    @Test
+    fun `getComplianceReport without flowId with date range filters globally`() {
+        val flow = flowService.createFlow(CreateFlowRequest("report-global-flow-${System.nanoTime()}", "desc"))
+        createTrailForFlow(flow.id)
+
+        val from = Instant.now().minusSeconds(3600)
+        val to = Instant.now().plusSeconds(3600)
+        val report = reportService.getComplianceReport(null, from, to)
+        // Should include at least the trail just created
+        assertTrue(report.totalTrails >= 1)
+        assertEquals("All Flows", report.flowName)
+    }
 }

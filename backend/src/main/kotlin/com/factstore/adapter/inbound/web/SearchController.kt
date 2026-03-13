@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*
 class SearchController(private val searchService: ISearchService) {
 
     @GetMapping
-    @Operation(summary = "Search across trails and artifacts", description = "Full-text search by query string. Use type=trail|artifact to limit results.")
+    @Operation(summary = "Search across trails and artifacts", description = "Full-text search by query string. Use type=trail|artifact to limit results. An invalid type value returns HTTP 400.")
     fun search(
         @RequestParam q: String,
         @RequestParam(required = false) type: String?

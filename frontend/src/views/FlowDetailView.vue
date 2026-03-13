@@ -98,10 +98,13 @@ async function exportComplianceReport() {
     const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
+    const safeName = flow.value.name.replace(/[^\w\-]/g, '-')
     a.href = url
-    a.download = `compliance-report-${flow.value.name}-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `compliance-report-${safeName}-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 100)
   } catch {
     exportError.value = 'Failed to export report. Please try again.'
   } finally {

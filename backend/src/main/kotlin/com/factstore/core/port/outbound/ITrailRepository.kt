@@ -1,6 +1,7 @@
 package com.factstore.core.port.outbound
 
 import com.factstore.core.domain.Trail
+import com.factstore.core.domain.TrailStatus
 import java.time.Instant
 import java.util.UUID
 
@@ -12,4 +13,11 @@ interface ITrailRepository {
     fun findByFlowId(flowId: UUID): List<Trail>
     fun searchByQuery(query: String): List<Trail>
     fun findByFlowIdAndCreatedAtBetween(flowId: UUID, from: Instant, to: Instant): List<Trail>
+    fun findByFlowIdAndCreatedAtAfter(flowId: UUID, from: Instant): List<Trail>
+    fun findByFlowIdAndCreatedAtBefore(flowId: UUID, to: Instant): List<Trail>
+    fun findByCreatedAtBetween(from: Instant, to: Instant): List<Trail>
+    fun findByCreatedAtAfter(from: Instant): List<Trail>
+    fun findByCreatedAtBefore(to: Instant): List<Trail>
+    fun countAll(): Long
+    fun countByStatus(status: TrailStatus): Long
 }

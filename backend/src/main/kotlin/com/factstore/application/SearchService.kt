@@ -2,31 +2,37 @@ package com.factstore.application
 
 import com.factstore.core.port.inbound.ISearchService
 import com.factstore.core.port.outbound.IArtifactRepository
-import com.factstore.core.port.outbound.IAttestationRepository
 import com.factstore.core.port.outbound.ITrailRepository
 import com.factstore.dto.SearchResponse
 import com.factstore.dto.SearchResultItem
+import com.factstore.exception.BadRequestException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+
+private val ALLOWED_TYPES = setOf("trail", "artifact")
 
 @Service
 @Transactional(readOnly = true)
 class SearchService(
     private val trailRepository: ITrailRepository,
-    private val artifactRepository: IArtifactRepository,
-    private val attestationRepository: IAttestationRepository
+    private val artifactRepository: IArtifactRepository
 ) : ISearchService {
 
     private val log = LoggerFactory.getLogger(SearchService::class.java)
 
     override fun search(query: String, type: String?): SearchResponse {
-        if (query.isBlank()) return SearchResponse(results = emptyList(), total = 0, query = query, type = type)
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return SearchResponse(results = emptyList(), total = 0, query = trimmed, type = type)
+
+        if (type != null && type.lowercase() !in ALLOWED_TYPES) {
+            throw BadRequestException("Invalid type '$type'. Allowed values: ${ALLOWED_TYPES.joinToString(", ")}")
+        }
 
         val results = mutableListOf<SearchResultItem>()
 
         if (type == null || type.equals("trail", ignoreCase = true)) {
-            trailRepository.searchByQuery(query).mapTo(results) { trail ->
+            trailRepository.searchByQuery(trimmed).mapTo(results) { trail ->
                 SearchResultItem(
                     type = "trail",
                     id = trail.id,
@@ -45,7 +51,7 @@ class SearchService(
         }
 
         if (type == null || type.equals("artifact", ignoreCase = true)) {
-            artifactRepository.searchByQuery(query).mapTo(results) { artifact ->
+            artifactRepository.searchByQuery(trimmed).mapTo(results) { artifact ->
                 SearchResultItem(
                     type = "artifact",
                     id = artifact.id,
@@ -62,7 +68,7 @@ class SearchService(
             }
         }
 
-        log.info("Search query='$query' type=$type returned ${results.size} results")
-        return SearchResponse(results = results, total = results.size, query = query, type = type)
+        log.debug("Search type={} queryLength={} results={}", type, trimmed.length, results.size)
+        return SearchResponse(results = results, total = results.size, query = trimmed, type = type)
     }
 }
