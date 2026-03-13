@@ -445,6 +445,8 @@ data class EnvironmentSnapshotResponse(
     val recordedAt: Instant,
     val recordedBy: String,
     val artifacts: List<SnapshotArtifactResponse>
+)
+
 // Organisation Member DTOs
 data class InviteMemberRequest(
     val email: String,
