@@ -21,6 +21,9 @@ test('Evidence Vault page loads', async ({ page }) => {
   await expect(page.getByText('Evidence Vault')).toBeVisible()
 })
 
+test('Environments page loads', async ({ page }) => {
+  await page.goto('/environments')
+  await expect(page.getByText('Environments')).toBeVisible()
 test('Audit Log page loads with filter controls', async ({ page }) => {
   await page.goto('/audit')
   await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible()

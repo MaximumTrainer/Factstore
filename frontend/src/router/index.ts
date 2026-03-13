@@ -7,6 +7,8 @@ import AssertView from '../views/AssertView.vue'
 import EvidenceVaultView from '../views/EvidenceVaultView.vue'
 import IntegrationsView from '../views/IntegrationsView.vue'
 import AtlassianIntegrationsView from '../views/AtlassianIntegrationsView.vue'
+import EnvironmentsView from '../views/EnvironmentsView.vue'
+import EnvironmentDetailView from '../views/EnvironmentDetailView.vue'
 import AuditLogView from '../views/AuditLogView.vue'
 import LedgerView from '../views/LedgerView.vue'
 import SearchView from '../views/SearchView.vue'
@@ -23,6 +25,8 @@ const router = createRouter({
     { path: '/search', component: SearchView },
     { path: '/integrations', component: IntegrationsView },
     { path: '/integrations/atlassian', component: AtlassianIntegrationsView },
+    { path: '/environments', component: EnvironmentsView },
+    { path: '/environments/:id', component: EnvironmentDetailView },
     { path: '/audit', component: AuditLogView },
     { path: '/ledger', component: LedgerView }
   ]
