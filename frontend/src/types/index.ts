@@ -3,6 +3,7 @@ export interface Flow {
   name: string
   description: string
   requiredAttestationTypes: string[]
+  tags: Record<string, string>
   createdAt: string
   updatedAt: string
 }

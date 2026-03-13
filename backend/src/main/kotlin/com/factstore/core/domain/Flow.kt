@@ -29,4 +29,10 @@ class Flow(
         get() = if (requiredAttestationTypesRaw.isBlank()) emptyList()
                 else requiredAttestationTypesRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
         set(value) { requiredAttestationTypesRaw = value.joinToString(",") }
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "flow_tags", joinColumns = [JoinColumn(name = "flow_id")])
+    @MapKeyColumn(name = "tag_key", length = 64)
+    @Column(name = "tag_value", length = 256)
+    var tags: MutableMap<String, String> = mutableMapOf()
 }

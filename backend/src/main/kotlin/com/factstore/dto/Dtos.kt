@@ -13,13 +13,15 @@ import java.util.UUID
 data class CreateFlowRequest(
     val name: String,
     val description: String = "",
-    val requiredAttestationTypes: List<String> = emptyList()
+    val requiredAttestationTypes: List<String> = emptyList(),
+    val tags: Map<String, String> = emptyMap()
 )
 
 data class UpdateFlowRequest(
     val name: String? = null,
     val description: String? = null,
-    val requiredAttestationTypes: List<String>? = null
+    val requiredAttestationTypes: List<String>? = null,
+    val tags: Map<String, String>? = null
 )
 
 data class FlowResponse(
@@ -27,6 +29,7 @@ data class FlowResponse(
     val name: String,
     val description: String,
     val requiredAttestationTypes: List<String>,
+    val tags: Map<String, String>,
     val createdAt: Instant,
     val updatedAt: Instant
 )

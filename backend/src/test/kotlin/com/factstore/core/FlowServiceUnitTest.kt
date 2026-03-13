@@ -4,6 +4,7 @@ import com.factstore.adapter.mock.InMemoryFlowRepository
 import com.factstore.application.FlowService
 import com.factstore.dto.CreateFlowRequest
 import com.factstore.dto.UpdateFlowRequest
+import com.factstore.exception.BadRequestException
 import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
 import org.junit.jupiter.api.Assertions.*
@@ -98,5 +99,70 @@ class FlowServiceUnitTest {
         val entity = flowService.getFlowEntity(created.id)
         assertEquals(created.id, entity.id)
         assertEquals(listOf("trivy"), entity.requiredAttestationTypes)
+    }
+
+    @Test
+    fun `create flow with tags persists and returns tags`() {
+        val tags = mapOf("risk-level" to "high", "team" to "payments")
+        val resp = flowService.createFlow(CreateFlowRequest("tagged-flow", "desc", tags = tags))
+        assertEquals(tags, resp.tags)
+    }
+
+    @Test
+    fun `create flow without tags returns empty tags map`() {
+        val resp = flowService.createFlow(CreateFlowRequest("no-tags-flow", "desc"))
+        assertEquals(emptyMap<String, String>(), resp.tags)
+    }
+
+    @Test
+    fun `update flow replaces all tags`() {
+        val created = flowService.createFlow(CreateFlowRequest("tag-upd-flow", "desc", tags = mapOf("old-key" to "old-val")))
+        val updated = flowService.updateFlow(created.id, UpdateFlowRequest(tags = mapOf("new-key" to "new-val")))
+        assertEquals(mapOf("new-key" to "new-val"), updated.tags)
+    }
+
+    @Test
+    fun `update flow with empty tags map clears all tags`() {
+        val created = flowService.createFlow(CreateFlowRequest("tag-clear-flow", "desc", tags = mapOf("key" to "val")))
+        val updated = flowService.updateFlow(created.id, UpdateFlowRequest(tags = emptyMap()))
+        assertEquals(emptyMap<String, String>(), updated.tags)
+    }
+
+    @Test
+    fun `update flow without tags field leaves existing tags unchanged`() {
+        val created = flowService.createFlow(CreateFlowRequest("tag-noop-flow", "desc", tags = mapOf("keep" to "this")))
+        val updated = flowService.updateFlow(created.id, UpdateFlowRequest(description = "updated"))
+        assertEquals(mapOf("keep" to "this"), updated.tags)
+    }
+
+    @Test
+    fun `create flow with more than 50 tags throws BadRequestException`() {
+        val tags = (1..51).associate { "key-$it" to "value-$it" }
+        assertThrows<BadRequestException> {
+            flowService.createFlow(CreateFlowRequest("too-many-tags-flow", "desc", tags = tags))
+        }
+    }
+
+    @Test
+    fun `create flow with key exceeding 64 chars throws BadRequestException`() {
+        val longKey = "k".repeat(65)
+        assertThrows<BadRequestException> {
+            flowService.createFlow(CreateFlowRequest("long-key-flow", "desc", tags = mapOf(longKey to "value")))
+        }
+    }
+
+    @Test
+    fun `create flow with value exceeding 256 chars throws BadRequestException`() {
+        val longValue = "v".repeat(257)
+        assertThrows<BadRequestException> {
+            flowService.createFlow(CreateFlowRequest("long-val-flow", "desc", tags = mapOf("key" to longValue)))
+        }
+    }
+
+    @Test
+    fun `create flow with blank tag key throws BadRequestException`() {
+        assertThrows<BadRequestException> {
+            flowService.createFlow(CreateFlowRequest("blank-key-flow", "desc", tags = mapOf("  " to "value")))
+        }
     }
 }
