@@ -8,7 +8,7 @@ import java.util.UUID
 interface IApiKeyService {
     /** Generates a new API key, hashes it, stores it, and returns the plain-text key once. */
     fun createApiKey(request: CreateApiKeyRequest): ApiKeyCreatedResponse
-    fun listApiKeysForUser(userId: UUID): List<ApiKeyResponse>
+    fun listApiKeysForOwner(ownerId: UUID): List<ApiKeyResponse>
     fun revokeApiKey(id: UUID)
     /**
      * Validates an incoming raw API key against stored hashed keys.

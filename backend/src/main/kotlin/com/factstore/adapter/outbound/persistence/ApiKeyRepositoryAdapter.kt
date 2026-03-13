@@ -10,7 +10,8 @@ import java.util.UUID
 @Repository
 interface ApiKeyRepositoryJpa : JpaRepository<ApiKey, UUID> {
     fun findByKeyPrefix(keyPrefix: String): List<ApiKey>
-    fun findByUserId(userId: UUID): List<ApiKey>
+    fun findByOwnerId(ownerId: UUID): List<ApiKey>
+    fun deleteByOwnerId(ownerId: UUID)
 }
 
 @Component
@@ -18,7 +19,8 @@ class ApiKeyRepositoryAdapter(private val jpa: ApiKeyRepositoryJpa) : IApiKeyRep
     override fun save(apiKey: ApiKey): ApiKey = jpa.save(apiKey)
     override fun findById(id: UUID): ApiKey? = jpa.findById(id).orElse(null)
     override fun findByKeyPrefix(keyPrefix: String): List<ApiKey> = jpa.findByKeyPrefix(keyPrefix)
-    override fun findByUserId(userId: UUID): List<ApiKey> = jpa.findByUserId(userId)
+    override fun findByOwnerId(ownerId: UUID): List<ApiKey> = jpa.findByOwnerId(ownerId)
     override fun existsById(id: UUID): Boolean = jpa.existsById(id)
     override fun deleteById(id: UUID) = jpa.deleteById(id)
+    override fun deleteByOwnerId(ownerId: UUID) = jpa.deleteByOwnerId(ownerId)
 }

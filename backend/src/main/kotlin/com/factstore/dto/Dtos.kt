@@ -1,7 +1,7 @@
 package com.factstore.dto
 
-import com.factstore.core.domain.ApiKeyType
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.OwnerType
 import com.factstore.core.domain.DeliveryStatus
 import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.TrailStatus
@@ -466,23 +466,48 @@ data class MemberResponse(
     val joinedAt: Instant
 )
 
+// Service Account DTOs
+data class CreateServiceAccountRequest(
+    val name: String,
+    val description: String? = null
+)
+
+data class UpdateServiceAccountRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class ServiceAccountResponse(
+    val id: UUID,
+    val name: String,
+    val description: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
 // API Key DTOs
 data class CreateApiKeyRequest(
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType
+    /** UUID of the owner — a User or ServiceAccount depending on [ownerType]. */
+    val ownerId: UUID,
+    /** Human-readable label for this key. */
+    val label: String,
+    val ownerType: OwnerType,
+    /** Optional TTL in days. Null means the key never expires. */
+    val ttlDays: Int? = null
 )
 
 data class ApiKeyResponse(
     val id: UUID,
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType,
+    val ownerId: UUID,
+    val ownerType: OwnerType,
+    val label: String,
     /** First 12 characters of the key (safe to display for identification). */
     val keyPrefix: String,
     val isActive: Boolean,
     val createdAt: Instant,
-    val lastUsedAt: Instant?
+    val lastUsedAt: Instant?,
+    val ttlDays: Int?,
+    val expiresAt: Instant?
 )
 
 /**
@@ -491,13 +516,15 @@ data class ApiKeyResponse(
  */
 data class ApiKeyCreatedResponse(
     val id: UUID,
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType,
+    val ownerId: UUID,
+    val ownerType: OwnerType,
+    val label: String,
     val keyPrefix: String,
     val isActive: Boolean,
     val createdAt: Instant,
     val lastUsedAt: Instant?,
+    val ttlDays: Int?,
+    val expiresAt: Instant?,
     /** The full plain-text key. Shown exactly once; never persisted in clear text. */
     val plainTextKey: String
 )

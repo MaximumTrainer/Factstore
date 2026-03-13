@@ -2,7 +2,7 @@ package com.factstore
 
 import com.factstore.application.ApiKeyService
 import com.factstore.application.UserService
-import com.factstore.core.domain.ApiKeyType
+import com.factstore.core.domain.OwnerType
 import com.factstore.dto.CreateApiKeyRequest
 import com.factstore.dto.CreateUserRequest
 import org.junit.jupiter.api.Assertions.*
@@ -17,9 +17,12 @@ import org.springframework.transaction.annotation.Transactional
 /**
  * Integration tests for [com.factstore.adapter.inbound.web.ApiKeyAuthFilter].
  *
- * Verifies that the filter correctly extracts and validates API keys from both
- * the `X-API-Key` header and the `Authorization: ApiKey <key>` scheme, and that
- * an invalid / absent key leaves the request unauthenticated.
+ * Verifies that the filter correctly extracts and validates API keys from:
+ * - `X-API-Key` header
+ * - `Authorization: Bearer <key>` (standard)
+ * - `Authorization: ApiKey <key>` (legacy scheme)
+ *
+ * Invalid / absent keys leave the request unauthenticated (routes are permitAll so still succeed).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -30,18 +33,16 @@ class ApiKeyAuthFilterTest {
     @Autowired lateinit var userService: UserService
     @Autowired lateinit var apiKeyService: ApiKeyService
 
-    private fun createKeyForNewUser(type: ApiKeyType = ApiKeyType.PERSONAL): String {
+    private fun createKeyForNewUser(ownerType: OwnerType = OwnerType.USER): String {
         val user = userService.createUser(
             CreateUserRequest(email = "filter-test-${System.nanoTime()}@example.com", name = "Filter User")
         )
-        return apiKeyService.createApiKey(CreateApiKeyRequest(user.id, "Test Key", type)).plainTextKey
+        return apiKeyService.createApiKey(CreateApiKeyRequest(user.id, "Test Key", ownerType)).plainTextKey
     }
 
     @Test
     fun `request with valid X-API-Key header is authenticated`() {
         val key = createKeyForNewUser()
-        // The /api/v1/flows endpoint is accessible (permitAll), so a 200 confirms the
-        // request reached the controller, meaning the filter did not block it.
         mockMvc.get("/api/v1/flows") {
             header("X-API-Key", key)
         }.andExpect {
@@ -50,7 +51,17 @@ class ApiKeyAuthFilterTest {
     }
 
     @Test
-    fun `request with valid Authorization ApiKey header is authenticated`() {
+    fun `request with valid Authorization Bearer header is authenticated`() {
+        val key = createKeyForNewUser()
+        mockMvc.get("/api/v1/flows") {
+            header("Authorization", "Bearer $key")
+        }.andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `request with valid Authorization ApiKey header is authenticated (legacy scheme)`() {
         val key = createKeyForNewUser()
         mockMvc.get("/api/v1/flows") {
             header("Authorization", "ApiKey $key")
@@ -80,10 +91,20 @@ class ApiKeyAuthFilterTest {
 
     @Test
     fun `service account key is also accepted via X-API-Key header`() {
-        val key = createKeyForNewUser(ApiKeyType.SERVICE)
-        assertTrue(key.startsWith("fss_"), "Service key should use 'fss_' prefix")
+        val key = createKeyForNewUser(OwnerType.SERVICE_ACCOUNT)
+        assertTrue(key.startsWith("fss_"), "Service account key should use 'fss_' prefix")
         mockMvc.get("/api/v1/flows") {
             header("X-API-Key", key)
+        }.andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `service account key is accepted via Authorization Bearer header`() {
+        val key = createKeyForNewUser(OwnerType.SERVICE_ACCOUNT)
+        mockMvc.get("/api/v1/flows") {
+            header("Authorization", "Bearer $key")
         }.andExpect {
             status { isOk() }
         }
