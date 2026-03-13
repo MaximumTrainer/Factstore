@@ -68,16 +68,16 @@
               <tr v-if="expandedProvenance === artifact.id && provenanceMap[artifact.id]" class="bg-gray-50">
                 <td colspan="5" class="px-6 py-4">
                   <div class="text-sm text-gray-700 grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div><span class="font-medium">Builder ID:</span> {{ provenanceMap[artifact.id]!.builderId }}</div>
-                    <div><span class="font-medium">Builder Type:</span> {{ provenanceMap[artifact.id]!.builderType }}</div>
-                    <div v-if="provenanceMap[artifact.id]!.buildConfigUri"><span class="font-medium">Build Config:</span> {{ provenanceMap[artifact.id]!.buildConfigUri }}</div>
-                    <div v-if="provenanceMap[artifact.id]!.sourceRepositoryUri"><span class="font-medium">Source Repo:</span> {{ provenanceMap[artifact.id]!.sourceRepositoryUri }}</div>
-                    <div v-if="provenanceMap[artifact.id]!.sourceCommitSha"><span class="font-medium">Source Commit:</span> <span class="font-mono">{{ provenanceMap[artifact.id]!.sourceCommitSha }}</span></div>
-                    <div v-if="provenanceMap[artifact.id]!.buildStartedOn"><span class="font-medium">Build Started:</span> {{ formatDate(provenanceMap[artifact.id]!.buildStartedOn!) }}</div>
-                    <div v-if="provenanceMap[artifact.id]!.buildFinishedOn"><span class="font-medium">Build Finished:</span> {{ formatDate(provenanceMap[artifact.id]!.buildFinishedOn!) }}</div>
+                    <div><span class="font-medium">Builder ID:</span> {{ provenanceMap[artifact.id]?.builderId }}</div>
+                    <div><span class="font-medium">Builder Type:</span> {{ provenanceMap[artifact.id]?.builderType }}</div>
+                    <div v-if="provenanceMap[artifact.id]?.buildConfigUri"><span class="font-medium">Build Config:</span> {{ provenanceMap[artifact.id]?.buildConfigUri }}</div>
+                    <div v-if="provenanceMap[artifact.id]?.sourceRepositoryUri"><span class="font-medium">Source Repo:</span> {{ provenanceMap[artifact.id]?.sourceRepositoryUri }}</div>
+                    <div v-if="provenanceMap[artifact.id]?.sourceCommitSha"><span class="font-medium">Source Commit:</span> <span class="font-mono">{{ provenanceMap[artifact.id]?.sourceCommitSha }}</span></div>
+                    <div v-if="provenanceMap[artifact.id]?.buildStartedOn"><span class="font-medium">Build Started:</span> {{ formatDate(provenanceMap[artifact.id]?.buildStartedOn ?? '') }}</div>
+                    <div v-if="provenanceMap[artifact.id]?.buildFinishedOn"><span class="font-medium">Build Finished:</span> {{ formatDate(provenanceMap[artifact.id]?.buildFinishedOn ?? '') }}</div>
                     <div>
                       <span class="font-medium">SLSA Level:</span>
-                      <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">{{ provenanceMap[artifact.id]!.slsaLevel }}</span>
+                      <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">{{ provenanceMap[artifact.id]?.slsaLevel }}</span>
                     </div>
                   </div>
                 </td>
@@ -217,13 +217,13 @@ async function toggleProvenance(artifactId: string) {
     return
   }
   expandedProvenance.value = artifactId
-  if (!provenanceMap.value[artifactId]) {
+  if (provenanceMap.value[artifactId] === undefined) {
     try {
       const trailId = route.params.id as string
       const res = await getProvenance(trailId, artifactId)
       provenanceMap.value[artifactId] = res.data
     } catch {
-      provenanceMap.value[artifactId] = null
+      delete provenanceMap.value[artifactId]
     }
   }
 }

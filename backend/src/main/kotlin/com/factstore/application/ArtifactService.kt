@@ -59,18 +59,25 @@ class ArtifactService(
     @Transactional(readOnly = true)
     override fun listArtifactsForTrail(trailId: UUID): List<ArtifactResponse> {
         if (!trailRepository.existsById(trailId)) throw NotFoundException("Trail not found: $trailId")
-        return artifactRepository.findByTrailId(trailId).map { artifact ->
-            val provenance = buildProvenanceRepository.findByArtifactId(artifact.id)
-            artifact.toResponse(provenance?.provenanceStatus() ?: ProvenanceStatus.NO_PROVENANCE)
+        val artifacts = artifactRepository.findByTrailId(trailId)
+        val provenanceByArtifactId = buildProvenanceRepository
+            .findByArtifactIdIn(artifacts.map { it.id })
+            .associateBy { it.artifactId }
+        return artifacts.map { artifact ->
+            artifact.toResponse(provenanceByArtifactId[artifact.id]?.provenanceStatus() ?: ProvenanceStatus.NO_PROVENANCE)
         }
     }
 
     @Transactional(readOnly = true)
-    override fun findBySha256(sha256Digest: String): List<ArtifactResponse> =
-        artifactRepository.findBySha256Digest(sha256Digest).map { artifact ->
-            val provenance = buildProvenanceRepository.findByArtifactId(artifact.id)
-            artifact.toResponse(provenance?.provenanceStatus() ?: ProvenanceStatus.NO_PROVENANCE)
+    override fun findBySha256(sha256Digest: String): List<ArtifactResponse> {
+        val artifacts = artifactRepository.findBySha256Digest(sha256Digest)
+        val provenanceByArtifactId = buildProvenanceRepository
+            .findByArtifactIdIn(artifacts.map { it.id })
+            .associateBy { it.artifactId }
+        return artifacts.map { artifact ->
+            artifact.toResponse(provenanceByArtifactId[artifact.id]?.provenanceStatus() ?: ProvenanceStatus.NO_PROVENANCE)
         }
+    }
 }
 
 fun Artifact.toResponse(provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO_PROVENANCE) = ArtifactResponse(
