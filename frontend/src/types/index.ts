@@ -213,6 +213,12 @@ export interface AuditEvent {
 
 export interface AuditEventPage {
   events: AuditEvent[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 // Ledger types
 export interface LedgerEntry {
   entryId: string

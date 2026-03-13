@@ -122,8 +122,8 @@ class AssertService(
                 "sha256Digest" to response.sha256Digest,
                 "flowId" to response.flowId.toString(),
                 "status" to response.status.name,
-                "missingAttestationTypes" to response.missingAttestationTypes.joinToString(","),
-                "failedAttestationTypes" to response.failedAttestationTypes.joinToString(",")
+                "missingAttestationTypes" to response.missingAttestationTypes,
+                "failedAttestationTypes" to response.failedAttestationTypes
             ),
             trailId = trailId,
             artifactSha256 = response.sha256Digest

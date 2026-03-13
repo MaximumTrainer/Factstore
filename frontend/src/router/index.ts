@@ -23,7 +23,7 @@ const router = createRouter({
     { path: '/search', component: SearchView },
     { path: '/integrations', component: IntegrationsView },
     { path: '/integrations/atlassian', component: AtlassianIntegrationsView },
-    { path: '/audit', component: AuditLogView }
+    { path: '/audit', component: AuditLogView },
     { path: '/ledger', component: LedgerView }
   ]
 })

@@ -16,7 +16,7 @@ import java.util.UUID
 
 @Repository
 interface AuditEventRepositoryJpa : JpaRepository<AuditEvent, UUID>, JpaSpecificationExecutor<AuditEvent> {
-    fun findByTrailId(trailId: UUID): List<AuditEvent>
+    fun findByTrailIdOrderByOccurredAtDesc(trailId: UUID): List<AuditEvent>
 }
 
 @Component
@@ -26,7 +26,7 @@ class AuditEventRepositoryAdapter(private val jpa: AuditEventRepositoryJpa) : IA
 
     override fun findById(id: UUID): AuditEvent? = jpa.findById(id).orElse(null)
 
-    override fun findByTrailId(trailId: UUID): List<AuditEvent> = jpa.findByTrailId(trailId)
+    override fun findByTrailId(trailId: UUID): List<AuditEvent> = jpa.findByTrailIdOrderByOccurredAtDesc(trailId)
 
     override fun findWithFilters(
         eventType: AuditEventType?,

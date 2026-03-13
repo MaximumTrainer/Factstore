@@ -4,6 +4,7 @@ import com.factstore.core.domain.AuditEventType
 import com.factstore.core.port.inbound.IAuditService
 import com.factstore.dto.AuditEventPage
 import com.factstore.dto.AuditEventResponse
+import com.factstore.exception.BadRequestException
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.format.annotation.DateTimeFormat
@@ -28,8 +29,11 @@ class AuditController(private val auditService: IAuditService) {
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
         @RequestParam(defaultValue = "true") sortDesc: Boolean
-    ): ResponseEntity<AuditEventPage> =
-        ResponseEntity.ok(auditService.queryEvents(eventType, trailId, actor, from, to, page, size, sortDesc))
+    ): ResponseEntity<AuditEventPage> {
+        if (page < 0) throw BadRequestException("page must be >= 0")
+        if (size < 1 || size > 100) throw BadRequestException("size must be between 1 and 100")
+        return ResponseEntity.ok(auditService.queryEvents(eventType, trailId, actor, from, to, page, size, sortDesc))
+    }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get a specific audit event by ID")
