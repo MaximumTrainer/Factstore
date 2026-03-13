@@ -33,7 +33,6 @@ const router = createRouter({
     { path: '/ledger', component: LedgerView },
     { path: '/notifications', component: NotificationsView },
     { path: '/notifications/rules', component: NotificationRulesView }
-    { path: '/ledger', component: LedgerView }
   ]
 })
 
