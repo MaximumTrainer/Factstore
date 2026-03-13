@@ -22,6 +22,7 @@ ALTER TABLE api_keys RENAME COLUMN user_id TO owner_id;
 ALTER TABLE api_keys RENAME COLUMN name TO label;
 
 -- Convert type column: existing values PERSONAL -> USER, SERVICE -> SERVICE_ACCOUNT
+-- These UPDATEs handle any existing rows in production; on a fresh database they are no-ops.
 UPDATE api_keys SET type = 'USER' WHERE type = 'PERSONAL';
 UPDATE api_keys SET type = 'SERVICE_ACCOUNT' WHERE type = 'SERVICE';
 ALTER TABLE api_keys RENAME COLUMN type TO owner_type;

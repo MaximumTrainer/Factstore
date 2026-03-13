@@ -25,6 +25,10 @@ class ApiKeyService(
     private val passwordEncoder: BCryptPasswordEncoder
 ) : IApiKeyService {
 
+    companion object {
+        private const val SECONDS_PER_DAY = 86_400L
+    }
+
     private val log = LoggerFactory.getLogger(ApiKeyService::class.java)
     private val secureRandom = SecureRandom()
 
@@ -54,7 +58,7 @@ class ApiKeyService(
         val hashedKey = passwordEncoder.encode(plainTextKey)
 
         val expiresAt = request.ttlDays?.let { days ->
-            Instant.now().plusSeconds(days.toLong() * 86_400)
+            Instant.now().plusSeconds(days.toLong() * SECONDS_PER_DAY)
         }
 
         val apiKey = ApiKey(

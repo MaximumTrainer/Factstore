@@ -165,7 +165,17 @@ export interface ApiKey {
  * Returned only at creation time; includes the plain-text key shown exactly once.
  * The caller must store it securely — it cannot be retrieved again.
  */
-export interface ApiKeyCreated extends ApiKey {
+export interface ApiKeyCreated {
+  id: string
+  ownerId: string
+  ownerType: OwnerType
+  label: string
+  keyPrefix: string
+  isActive: boolean
+  createdAt: string
+  lastUsedAt: string | null
+  ttlDays: number | null
+  expiresAt: string | null
   plainTextKey: string
 }
 
