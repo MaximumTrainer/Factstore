@@ -677,3 +677,55 @@ data class NotificationEvent(
     val filterEnvironmentId: UUID? = null,
     val extraPayload: Map<String, Any?> = emptyMap()
 )
+
+// Logical Environment DTOs
+data class CreateLogicalEnvironmentRequest(
+    val name: String,
+    val description: String = ""
+)
+
+data class UpdateLogicalEnvironmentRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class LogicalEnvironmentMemberResponse(
+    val physicalEnvId: UUID,
+    val physicalEnvName: String,
+    val physicalEnvType: EnvironmentType,
+    val addedAt: Instant
+)
+
+data class LogicalEnvironmentResponse(
+    val id: UUID,
+    val name: String,
+    val description: String,
+    val members: List<LogicalEnvironmentMemberResponse>,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+data class MergedSnapshotArtifact(
+    val artifactSha256: String,
+    val artifactName: String,
+    val artifactTag: String,
+    val instanceCount: Int,
+    val physicalEnvId: UUID,
+    val physicalEnvName: String
+)
+
+data class MemberSnapshotSummary(
+    val physicalEnvId: UUID,
+    val physicalEnvName: String,
+    val snapshotIndex: Long?,
+    val recordedAt: Instant?,
+    val artifactCount: Int
+)
+
+data class MergedSnapshotResponse(
+    val logicalEnvId: UUID,
+    val logicalEnvName: String,
+    val complianceStatus: ComplianceStatus,
+    val memberSnapshots: List<MemberSnapshotSummary>,
+    val mergedArtifacts: List<MergedSnapshotArtifact>
+)
