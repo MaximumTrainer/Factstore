@@ -3,6 +3,8 @@ package com.factstore.adapter.inbound.web
 import com.factstore.core.port.inbound.IEnvironmentService
 import com.factstore.dto.CreateEnvironmentRequest
 import com.factstore.dto.EnvironmentResponse
+import com.factstore.dto.EnvironmentSnapshotResponse
+import com.factstore.dto.RecordSnapshotRequest
 import com.factstore.dto.UpdateEnvironmentRequest
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -13,11 +15,11 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/environments")
-@Tag(name = "Environments", description = "Environment management")
+@Tag(name = "Environments", description = "Environment tracking and snapshot management")
 class EnvironmentController(private val environmentService: IEnvironmentService) {
 
     @PostMapping
-    @Operation(summary = "Create a new environment")
+    @Operation(summary = "Register a new environment")
     fun createEnvironment(@RequestBody request: CreateEnvironmentRequest): ResponseEntity<EnvironmentResponse> =
         ResponseEntity.status(HttpStatus.CREATED).body(environmentService.createEnvironment(request))
 
@@ -45,4 +47,30 @@ class EnvironmentController(private val environmentService: IEnvironmentService)
         environmentService.deleteEnvironment(id)
         return ResponseEntity.noContent().build()
     }
+
+    @PostMapping("/{id}/snapshots")
+    @Operation(summary = "Record a new snapshot for an environment")
+    fun recordSnapshot(
+        @PathVariable id: UUID,
+        @RequestBody request: RecordSnapshotRequest
+    ): ResponseEntity<EnvironmentSnapshotResponse> =
+        ResponseEntity.status(HttpStatus.CREATED).body(environmentService.recordSnapshot(id, request))
+
+    @GetMapping("/{id}/snapshots")
+    @Operation(summary = "List all snapshots for an environment")
+    fun listSnapshots(@PathVariable id: UUID): ResponseEntity<List<EnvironmentSnapshotResponse>> =
+        ResponseEntity.ok(environmentService.listSnapshots(id))
+
+    @GetMapping("/{id}/snapshots/latest")
+    @Operation(summary = "Get the most recent snapshot for an environment")
+    fun getLatestSnapshot(@PathVariable id: UUID): ResponseEntity<EnvironmentSnapshotResponse> =
+        ResponseEntity.ok(environmentService.getLatestSnapshot(id))
+
+    @GetMapping("/{id}/snapshots/{snapshotIndex}")
+    @Operation(summary = "Get a specific snapshot by index")
+    fun getSnapshot(
+        @PathVariable id: UUID,
+        @PathVariable snapshotIndex: Long
+    ): ResponseEntity<EnvironmentSnapshotResponse> =
+        ResponseEntity.ok(environmentService.getSnapshot(id, snapshotIndex))
 }

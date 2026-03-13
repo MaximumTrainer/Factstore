@@ -1,11 +1,16 @@
 package com.factstore.dto
 
-import com.factstore.core.domain.ApiKeyType
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.OwnerType
+import com.factstore.core.domain.AuditEventType
+import com.factstore.core.domain.ChannelType
 import com.factstore.core.domain.DeliveryStatus
 import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.MemberRole
+import com.factstore.core.domain.NotificationDeliveryStatus
+import com.factstore.core.domain.NotificationSeverity
 import com.factstore.core.domain.TrailStatus
+import com.factstore.core.domain.TriggerEvent
 import com.factstore.core.domain.WebhookSource
 import java.time.Instant
 import java.util.UUID
@@ -449,60 +454,6 @@ data class UserResponse(
     val updatedAt: Instant
 )
 
-// Organisation Member DTOs
-data class InviteMemberRequest(
-    val email: String,
-    val role: MemberRole
-)
-
-data class UpdateMemberRoleRequest(
-    val role: MemberRole
-)
-
-data class MemberResponse(
-    val userId: UUID,
-    val email: String,
-    val name: String,
-    val role: MemberRole,
-    val joinedAt: Instant
-)
-
-// API Key DTOs
-data class CreateApiKeyRequest(
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType
-)
-
-data class ApiKeyResponse(
-    val id: UUID,
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType,
-    /** First 12 characters of the key (safe to display for identification). */
-    val keyPrefix: String,
-    val isActive: Boolean,
-    val createdAt: Instant,
-    val lastUsedAt: Instant?
-)
-
-/**
- * Returned only once at creation time; contains the plain-text key that must be
- * stored securely by the caller — it cannot be retrieved again.
- */
-data class ApiKeyCreatedResponse(
-    val id: UUID,
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType,
-    val keyPrefix: String,
-    val isActive: Boolean,
-    val createdAt: Instant,
-    val lastUsedAt: Instant?,
-    /** The full plain-text key. Shown exactly once; never persisted in clear text. */
-    val plainTextKey: String
-)
-
 // Environment DTOs
 data class CreateEnvironmentRequest(
     val name: String,
@@ -523,6 +474,208 @@ data class EnvironmentResponse(
     val description: String,
     val createdAt: Instant,
     val updatedAt: Instant
+)
+
+data class SnapshotArtifactRequest(
+    val artifactSha256: String,
+    val artifactName: String,
+    val artifactTag: String,
+    val instanceCount: Int = 1
+)
+
+data class RecordSnapshotRequest(
+    val recordedBy: String,
+    val artifacts: List<SnapshotArtifactRequest> = emptyList()
+)
+
+data class SnapshotArtifactResponse(
+    val artifactSha256: String,
+    val artifactName: String,
+    val artifactTag: String,
+    val instanceCount: Int
+)
+
+data class EnvironmentSnapshotResponse(
+    val id: UUID,
+    val environmentId: UUID,
+    val snapshotIndex: Long,
+    val recordedAt: Instant,
+    val recordedBy: String,
+    val artifacts: List<SnapshotArtifactResponse>
+)
+
+// Organisation Member DTOs
+data class InviteMemberRequest(
+    val email: String,
+    val role: MemberRole
+)
+
+data class UpdateMemberRoleRequest(
+    val role: MemberRole
+)
+
+data class MemberResponse(
+    val userId: UUID,
+    val email: String,
+    val name: String,
+    val role: MemberRole,
+    val joinedAt: Instant
+)
+
+// Service Account DTOs
+data class CreateServiceAccountRequest(
+    val name: String,
+    val description: String? = null
+)
+
+data class UpdateServiceAccountRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class ServiceAccountResponse(
+    val id: UUID,
+    val name: String,
+    val description: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// API Key DTOs
+data class CreateApiKeyRequest(
+    /** UUID of the owner — a User or ServiceAccount depending on [ownerType]. */
+    val ownerId: UUID,
+    /** Human-readable label for this key. */
+    val label: String,
+    val ownerType: OwnerType,
+    /** Optional TTL in days. Null means the key never expires. */
+    val ttlDays: Int? = null
+)
+
+data class ApiKeyResponse(
+    val id: UUID,
+    val ownerId: UUID,
+    val ownerType: OwnerType,
+    val label: String,
+    /** First 12 characters of the key (safe to display for identification). */
+    val keyPrefix: String,
+    val isActive: Boolean,
+    val createdAt: Instant,
+    val lastUsedAt: Instant?,
+    val ttlDays: Int?,
+    val expiresAt: Instant?
+)
+
+/**
+ * Returned only once at creation time; contains the plain-text key that must be
+ * stored securely by the caller — it cannot be retrieved again.
+ */
+data class ApiKeyCreatedResponse(
+    val id: UUID,
+    val ownerId: UUID,
+    val ownerType: OwnerType,
+    val label: String,
+    val keyPrefix: String,
+    val isActive: Boolean,
+    val createdAt: Instant,
+    val lastUsedAt: Instant?,
+    val ttlDays: Int?,
+    val expiresAt: Instant?,
+    /** The full plain-text key. Shown exactly once; never persisted in clear text. */
+    val plainTextKey: String
+)
+
+// Audit Log DTOs
+data class AuditEventResponse(
+    val id: UUID,
+    val eventType: AuditEventType,
+    val environmentId: UUID?,
+    val trailId: UUID?,
+    val artifactSha256: String?,
+    val actor: String,
+    val payload: String,
+    val occurredAt: Instant
+)
+
+data class AuditEventPage(
+    val events: List<AuditEventResponse>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int
+)
+
+// Notification Rule DTOs
+data class CreateNotificationRuleRequest(
+    val name: String,
+    val triggerEvent: TriggerEvent,
+    val channelType: ChannelType,
+    val channelConfig: String = "{}",
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null
+)
+
+data class UpdateNotificationRuleRequest(
+    val name: String? = null,
+    val isActive: Boolean? = null,
+    val triggerEvent: TriggerEvent? = null,
+    val channelType: ChannelType? = null,
+    val channelConfig: String? = null,
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null,
+    /** When true, clears the filterFlowId regardless of the filterFlowId field value. */
+    val clearFilterFlowId: Boolean = false,
+    /** When true, clears the filterEnvironmentId regardless of the filterEnvironmentId field value. */
+    val clearFilterEnvironmentId: Boolean = false
+)
+
+data class NotificationRuleResponse(
+    val id: UUID,
+    val name: String,
+    val isActive: Boolean,
+    val triggerEvent: TriggerEvent,
+    val channelType: ChannelType,
+    val channelConfig: String,
+    val filterFlowId: UUID?,
+    val filterEnvironmentId: UUID?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Notification Delivery DTOs
+data class NotificationDeliveryResponse(
+    val id: UUID,
+    val ruleId: UUID,
+    val eventType: String,
+    val payload: String?,
+    val status: NotificationDeliveryStatus,
+    val sentAt: Instant,
+    val error: String?,
+    val attemptCount: Int
+)
+
+// In-app Notification DTOs
+data class NotificationResponse(
+    val id: UUID,
+    val title: String,
+    val message: String,
+    val severity: NotificationSeverity,
+    val isRead: Boolean,
+    val entityType: String?,
+    val entityId: UUID?,
+    val createdAt: Instant
+)
+
+data class NotificationEvent(
+    val triggerEvent: TriggerEvent,
+    val title: String,
+    val message: String,
+    val severity: NotificationSeverity = NotificationSeverity.INFO,
+    val entityType: String? = null,
+    val entityId: UUID? = null,
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null,
+    val extraPayload: Map<String, Any?> = emptyMap()
 )
 
 // Policy DTOs

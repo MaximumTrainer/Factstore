@@ -4,7 +4,7 @@ import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID
 
-enum class EnvironmentType { K8S, ECS, VM, PHYSICAL, SERVERLESS }
+enum class EnvironmentType { K8S, S3, LAMBDA, GENERIC }
 
 @Entity
 @Table(name = "environments")

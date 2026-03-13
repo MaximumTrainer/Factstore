@@ -125,6 +125,67 @@ export interface JiraSyncResponse {
   message: string
 }
 
+// Service Account management
+export interface ServiceAccount {
+  id: string
+  name: string
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateServiceAccountRequest {
+  name: string
+  description?: string
+}
+
+export interface UpdateServiceAccountRequest {
+  name?: string
+  description?: string
+}
+
+// API Key management
+export type OwnerType = 'USER' | 'SERVICE_ACCOUNT'
+
+export interface ApiKey {
+  id: string
+  ownerId: string
+  ownerType: OwnerType
+  label: string
+  /** First 12 characters of the key — safe to display for identification. */
+  keyPrefix: string
+  isActive: boolean
+  createdAt: string
+  lastUsedAt: string | null
+  ttlDays: number | null
+  expiresAt: string | null
+}
+
+/**
+ * Returned only at creation time; includes the plain-text key shown exactly once.
+ * The caller must store it securely — it cannot be retrieved again.
+ */
+export interface ApiKeyCreated {
+  id: string
+  ownerId: string
+  ownerType: OwnerType
+  label: string
+  keyPrefix: string
+  isActive: boolean
+  createdAt: string
+  lastUsedAt: string | null
+  ttlDays: number | null
+  expiresAt: string | null
+  plainTextKey: string
+}
+
+export interface CreateApiKeyRequest {
+  ownerId: string
+  label: string
+  ownerType: OwnerType
+  ttlDays?: number
+}
+
 // User management
 export interface User {
   id: string
@@ -147,43 +208,37 @@ export interface UpdateUserRequest {
   githubId?: string
 }
 
-// API Key management
-export type ApiKeyType = 'PERSONAL' | 'SERVICE'
+// Audit Log
+export type AuditEventType =
+  | 'ARTIFACT_DEPLOYED'
+  | 'ARTIFACT_REMOVED'
+  | 'ARTIFACT_UPDATED'
+  | 'ENVIRONMENT_CREATED'
+  | 'ENVIRONMENT_DELETED'
+  | 'POLICY_EVALUATED'
+  | 'ATTESTATION_RECORDED'
+  | 'APPROVAL_GRANTED'
+  | 'APPROVAL_REJECTED'
+  | 'GATE_BLOCKED'
+  | 'GATE_ALLOWED'
 
-export interface ApiKey {
+export interface AuditEvent {
   id: string
-  userId: string
-  name: string
-  type: ApiKeyType
-  /** First 12 characters of the key — safe to display for identification. */
-  keyPrefix: string
-  isActive: boolean
-  createdAt: string
-  lastUsedAt: string | null
+  eventType: AuditEventType
+  environmentId: string | null
+  trailId: string | null
+  artifactSha256: string | null
+  actor: string
+  payload: string
+  occurredAt: string
 }
 
-/**
- * Returned only at creation time; includes the plain-text key shown exactly once.
- * The caller must store it securely — it cannot be retrieved again.
- * Note: `lastUsedAt` is always null on creation.
- */
-export interface ApiKeyCreated {
-  id: string
-  userId: string
-  name: string
-  type: ApiKeyType
-  /** First 12 characters of the key — safe to display for identification. */
-  keyPrefix: string
-  isActive: boolean
-  createdAt: string
-  lastUsedAt: string | null
-  plainTextKey: string
-}
-
-export interface CreateApiKeyRequest {
-  userId: string
-  name: string
-  type: ApiKeyType
+export interface AuditEventPage {
+  events: AuditEvent[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
 }
 
 // Ledger types
@@ -292,3 +347,124 @@ export interface AuditTrailExport {
   evidenceFiles: EvidenceFile[]
 }
 
+// Environment Tracking
+export type EnvironmentType = 'K8S' | 'S3' | 'LAMBDA' | 'GENERIC'
+
+export interface Environment {
+  id: string
+  name: string
+  type: EnvironmentType
+  description: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SnapshotArtifact {
+  artifactSha256: string
+  artifactName: string
+  artifactTag: string
+  instanceCount: number
+}
+
+export interface EnvironmentSnapshot {
+  id: string
+  environmentId: string
+  snapshotIndex: number
+  recordedAt: string
+  recordedBy: string
+  artifacts: SnapshotArtifact[]
+}
+
+export interface CreateEnvironmentRequest {
+  name: string
+  type: EnvironmentType
+  description?: string
+}
+
+export interface UpdateEnvironmentRequest {
+  name?: string
+  type?: EnvironmentType
+  description?: string
+}
+
+export interface RecordSnapshotRequest {
+  recordedBy: string
+  artifacts: Array<{
+    artifactSha256: string
+    artifactName: string
+    artifactTag: string
+    instanceCount: number
+  }>
+}
+
+
+// Notification types
+export type TriggerEvent =
+  | 'ATTESTATION_FAILED'
+  | 'GATE_BLOCKED'
+  | 'DRIFT_DETECTED'
+  | 'APPROVAL_REQUIRED'
+  | 'TRAIL_NON_COMPLIANT'
+  | 'APPROVAL_REJECTED'
+
+export type ChannelType = 'SLACK' | 'WEBHOOK' | 'IN_APP'
+
+export type NotificationDeliveryStatus = 'SENT' | 'FAILED' | 'SKIPPED'
+
+export type NotificationSeverity = 'INFO' | 'WARNING' | 'CRITICAL'
+
+export interface NotificationRule {
+  id: string
+  name: string
+  isActive: boolean
+  triggerEvent: TriggerEvent
+  channelType: ChannelType
+  channelConfig: string
+  filterFlowId: string | null
+  filterEnvironmentId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateNotificationRuleRequest {
+  name: string
+  triggerEvent: TriggerEvent
+  channelType: ChannelType
+  channelConfig?: string
+  filterFlowId?: string | null
+  filterEnvironmentId?: string | null
+}
+
+export interface UpdateNotificationRuleRequest {
+  name?: string
+  isActive?: boolean
+  triggerEvent?: TriggerEvent
+  channelType?: ChannelType
+  channelConfig?: string
+  filterFlowId?: string | null
+  filterEnvironmentId?: string | null
+  clearFilterFlowId?: boolean
+  clearFilterEnvironmentId?: boolean
+}
+
+export interface NotificationDelivery {
+  id: string
+  ruleId: string
+  eventType: string
+  payload: string | null
+  status: NotificationDeliveryStatus
+  sentAt: string
+  error: string | null
+  attemptCount: number
+}
+
+export interface Notification {
+  id: string
+  title: string
+  message: string
+  severity: NotificationSeverity
+  isRead: boolean
+  entityType: string | null
+  entityId: string | null
+  createdAt: string
+}

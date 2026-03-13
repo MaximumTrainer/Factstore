@@ -21,7 +21,7 @@ output "environment_type" {
 ## Attributes Reference
 
 - `name` — The name of the environment.
-- `type` — The type of the environment (`K8S`, `ECS`, `VM`, `PHYSICAL`, `SERVERLESS`).
+- `type` — The type of the environment (`K8S`, `S3`, `LAMBDA`, `GENERIC`).
 - `description` — The description of the environment.
 - `created_at` — RFC3339 timestamp when the environment was created.
 - `updated_at` — RFC3339 timestamp when the environment was last updated.

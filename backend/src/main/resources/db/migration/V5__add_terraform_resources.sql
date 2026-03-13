@@ -1,4 +1,4 @@
--- V3: Environments, Policies, PolicyAttachments, LogicalEnvironments, Organisations
+-- V5: Environments (with snapshots), Policies, PolicyAttachments, LogicalEnvironments, Organisations
 
 CREATE TABLE environments (
     id          UUID         NOT NULL,
@@ -9,6 +9,28 @@ CREATE TABLE environments (
     updated_at  TIMESTAMPTZ  NOT NULL,
     CONSTRAINT pk_environments PRIMARY KEY (id),
     CONSTRAINT uq_environments_name UNIQUE (name)
+);
+
+CREATE TABLE environment_snapshots (
+    id               UUID         NOT NULL,
+    environment_id   UUID         NOT NULL,
+    snapshot_index   BIGINT       NOT NULL,
+    recorded_at      TIMESTAMPTZ  NOT NULL,
+    recorded_by      VARCHAR(255) NOT NULL,
+    CONSTRAINT pk_environment_snapshots PRIMARY KEY (id),
+    CONSTRAINT uq_environment_snapshots_env_idx UNIQUE (environment_id, snapshot_index),
+    CONSTRAINT fk_environment_snapshots_env FOREIGN KEY (environment_id) REFERENCES environments (id) ON DELETE CASCADE
+);
+
+CREATE TABLE snapshot_artifacts (
+    id               UUID         NOT NULL,
+    snapshot_id      UUID         NOT NULL,
+    artifact_sha256  VARCHAR(255) NOT NULL,
+    artifact_name    VARCHAR(255) NOT NULL,
+    artifact_tag     VARCHAR(255) NOT NULL,
+    instance_count   INT          NOT NULL DEFAULT 1,
+    CONSTRAINT pk_snapshot_artifacts PRIMARY KEY (id),
+    CONSTRAINT fk_snapshot_artifacts_snapshot FOREIGN KEY (snapshot_id) REFERENCES environment_snapshots (id) ON DELETE CASCADE
 );
 
 CREATE TABLE policies (

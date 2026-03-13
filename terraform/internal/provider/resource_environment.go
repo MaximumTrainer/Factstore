@@ -37,7 +37,7 @@ func (r *EnvironmentResource) Metadata(_ context.Context, req resource.MetadataR
 
 func (r *EnvironmentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a Factstore Environment. Environments represent deployment targets (e.g. Kubernetes clusters, ECS services).",
+		MarkdownDescription: "Manages a Factstore Environment. Environments represent deployment targets (e.g. Kubernetes clusters, S3 buckets, Lambda functions).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -52,7 +52,7 @@ func (r *EnvironmentResource) Schema(_ context.Context, _ resource.SchemaRequest
 			},
 			"type": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "The type of the environment. Allowed values: `K8S`, `ECS`, `VM`, `PHYSICAL`, `SERVERLESS`.",
+				MarkdownDescription: "The type of the environment. Allowed values: `K8S`, `S3`, `LAMBDA`, `GENERIC`.",
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,

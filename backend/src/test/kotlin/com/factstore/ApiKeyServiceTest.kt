@@ -2,7 +2,7 @@ package com.factstore
 
 import com.factstore.application.ApiKeyService
 import com.factstore.application.UserService
-import com.factstore.core.domain.ApiKeyType
+import com.factstore.core.domain.OwnerType
 import com.factstore.dto.CreateApiKeyRequest
 import com.factstore.dto.CreateUserRequest
 import com.factstore.exception.NotFoundException
@@ -31,49 +31,58 @@ class ApiKeyServiceTest {
     @Test
     fun `create personal API key returns plain text key once`() {
         val userId = createUser()
-        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "CI Key", ApiKeyType.PERSONAL))
+        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "CI Key", OwnerType.USER))
 
-        assertTrue(resp.plainTextKey.startsWith("fsp_"), "Personal key should start with 'fsp_'")
+        assertTrue(resp.plainTextKey.startsWith("fsp_"), "User key should start with 'fsp_'")
         assertEquals(68, resp.plainTextKey.length, "Key should be 'fsp_' + 64 hex chars")
-        assertEquals(ApiKeyType.PERSONAL, resp.type)
+        assertEquals(OwnerType.USER, resp.ownerType)
         assertTrue(resp.isActive)
-        assertEquals(userId, resp.userId)
+        assertEquals(userId, resp.ownerId)
     }
 
     @Test
     fun `create service account API key has correct prefix`() {
-        val userId = createUser()
-        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Deploy Bot", ApiKeyType.SERVICE))
+        val serviceAccountId = UUID.randomUUID()
+        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(serviceAccountId, "Deploy Bot", OwnerType.SERVICE_ACCOUNT))
 
-        assertTrue(resp.plainTextKey.startsWith("fss_"), "Service key should start with 'fss_'")
-        assertEquals(ApiKeyType.SERVICE, resp.type)
+        assertTrue(resp.plainTextKey.startsWith("fss_"), "Service account key should start with 'fss_'")
+        assertEquals(OwnerType.SERVICE_ACCOUNT, resp.ownerType)
     }
 
     @Test
     fun `create API key for unknown user throws NotFoundException`() {
         assertThrows<NotFoundException> {
-            apiKeyService.createApiKey(CreateApiKeyRequest(UUID.randomUUID(), "Key", ApiKeyType.PERSONAL))
+            apiKeyService.createApiKey(CreateApiKeyRequest(UUID.randomUUID(), "Key", OwnerType.USER))
         }
+    }
+
+    @Test
+    fun `create API key for service account does not check user repository`() {
+        // SERVICE_ACCOUNT owner type does not require a user to exist
+        val serviceAccountId = UUID.randomUUID()
+        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(serviceAccountId, "SA Key", OwnerType.SERVICE_ACCOUNT))
+        assertNotNull(resp)
+        assertEquals(OwnerType.SERVICE_ACCOUNT, resp.ownerType)
     }
 
     @Test
     fun `plain text key prefix stored in database`() {
         val userId = createUser()
-        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Prefix Test", ApiKeyType.PERSONAL))
+        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Prefix Test", OwnerType.USER))
 
-        val stored = apiKeyService.listApiKeysForUser(userId).first()
+        val stored = apiKeyService.listApiKeysForOwner(userId).first()
         assertEquals(resp.plainTextKey.take(12), stored.keyPrefix)
     }
 
     @Test
     fun `validateApiKey returns key response for valid key`() {
         val userId = createUser()
-        val created = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Valid", ApiKeyType.PERSONAL))
+        val created = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Valid", OwnerType.USER))
 
         val validated = apiKeyService.validateApiKey(created.plainTextKey)
         assertNotNull(validated)
         assertEquals(created.id, validated!!.id)
-        assertEquals(userId, validated.userId)
+        assertEquals(userId, validated.ownerId)
     }
 
     @Test
@@ -91,7 +100,7 @@ class ApiKeyServiceTest {
     @Test
     fun `revokeApiKey deactivates the key`() {
         val userId = createUser()
-        val created = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "To Revoke", ApiKeyType.PERSONAL))
+        val created = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "To Revoke", OwnerType.USER))
 
         apiKeyService.revokeApiKey(created.id)
 
@@ -108,29 +117,39 @@ class ApiKeyServiceTest {
     }
 
     @Test
-    fun `listApiKeysForUser returns keys for user`() {
+    fun `listApiKeysForOwner returns keys for owner`() {
         val userId = createUser()
-        apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Key A", ApiKeyType.PERSONAL))
-        apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Key B", ApiKeyType.SERVICE))
+        apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Key A", OwnerType.USER))
+        apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Key B", OwnerType.USER))
 
-        val keys = apiKeyService.listApiKeysForUser(userId)
+        val keys = apiKeyService.listApiKeysForOwner(userId)
         assertEquals(2, keys.size)
-        assertTrue(keys.any { it.name == "Key A" })
-        assertTrue(keys.any { it.name == "Key B" })
-    }
-
-    @Test
-    fun `listApiKeysForUser throws NotFoundException for unknown user`() {
-        assertThrows<NotFoundException> {
-            apiKeyService.listApiKeysForUser(UUID.randomUUID())
-        }
+        assertTrue(keys.any { it.label == "Key A" })
+        assertTrue(keys.any { it.label == "Key B" })
     }
 
     @Test
     fun `each generated key is unique`() {
         val userId = createUser()
-        val key1 = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "K1", ApiKeyType.PERSONAL)).plainTextKey
-        val key2 = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "K2", ApiKeyType.PERSONAL)).plainTextKey
+        val key1 = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "K1", OwnerType.USER)).plainTextKey
+        val key2 = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "K2", OwnerType.USER)).plainTextKey
         assertNotEquals(key1, key2)
+    }
+
+    @Test
+    fun `api key with ttlDays has expiresAt set`() {
+        val userId = createUser()
+        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "Short-lived", OwnerType.USER, ttlDays = 30))
+        assertNotNull(resp.expiresAt)
+        assertEquals(30, resp.ttlDays)
+        assertTrue(resp.expiresAt!!.isAfter(resp.createdAt))
+    }
+
+    @Test
+    fun `api key without ttlDays has null expiresAt`() {
+        val userId = createUser()
+        val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "No-expiry", OwnerType.USER))
+        assertNull(resp.expiresAt)
+        assertNull(resp.ttlDays)
     }
 }

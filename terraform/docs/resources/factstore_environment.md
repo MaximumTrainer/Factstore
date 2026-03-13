@@ -1,6 +1,6 @@
 # factstore_environment
 
-Manages a Factstore Environment. Environments represent deployment targets such as Kubernetes clusters, ECS services, or virtual machines.
+Manages a Factstore Environment. Environments represent deployment targets such as Kubernetes clusters, S3 buckets, or Lambda functions.
 
 ## Example Usage
 
@@ -15,7 +15,7 @@ resource "factstore_environment" "production" {
 ## Argument Reference
 
 - `name` (Required) — The unique name of the environment.
-- `type` (Required) — The type of the environment. Allowed values: `K8S`, `ECS`, `VM`, `PHYSICAL`, `SERVERLESS`.
+- `type` (Required) — The type of the environment. Allowed values: `K8S`, `S3`, `LAMBDA`, `GENERIC`.
 - `description` (Optional) — A human-readable description of the environment.
 
 ## Attributes Reference

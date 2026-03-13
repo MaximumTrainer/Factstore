@@ -4,7 +4,7 @@ import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID
 
-enum class ApiKeyType { PERSONAL, SERVICE }
+enum class OwnerType { USER, SERVICE_ACCOUNT }
 
 @Entity
 @Table(name = "api_keys")
@@ -12,15 +12,21 @@ class ApiKey(
     @Id
     val id: UUID = UUID.randomUUID(),
 
-    @Column(name = "user_id", nullable = false)
-    val userId: UUID,
+    /**
+     * UUID of the owner — either a User or a ServiceAccount, depending on [ownerType].
+     * No database foreign-key constraint is applied so that the same column can
+     * reference two different tables polymorphically.
+     */
+    @Column(name = "owner_id", nullable = false)
+    val ownerId: UUID,
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    val type: ApiKeyType,
+    @Column(name = "owner_type", nullable = false)
+    val ownerType: OwnerType,
 
+    /** Human-readable label for this key (e.g. "GitHub Actions — prod"). */
     @Column(nullable = false)
-    var name: String,
+    var label: String,
 
     /**
      * Stores the first 12 characters of the generated key (including type prefix).
@@ -43,5 +49,16 @@ class ApiKey(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "last_used_at")
-    var lastUsedAt: Instant? = null
+    var lastUsedAt: Instant? = null,
+
+    /** Optional TTL in days. Null means the key never expires. */
+    @Column(name = "ttl_days")
+    val ttlDays: Int? = null,
+
+    /**
+     * Pre-computed expiry timestamp (createdAt + ttlDays).
+     * Null when [ttlDays] is null (no expiry).
+     */
+    @Column(name = "expires_at")
+    val expiresAt: Instant? = null
 )

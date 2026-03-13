@@ -46,7 +46,7 @@ func (d *EnvironmentDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 			},
 			"type": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "The type of the environment (K8S, ECS, VM, PHYSICAL, SERVERLESS).",
+				MarkdownDescription: "The type of the environment (K8S, S3, LAMBDA, GENERIC).",
 			},
 			"description": schema.StringAttribute{
 				Computed:            true,

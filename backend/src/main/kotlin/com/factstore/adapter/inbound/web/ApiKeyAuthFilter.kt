@@ -11,9 +11,13 @@ import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
- * Extracts an API key from the `X-API-Key` request header (or `Authorization: ApiKey <key>`),
- * validates it against the stored BCrypt hashes, and populates the [SecurityContextHolder]
- * when the key is valid.
+ * Extracts an API key from the request and validates it against the stored BCrypt hashes,
+ * then populates the [SecurityContextHolder] when the key is valid.
+ *
+ * Supported authentication schemes (checked in order):
+ * 1. `X-API-Key: <key>` header
+ * 2. `Authorization: Bearer <key>` (standard Bearer token)
+ * 3. `Authorization: ApiKey <key>` (legacy scheme, kept for backward compatibility)
  *
  * The filter is non-blocking: missing or invalid keys do not abort the request —
  * route-level access rules in [com.factstore.config.SecurityConfig] determine whether
@@ -25,6 +29,7 @@ class ApiKeyAuthFilter(private val apiKeyService: IApiKeyService) : OncePerReque
     companion object {
         private const val API_KEY_HEADER = "X-API-Key"
         private const val AUTHORIZATION_HEADER = "Authorization"
+        private const val BEARER_PREFIX = "Bearer "
         private const val API_KEY_PREFIX = "ApiKey "
     }
 
@@ -39,7 +44,7 @@ class ApiKeyAuthFilter(private val apiKeyService: IApiKeyService) : OncePerReque
             if (apiKeyResponse != null) {
                 val authorities = listOf(SimpleGrantedAuthority("ROLE_API_USER"))
                 val auth = UsernamePasswordAuthenticationToken(
-                    apiKeyResponse.userId.toString(),
+                    apiKeyResponse.ownerId.toString(),
                     null,
                     authorities
                 )
@@ -54,8 +59,13 @@ class ApiKeyAuthFilter(private val apiKeyService: IApiKeyService) : OncePerReque
         if (!directHeader.isNullOrBlank()) return directHeader
 
         val authHeader = request.getHeader(AUTHORIZATION_HEADER)
-        if (!authHeader.isNullOrBlank() && authHeader.startsWith(API_KEY_PREFIX)) {
-            return authHeader.removePrefix(API_KEY_PREFIX).trim()
+        if (!authHeader.isNullOrBlank()) {
+            if (authHeader.startsWith(BEARER_PREFIX)) {
+                return authHeader.removePrefix(BEARER_PREFIX).trim()
+            }
+            if (authHeader.startsWith(API_KEY_PREFIX)) {
+                return authHeader.removePrefix(API_KEY_PREFIX).trim()
+            }
         }
         return null
     }
