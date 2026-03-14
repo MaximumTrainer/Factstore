@@ -13,21 +13,21 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/api-keys")
-@Tag(name = "API Keys", description = "API key management (Personal and Service Account keys)")
+@Tag(name = "API Keys", description = "Personal API key management (user-owned keys)")
 class ApiKeyController(private val apiKeyService: IApiKeyService) {
 
     @PostMapping
     @Operation(
-        summary = "Create a new API key",
+        summary = "Create a new personal API key",
         description = "Generates a new API key for a user. The plain-text key is returned **once** — store it securely."
     )
     fun createApiKey(@RequestBody request: CreateApiKeyRequest): ResponseEntity<ApiKeyCreatedResponse> =
         ResponseEntity.status(HttpStatus.CREATED).body(apiKeyService.createApiKey(request))
 
-    @GetMapping("/users/{userId}")
-    @Operation(summary = "List API keys for a user")
-    fun listApiKeysForUser(@PathVariable userId: UUID): ResponseEntity<List<ApiKeyResponse>> =
-        ResponseEntity.ok(apiKeyService.listApiKeysForUser(userId))
+    @GetMapping("/owners/{ownerId}")
+    @Operation(summary = "List API keys for an owner (user or service account)")
+    fun listApiKeysForOwner(@PathVariable ownerId: UUID): ResponseEntity<List<ApiKeyResponse>> =
+        ResponseEntity.ok(apiKeyService.listApiKeysForOwner(ownerId))
 
     @DeleteMapping("/{id}/revoke")
     @Operation(summary = "Revoke an API key")

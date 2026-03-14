@@ -1,10 +1,19 @@
 package com.factstore.dto
 
-import com.factstore.core.domain.ApiKeyType
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.BuilderType
+import com.factstore.core.domain.OwnerType
+import com.factstore.core.domain.AuditEventType
+import com.factstore.core.domain.ChannelType
 import com.factstore.core.domain.DeliveryStatus
+import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.MemberRole
+import com.factstore.core.domain.NotificationDeliveryStatus
+import com.factstore.core.domain.NotificationSeverity
+import com.factstore.core.domain.ProvenanceStatus
+import com.factstore.core.domain.SlsaLevel
 import com.factstore.core.domain.TrailStatus
+import com.factstore.core.domain.TriggerEvent
 import com.factstore.core.domain.WebhookSource
 import java.time.Instant
 import java.util.UUID
@@ -94,7 +103,43 @@ data class ArtifactResponse(
     val sha256Digest: String,
     val registry: String?,
     val reportedAt: Instant,
-    val reportedBy: String
+    val reportedBy: String,
+    val provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO_PROVENANCE
+)
+
+// Build Provenance DTOs
+data class RecordProvenanceRequest(
+    val builderId: String,
+    val builderType: BuilderType,
+    val buildConfigUri: String? = null,
+    val sourceRepositoryUri: String? = null,
+    val sourceCommitSha: String? = null,
+    val buildStartedOn: Instant? = null,
+    val buildFinishedOn: Instant? = null,
+    val provenanceSignature: String? = null,
+    val slsaLevel: SlsaLevel = SlsaLevel.L0
+)
+
+data class BuildProvenanceResponse(
+    val id: UUID,
+    val artifactId: UUID,
+    val builderId: String,
+    val builderType: BuilderType,
+    val buildConfigUri: String?,
+    val sourceRepositoryUri: String?,
+    val sourceCommitSha: String?,
+    val buildStartedOn: Instant?,
+    val buildFinishedOn: Instant?,
+    val provenanceSignature: String?,
+    val slsaLevel: SlsaLevel,
+    val provenanceStatus: ProvenanceStatus,
+    val recordedAt: Instant
+)
+
+data class ProvenanceVerificationResponse(
+    val artifactId: UUID,
+    val provenanceStatus: ProvenanceStatus,
+    val message: String
 )
 
 // Evidence File DTOs
@@ -448,6 +493,56 @@ data class UserResponse(
     val updatedAt: Instant
 )
 
+// Environment DTOs
+data class CreateEnvironmentRequest(
+    val name: String,
+    val type: EnvironmentType,
+    val description: String = ""
+)
+
+data class UpdateEnvironmentRequest(
+    val name: String? = null,
+    val type: EnvironmentType? = null,
+    val description: String? = null
+)
+
+data class EnvironmentResponse(
+    val id: UUID,
+    val name: String,
+    val type: EnvironmentType,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+data class SnapshotArtifactRequest(
+    val artifactSha256: String,
+    val artifactName: String,
+    val artifactTag: String,
+    val instanceCount: Int = 1
+)
+
+data class RecordSnapshotRequest(
+    val recordedBy: String,
+    val artifacts: List<SnapshotArtifactRequest> = emptyList()
+)
+
+data class SnapshotArtifactResponse(
+    val artifactSha256: String,
+    val artifactName: String,
+    val artifactTag: String,
+    val instanceCount: Int
+)
+
+data class EnvironmentSnapshotResponse(
+    val id: UUID,
+    val environmentId: UUID,
+    val snapshotIndex: Long,
+    val recordedAt: Instant,
+    val recordedBy: String,
+    val artifacts: List<SnapshotArtifactResponse>
+)
+
 // Organisation Member DTOs
 data class InviteMemberRequest(
     val email: String,
@@ -479,25 +574,48 @@ data class AuditManifest(
     val files: List<AuditManifestEntry>,
     /** HMAC-SHA256 of the JSON-serialised [files] list, keyed with the server-side secret. */
     val hmacSha256: String
+// Service Account DTOs
+data class CreateServiceAccountRequest(
+    val name: String,
+    val description: String? = null
+)
+
+data class UpdateServiceAccountRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class ServiceAccountResponse(
+    val id: UUID,
+    val name: String,
+    val description: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )
 
 // API Key DTOs
 data class CreateApiKeyRequest(
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType
+    /** UUID of the owner — a User or ServiceAccount depending on [ownerType]. */
+    val ownerId: UUID,
+    /** Human-readable label for this key. */
+    val label: String,
+    val ownerType: OwnerType,
+    /** Optional TTL in days. Null means the key never expires. */
+    val ttlDays: Int? = null
 )
 
 data class ApiKeyResponse(
     val id: UUID,
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType,
+    val ownerId: UUID,
+    val ownerType: OwnerType,
+    val label: String,
     /** First 12 characters of the key (safe to display for identification). */
     val keyPrefix: String,
     val isActive: Boolean,
     val createdAt: Instant,
-    val lastUsedAt: Instant?
+    val lastUsedAt: Instant?,
+    val ttlDays: Int?,
+    val expiresAt: Instant?
 )
 
 /**
@@ -506,13 +624,216 @@ data class ApiKeyResponse(
  */
 data class ApiKeyCreatedResponse(
     val id: UUID,
-    val userId: UUID,
-    val name: String,
-    val type: ApiKeyType,
+    val ownerId: UUID,
+    val ownerType: OwnerType,
+    val label: String,
     val keyPrefix: String,
     val isActive: Boolean,
     val createdAt: Instant,
     val lastUsedAt: Instant?,
+    val ttlDays: Int?,
+    val expiresAt: Instant?,
     /** The full plain-text key. Shown exactly once; never persisted in clear text. */
     val plainTextKey: String
+)
+
+// Audit Log DTOs
+data class AuditEventResponse(
+    val id: UUID,
+    val eventType: AuditEventType,
+    val environmentId: UUID?,
+    val trailId: UUID?,
+    val artifactSha256: String?,
+    val actor: String,
+    val payload: String,
+    val occurredAt: Instant
+)
+
+data class AuditEventPage(
+    val events: List<AuditEventResponse>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int
+)
+
+// Notification Rule DTOs
+data class CreateNotificationRuleRequest(
+    val name: String,
+    val triggerEvent: TriggerEvent,
+    val channelType: ChannelType,
+    val channelConfig: String = "{}",
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null
+)
+
+data class UpdateNotificationRuleRequest(
+    val name: String? = null,
+    val isActive: Boolean? = null,
+    val triggerEvent: TriggerEvent? = null,
+    val channelType: ChannelType? = null,
+    val channelConfig: String? = null,
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null,
+    /** When true, clears the filterFlowId regardless of the filterFlowId field value. */
+    val clearFilterFlowId: Boolean = false,
+    /** When true, clears the filterEnvironmentId regardless of the filterEnvironmentId field value. */
+    val clearFilterEnvironmentId: Boolean = false
+)
+
+data class NotificationRuleResponse(
+    val id: UUID,
+    val name: String,
+    val isActive: Boolean,
+    val triggerEvent: TriggerEvent,
+    val channelType: ChannelType,
+    val channelConfig: String,
+    val filterFlowId: UUID?,
+    val filterEnvironmentId: UUID?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Notification Delivery DTOs
+data class NotificationDeliveryResponse(
+    val id: UUID,
+    val ruleId: UUID,
+    val eventType: String,
+    val payload: String?,
+    val status: NotificationDeliveryStatus,
+    val sentAt: Instant,
+    val error: String?,
+    val attemptCount: Int
+)
+
+// In-app Notification DTOs
+data class NotificationResponse(
+    val id: UUID,
+    val title: String,
+    val message: String,
+    val severity: NotificationSeverity,
+    val isRead: Boolean,
+    val entityType: String?,
+    val entityId: UUID?,
+    val createdAt: Instant
+)
+
+data class NotificationEvent(
+    val triggerEvent: TriggerEvent,
+    val title: String,
+    val message: String,
+    val severity: NotificationSeverity = NotificationSeverity.INFO,
+    val entityType: String? = null,
+    val entityId: UUID? = null,
+    val filterFlowId: UUID? = null,
+    val filterEnvironmentId: UUID? = null,
+    val extraPayload: Map<String, Any?> = emptyMap()
+)
+
+// Vault Evidence DTOs
+data class StoreEvidenceRequest(
+    val evidenceType: String,
+    val data: Map<String, String>
+)
+
+data class VaultEvidenceResponse(
+    val entityType: String,
+    val entityId: String,
+    val evidenceType: String,
+    val vaultPath: String,
+    val version: Int,
+    val data: Map<String, String>? = null,
+    val storedAt: Instant
+)
+
+data class VaultEvidenceListResponse(
+    val entityType: String,
+    val entityId: String,
+    val evidenceTypes: List<String>
+)
+
+data class VaultHealthResponse(
+    val healthy: Boolean,
+    val vaultUri: String,
+    val authMethod: String,
+    val message: String,
+    val checkedAt: Instant = Instant.now()
+)
+
+// Policy DTOs
+data class CreatePolicyRequest(
+    val name: String,
+    val enforceProvenance: Boolean = false,
+    val enforceTrailCompliance: Boolean = false,
+    val requiredAttestationTypes: List<String> = emptyList()
+)
+
+data class UpdatePolicyRequest(
+    val name: String? = null,
+    val enforceProvenance: Boolean? = null,
+    val enforceTrailCompliance: Boolean? = null,
+    val requiredAttestationTypes: List<String>? = null
+)
+
+data class PolicyResponse(
+    val id: UUID,
+    val name: String,
+    val enforceProvenance: Boolean,
+    val enforceTrailCompliance: Boolean,
+    val requiredAttestationTypes: List<String>,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// PolicyAttachment DTOs
+data class CreatePolicyAttachmentRequest(
+    val policyId: UUID,
+    val environmentId: UUID
+)
+
+data class PolicyAttachmentResponse(
+    val id: UUID,
+    val policyId: UUID,
+    val environmentId: UUID,
+    val createdAt: Instant
+)
+
+// LogicalEnvironment DTOs
+data class CreateLogicalEnvironmentRequest(
+    val name: String,
+    val description: String = ""
+)
+
+data class UpdateLogicalEnvironmentRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class LogicalEnvironmentResponse(
+    val id: UUID,
+    val name: String,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Organisation DTOs
+data class CreateOrganisationRequest(
+    val slug: String,
+    val name: String,
+    val description: String = ""
+)
+
+data class UpdateOrganisationRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class OrganisationResponse(
+    val id: UUID,
+    val slug: String,
+    val name: String,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )
