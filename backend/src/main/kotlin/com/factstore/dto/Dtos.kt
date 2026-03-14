@@ -792,6 +792,8 @@ data class EvidenceGapItem(
 data class EvidenceGapsResponse(
     val gaps: List<EvidenceGapItem>,
     val totalTrailsWithGaps: Int
+)
+
 // SSO Configuration DTOs
 data class CreateSsoConfigRequest(
     val provider: SsoProvider,
