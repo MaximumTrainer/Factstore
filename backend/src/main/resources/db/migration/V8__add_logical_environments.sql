@@ -1,4 +1,4 @@
--- V5: Logical environments for grouping physical environments
+-- V8: Logical environments for grouping physical environments
 
 CREATE TABLE logical_environments (
     id          UUID         NOT NULL,
