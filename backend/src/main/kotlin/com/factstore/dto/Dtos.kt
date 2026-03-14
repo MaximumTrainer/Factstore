@@ -10,6 +10,7 @@ import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.NotificationDeliveryStatus
 import com.factstore.core.domain.NotificationSeverity
+import com.factstore.core.domain.SsoProvider
 import com.factstore.core.domain.ProvenanceStatus
 import com.factstore.core.domain.SlsaLevel
 import com.factstore.core.domain.TrailStatus
@@ -791,6 +792,39 @@ data class EvidenceGapItem(
 data class EvidenceGapsResponse(
     val gaps: List<EvidenceGapItem>,
     val totalTrailsWithGaps: Int
+// SSO Configuration DTOs
+data class CreateSsoConfigRequest(
+    val provider: SsoProvider,
+    val issuerUrl: String,
+    val clientId: String,
+    val clientSecret: String? = null,
+    val attributeMappings: String = """{"email":"email","name":"name"}""",
+    val groupRoleMappings: String = "{}",
+    val isMandatory: Boolean = false
+)
+
+data class UpdateSsoConfigRequest(
+    val provider: SsoProvider? = null,
+    val issuerUrl: String? = null,
+    val clientId: String? = null,
+    val clientSecret: String? = null,
+    val attributeMappings: String? = null,
+    val groupRoleMappings: String? = null,
+    val isMandatory: Boolean? = null
+)
+
+data class SsoConfigResponse(
+    val id: UUID,
+    val orgSlug: String,
+    val provider: SsoProvider,
+    val issuerUrl: String,
+    val clientId: String,
+    // clientSecret is intentionally omitted — it is never returned in API responses.
+    val attributeMappings: String,
+    val groupRoleMappings: String,
+    val isMandatory: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )
 
 // Vault Evidence DTOs
@@ -846,6 +880,25 @@ data class PolicyResponse(
     val requiredAttestationTypes: List<String>,
     val createdAt: Instant,
     val updatedAt: Instant
+)
+
+data class SsoTestConnectionResponse(
+    val success: Boolean,
+    val message: String,
+    val authorizationEndpoint: String? = null,
+    val tokenEndpoint: String? = null
+)
+
+data class SsoLoginUrlResponse(
+    val loginUrl: String,
+    val state: String
+)
+
+data class SsoCallbackResponse(
+    val token: String,
+    val userId: UUID,
+    val email: String,
+    val name: String
 )
 
 // PolicyAttachment DTOs
