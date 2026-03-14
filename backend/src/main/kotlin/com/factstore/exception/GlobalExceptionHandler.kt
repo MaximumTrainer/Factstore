@@ -4,6 +4,7 @@ import com.factstore.dto.ErrorResponse
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
@@ -24,6 +25,13 @@ class GlobalExceptionHandler {
         log.warn("Conflict: ${ex.message}")
         return ResponseEntity.status(HttpStatus.CONFLICT)
             .body(ErrorResponse(409, "Conflict", ex.message ?: "Conflict"))
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleMessageNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
+        log.warn("Malformed request body: ${ex.message}")
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, "Bad Request", "Malformed or unreadable request body"))
     }
 
     @ExceptionHandler(BadRequestException::class)
