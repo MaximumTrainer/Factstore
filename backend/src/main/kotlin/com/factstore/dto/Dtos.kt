@@ -1,6 +1,7 @@
 package com.factstore.dto
 
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.BuilderType
 import com.factstore.core.domain.OwnerType
 import com.factstore.core.domain.AuditEventType
 import com.factstore.core.domain.ChannelType
@@ -9,6 +10,8 @@ import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.NotificationDeliveryStatus
 import com.factstore.core.domain.NotificationSeverity
+import com.factstore.core.domain.ProvenanceStatus
+import com.factstore.core.domain.SlsaLevel
 import com.factstore.core.domain.TrailStatus
 import com.factstore.core.domain.TriggerEvent
 import com.factstore.core.domain.WebhookSource
@@ -100,7 +103,43 @@ data class ArtifactResponse(
     val sha256Digest: String,
     val registry: String?,
     val reportedAt: Instant,
-    val reportedBy: String
+    val reportedBy: String,
+    val provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO_PROVENANCE
+)
+
+// Build Provenance DTOs
+data class RecordProvenanceRequest(
+    val builderId: String,
+    val builderType: BuilderType,
+    val buildConfigUri: String? = null,
+    val sourceRepositoryUri: String? = null,
+    val sourceCommitSha: String? = null,
+    val buildStartedOn: Instant? = null,
+    val buildFinishedOn: Instant? = null,
+    val provenanceSignature: String? = null,
+    val slsaLevel: SlsaLevel = SlsaLevel.L0
+)
+
+data class BuildProvenanceResponse(
+    val id: UUID,
+    val artifactId: UUID,
+    val builderId: String,
+    val builderType: BuilderType,
+    val buildConfigUri: String?,
+    val sourceRepositoryUri: String?,
+    val sourceCommitSha: String?,
+    val buildStartedOn: Instant?,
+    val buildFinishedOn: Instant?,
+    val provenanceSignature: String?,
+    val slsaLevel: SlsaLevel,
+    val provenanceStatus: ProvenanceStatus,
+    val recordedAt: Instant
+)
+
+data class ProvenanceVerificationResponse(
+    val artifactId: UUID,
+    val provenanceStatus: ProvenanceStatus,
+    val message: String
 )
 
 // Evidence File DTOs
