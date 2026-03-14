@@ -574,6 +574,8 @@ data class AuditManifest(
     val files: List<AuditManifestEntry>,
     /** HMAC-SHA256 of the JSON-serialised [files] list, keyed with the server-side secret. */
     val hmacSha256: String
+)
+
 // Service Account DTOs
 data class CreateServiceAccountRequest(
     val name: String,
