@@ -714,6 +714,31 @@ data class SsoConfigResponse(
     val updatedAt: Instant
 )
 
+// Policy DTOs
+data class CreatePolicyRequest(
+    val name: String,
+    val enforceProvenance: Boolean = false,
+    val enforceTrailCompliance: Boolean = false,
+    val requiredAttestationTypes: List<String> = emptyList()
+)
+
+data class UpdatePolicyRequest(
+    val name: String? = null,
+    val enforceProvenance: Boolean? = null,
+    val enforceTrailCompliance: Boolean? = null,
+    val requiredAttestationTypes: List<String>? = null
+)
+
+data class PolicyResponse(
+    val id: UUID,
+    val name: String,
+    val enforceProvenance: Boolean,
+    val enforceTrailCompliance: Boolean,
+    val requiredAttestationTypes: List<String>,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
 data class SsoTestConnectionResponse(
     val success: Boolean,
     val message: String,
@@ -731,4 +756,57 @@ data class SsoCallbackResponse(
     val userId: UUID,
     val email: String,
     val name: String
+)
+
+// PolicyAttachment DTOs
+data class CreatePolicyAttachmentRequest(
+    val policyId: UUID,
+    val environmentId: UUID
+)
+
+data class PolicyAttachmentResponse(
+    val id: UUID,
+    val policyId: UUID,
+    val environmentId: UUID,
+    val createdAt: Instant
+)
+
+// LogicalEnvironment DTOs
+data class CreateLogicalEnvironmentRequest(
+    val name: String,
+    val description: String = ""
+)
+
+data class UpdateLogicalEnvironmentRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class LogicalEnvironmentResponse(
+    val id: UUID,
+    val name: String,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Organisation DTOs
+data class CreateOrganisationRequest(
+    val slug: String,
+    val name: String,
+    val description: String = ""
+)
+
+data class UpdateOrganisationRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+data class OrganisationResponse(
+    val id: UUID,
+    val slug: String,
+    val name: String,
+    val description: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )
