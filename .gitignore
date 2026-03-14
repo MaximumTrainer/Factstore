@@ -12,6 +12,11 @@ frontend/test-results/
 # CLI build artifacts
 cli/node_modules/
 
+# Terraform provider build artifacts
+terraform/bin/
+terraform/dist-release/
+terraform/*.exe
+
 # IDE files
 .idea/
 *.iml
