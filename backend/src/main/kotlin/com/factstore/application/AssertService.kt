@@ -2,11 +2,13 @@ package com.factstore.application
 
 import com.factstore.core.domain.Artifact
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.ApprovalStatus
 import com.factstore.core.domain.AuditEventType
 import com.factstore.core.domain.Flow
 import com.factstore.core.port.inbound.IAssertService
 import com.factstore.core.port.inbound.IAuditService
 import com.factstore.core.port.outbound.IArtifactRepository
+import com.factstore.core.port.outbound.IApprovalRepository
 import com.factstore.core.port.outbound.IAttestationRepository
 import com.factstore.core.port.outbound.IFlowRepository
 import com.factstore.core.port.outbound.ITrailRepository
@@ -26,7 +28,8 @@ class AssertService(
     private val attestationRepository: IAttestationRepository,
     private val flowRepository: IFlowRepository,
     private val trailRepository: ITrailRepository,
-    private val auditService: IAuditService
+    private val auditService: IAuditService,
+    private val approvalRepository: IApprovalRepository
 ) : IAssertService {
 
     private val log = LoggerFactory.getLogger(AssertService::class.java)
@@ -87,6 +90,23 @@ class AssertService(
             val missing = required.filter { it !in passedTypes }
 
             if (missing.isEmpty()) {
+                // Check approval requirement
+                if (flow.requiresApproval) {
+                    val approvals = approvalRepository.findByTrailId(artifact.trailId)
+                    val hasApproved = approvals.any { it.status == ApprovalStatus.APPROVED }
+                    if (!hasApproved) {
+                        val response = AssertResponse(
+                            sha256Digest = request.sha256Digest,
+                            flowId = request.flowId,
+                            status = ComplianceStatus.NON_COMPLIANT,
+                            missingAttestationTypes = emptyList(),
+                            failedAttestationTypes = emptyList(),
+                            details = "Approval required but not yet granted"
+                        )
+                        emitPolicyEvent(response, trailId = artifact.trailId)
+                        return response
+                    }
+                }
                 log.info("Artifact ${request.sha256Digest} is COMPLIANT for flow ${request.flowId}")
                 val response = AssertResponse(
                     sha256Digest = request.sha256Digest,
@@ -149,6 +169,23 @@ class AssertService(
             val missing = allRequired.filter { it !in passedNames }
 
             if (missing.isEmpty()) {
+                // Check approval requirement
+                if (flow.requiresApproval) {
+                    val approvals = approvalRepository.findByTrailId(artifact.trailId)
+                    val hasApproved = approvals.any { it.status == ApprovalStatus.APPROVED }
+                    if (!hasApproved) {
+                        val response = AssertResponse(
+                            sha256Digest = request.sha256Digest,
+                            flowId = request.flowId,
+                            status = ComplianceStatus.NON_COMPLIANT,
+                            missingAttestationTypes = emptyList(),
+                            failedAttestationTypes = emptyList(),
+                            details = "Approval required but not yet granted"
+                        )
+                        emitPolicyEvent(response, trailId = artifact.trailId)
+                        return response
+                    }
+                }
                 log.info("Artifact ${request.sha256Digest} is COMPLIANT (template) for flow ${request.flowId}")
                 val response = AssertResponse(
                     sha256Digest = request.sha256Digest,

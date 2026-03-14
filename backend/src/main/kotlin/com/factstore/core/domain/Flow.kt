@@ -36,6 +36,16 @@ class Flow(
                 else requiredAttestationTypesRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
         set(value) { requiredAttestationTypesRaw = value.joinToString(",") }
 
+    @Column(name = "requires_approval", nullable = false)
+    var requiresApproval: Boolean = false
+
+    @Column(name = "required_approver_roles", columnDefinition = "TEXT")
+    var requiredApproverRolesRaw: String = ""
+
+    var requiredApproverRoles: List<String>
+        get() = if (requiredApproverRolesRaw.isBlank()) emptyList() else requiredApproverRolesRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        set(value) { requiredApproverRolesRaw = value.joinToString(",") }
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "flow_tags",

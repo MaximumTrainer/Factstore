@@ -1,5 +1,7 @@
 package com.factstore.dto
 
+import com.factstore.core.domain.ApprovalDecisionType
+import com.factstore.core.domain.ApprovalStatus
 import com.factstore.core.domain.AttestationStatus
 import com.factstore.core.domain.BuilderType
 import com.factstore.core.domain.OwnerType
@@ -27,7 +29,9 @@ data class CreateFlowRequest(
     val requiredAttestationTypes: List<String> = emptyList(),
     val tags: Map<String, String> = emptyMap(),
     val orgSlug: String? = null,
-    val templateYaml: String? = null
+    val templateYaml: String? = null,
+    val requiresApproval: Boolean = false,
+    val requiredApproverRoles: List<String> = emptyList()
 )
 
 data class UpdateFlowRequest(
@@ -35,7 +39,9 @@ data class UpdateFlowRequest(
     val description: String? = null,
     val requiredAttestationTypes: List<String>? = null,
     val tags: Map<String, String>? = null,
-    val templateYaml: String? = null
+    val templateYaml: String? = null,
+    val requiresApproval: Boolean? = null,
+    val requiredApproverRoles: List<String>? = null
 )
 
 data class FlowResponse(
@@ -47,7 +53,9 @@ data class FlowResponse(
     val orgSlug: String? = null,
     val templateYaml: String? = null,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
+    val requiresApproval: Boolean = false,
+    val requiredApproverRoles: List<String> = emptyList()
 )
 
 // Trail DTOs
@@ -914,4 +922,44 @@ data class OrganisationResponse(
     val type: OrgType,
     val createdAt: Instant,
     val updatedAt: Instant
+)
+
+// Approval DTOs
+data class CreateApprovalRequest(
+    val trailId: UUID,
+    val requiredApprovers: List<String> = emptyList(),
+    val comments: String? = null,
+    val deadline: Instant? = null
+)
+
+data class ApproveRequest(
+    val approverIdentity: String,
+    val comments: String? = null
+)
+
+data class RejectRequest(
+    val approverIdentity: String,
+    val comments: String? = null
+)
+
+data class ApprovalDecisionResponse(
+    val id: UUID,
+    val approvalId: UUID,
+    val approverIdentity: String,
+    val decision: ApprovalDecisionType,
+    val comments: String?,
+    val decidedAt: Instant
+)
+
+data class ApprovalResponse(
+    val id: UUID,
+    val trailId: UUID,
+    val flowId: UUID,
+    val status: ApprovalStatus,
+    val requiredApprovers: List<String>,
+    val comments: String?,
+    val requestedAt: Instant,
+    val deadline: Instant?,
+    val resolvedAt: Instant?,
+    val decisions: List<ApprovalDecisionResponse> = emptyList()
 )

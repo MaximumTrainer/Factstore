@@ -35,6 +35,8 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
             it.requiredAttestationTypes = request.requiredAttestationTypes
             it.tags = request.tags.toMutableMap()
             it.templateYaml = request.templateYaml
+            it.requiresApproval = request.requiresApproval
+            it.requiredApproverRoles = request.requiredApproverRoles
         }
         val saved = flowRepository.save(flow)
         log.info("Created flow: ${saved.id} - ${saved.name}")
@@ -63,6 +65,8 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
             flow.tags = it.toMutableMap()
         }
         request.templateYaml?.let { flow.templateYaml = it }
+        request.requiresApproval?.let { flow.requiresApproval = it }
+        request.requiredApproverRoles?.let { flow.requiredApproverRoles = it }
         flow.updatedAt = Instant.now()
         return flowRepository.save(flow).toResponse()
     }
@@ -113,6 +117,8 @@ fun Flow.toResponse() = FlowResponse(
     orgSlug = orgSlug,
     templateYaml = templateYaml,
     createdAt = createdAt,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    requiresApproval = requiresApproval,
+    requiredApproverRoles = requiredApproverRoles
 )
 
