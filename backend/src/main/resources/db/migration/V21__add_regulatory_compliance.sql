@@ -1,5 +1,5 @@
 CREATE TABLE regulatory_frameworks (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     version VARCHAR(50) NOT NULL,
     description TEXT,
@@ -9,7 +9,7 @@ CREATE TABLE regulatory_frameworks (
 );
 
 CREATE TABLE regulatory_controls (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     framework_id UUID NOT NULL,
     control_id VARCHAR(100) NOT NULL,
     title VARCHAR(500) NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE regulatory_controls (
 );
 
 CREATE TABLE compliance_mappings (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     control_id UUID NOT NULL,
     flow_id UUID NOT NULL,
     attestation_type VARCHAR(100) NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE compliance_mappings (
 );
 
 CREATE TABLE compliance_assessments (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     framework_id UUID NOT NULL,
     trail_id UUID NOT NULL,
     overall_status VARCHAR(20) NOT NULL,

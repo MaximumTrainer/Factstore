@@ -1,5 +1,5 @@
 CREATE TABLE scm_integrations (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     org_slug VARCHAR(255) NOT NULL,
     provider VARCHAR(50) NOT NULL,
     token_encrypted TEXT NOT NULL,

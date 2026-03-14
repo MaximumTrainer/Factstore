@@ -1,5 +1,5 @@
 CREATE TABLE security_scan_results (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     trail_id UUID NOT NULL,
     attestation_id UUID,
     tool VARCHAR(100) NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE security_scan_results (
 );
 
 CREATE TABLE security_thresholds (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     flow_id UUID NOT NULL UNIQUE,
     max_critical INT NOT NULL DEFAULT 0,
     max_high INT NOT NULL DEFAULT 0,
