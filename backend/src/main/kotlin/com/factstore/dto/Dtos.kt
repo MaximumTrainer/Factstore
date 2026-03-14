@@ -3,6 +3,7 @@ package com.factstore.dto
 import com.factstore.core.domain.ApprovalDecisionType
 import com.factstore.core.domain.ApprovalStatus
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.GateDecision
 import com.factstore.core.domain.BuilderType
 import com.factstore.core.domain.OwnerType
 import com.factstore.core.domain.AuditEventType
@@ -962,4 +963,55 @@ data class ApprovalResponse(
     val deadline: Instant?,
     val resolvedAt: Instant?,
     val decisions: List<ApprovalDecisionResponse> = emptyList()
+)
+
+// Deployment Policy DTOs
+data class CreateDeploymentPolicyRequest(
+    val name: String,
+    val description: String = "",
+    val flowId: UUID,
+    val environmentId: UUID? = null,
+    val enforceProvenance: Boolean = false,
+    val enforceApprovals: Boolean = false,
+    val requiredAttestationTypes: List<String> = emptyList()
+)
+
+data class UpdateDeploymentPolicyRequest(
+    val name: String? = null,
+    val description: String? = null,
+    val enforceProvenance: Boolean? = null,
+    val enforceApprovals: Boolean? = null,
+    val requiredAttestationTypes: List<String>? = null,
+    val isActive: Boolean? = null
+)
+
+data class DeploymentPolicyResponse(
+    val id: UUID,
+    val name: String,
+    val description: String,
+    val flowId: UUID,
+    val environmentId: UUID?,
+    val enforceProvenance: Boolean,
+    val enforceApprovals: Boolean,
+    val requiredAttestationTypes: List<String>,
+    val isActive: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// Gate DTOs
+data class GateEvaluateRequest(
+    val artifactSha256: String,
+    val environmentId: UUID? = null,
+    val requestedBy: String? = null
+)
+
+data class GateEvaluateResponse(
+    val id: UUID,
+    val decision: GateDecision,
+    val artifactSha256: String,
+    val environmentId: UUID?,
+    val evaluatedAt: Instant,
+    val blockReasons: List<String>,
+    val policiesEvaluated: Int
 )

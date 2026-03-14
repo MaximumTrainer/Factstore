@@ -1,0 +1,50 @@
+package com.factstore.adapter.inbound.web
+
+import com.factstore.core.port.inbound.IDeploymentPolicyService
+import com.factstore.dto.CreateDeploymentPolicyRequest
+import com.factstore.dto.DeploymentPolicyResponse
+import com.factstore.dto.GateEvaluateRequest
+import com.factstore.dto.GateEvaluateResponse
+import com.factstore.dto.UpdateDeploymentPolicyRequest
+import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
+import java.util.UUID
+
+@RestController
+@Tag(name = "Deployment Policies", description = "Deployment gate policy management")
+class DeploymentPolicyController(private val policyService: IDeploymentPolicyService) {
+
+    @PostMapping("/api/v1/deployment-policies")
+    fun createPolicy(@RequestBody req: CreateDeploymentPolicyRequest): ResponseEntity<DeploymentPolicyResponse> =
+        ResponseEntity.ok(policyService.createPolicy(req))
+
+    @GetMapping("/api/v1/deployment-policies")
+    fun listPolicies(): ResponseEntity<List<DeploymentPolicyResponse>> =
+        ResponseEntity.ok(policyService.listPolicies())
+
+    @GetMapping("/api/v1/deployment-policies/{id}")
+    fun getPolicy(@PathVariable id: UUID): ResponseEntity<DeploymentPolicyResponse> =
+        ResponseEntity.ok(policyService.getPolicy(id))
+
+    @PutMapping("/api/v1/deployment-policies/{id}")
+    fun updatePolicy(
+        @PathVariable id: UUID,
+        @RequestBody req: UpdateDeploymentPolicyRequest
+    ): ResponseEntity<DeploymentPolicyResponse> =
+        ResponseEntity.ok(policyService.updatePolicy(id, req))
+
+    @DeleteMapping("/api/v1/deployment-policies/{id}")
+    fun deletePolicy(@PathVariable id: UUID): ResponseEntity<Void> {
+        policyService.deletePolicy(id)
+        return ResponseEntity.noContent().build()
+    }
+
+    @PostMapping("/api/v1/gate/evaluate")
+    fun evaluateGate(@RequestBody req: GateEvaluateRequest): ResponseEntity<GateEvaluateResponse> =
+        ResponseEntity.ok(policyService.evaluateGate(req))
+
+    @GetMapping("/api/v1/gate/results")
+    fun listGateResults(): ResponseEntity<List<GateEvaluateResponse>> =
+        ResponseEntity.ok(policyService.listGateResults())
+}
