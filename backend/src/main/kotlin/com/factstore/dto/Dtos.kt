@@ -706,6 +706,8 @@ data class VaultHealthResponse(
     val authMethod: String,
     val message: String,
     val checkedAt: Instant = Instant.now()
+)
+
 // Policy DTOs
 data class CreatePolicyRequest(
     val name: String,
