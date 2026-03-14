@@ -81,16 +81,32 @@ jobs:
             --min-coverage 80
 
       # ── Security Scan ────────────────────────────────────────────────────
+      # TODO: Replace with the dependency/security scanner appropriate for your project.
+      # The example below uses OWASP Dependency-Check for a Gradle project; adapt the
+      # tool, report path, and report-scan --evidence-type to match your scanner.
       - name: Run Dependency Audit
-        run: ./gradlew dependencyCheckAnalyze --format JSON || true
+        id: dep-audit
+        run: |
+          ./gradlew dependencyCheckAnalyze --format JSON
+          echo "scan_passed=true" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
 
       - name: Report Dependency Audit
         run: |
+          REPORT="build/reports/dependency-check-report.json"
+          # Fail the step explicitly if the scanner did not produce a report
+          if [[ ! -f "$REPORT" ]]; then
+            echo "ERROR: dependency scan report not found at $REPORT" >&2
+            exit 1
+          fi
+          # Derive passed status from scanner exit code captured in previous step
+          PASSED=${{ steps.dep-audit.outcome == 'success' && 'true' || 'false' }}
           factstore-agent report-scan \
             --trail-id "$TRAIL_ID" \
             --tool dependency-check \
-            --report-file build/reports/dependency-check-report.json \
-            --passed true
+            --evidence-type dependency-audit \
+            --report-file "$REPORT" \
+            --passed "$PASSED"
 
       # ── Container Build ──────────────────────────────────────────────────
       - name: Build and Push Container Image

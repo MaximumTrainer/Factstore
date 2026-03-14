@@ -77,6 +77,23 @@ class EvidenceCollectionServiceTest {
     }
 
     @Test
+    fun `reportCoverage fails when minCoverage is set but no metrics provided`() {
+        val (_, trailId) = setupTrail()
+        val request = ReportCoverageRequest(tool = "jacoco", minCoverage = 80.0)
+        val response = evidenceCollectionService.reportCoverage(trailId, request)
+        assertFalse(response.passed)
+    }
+
+    @Test
+    fun `reportCoverage creates test-coverage attestation satisfying flow requirements`() {
+        val (_, trailId) = setupTrail(requiredTypes = listOf("test-coverage"))
+        evidenceCollectionService.reportCoverage(trailId, ReportCoverageRequest(tool = "jacoco", lineCoverage = 90.0))
+        val summary = evidenceCollectionService.getEvidenceSummary(trailId)
+        assertTrue(summary.isComplete)
+        assertFalse(summary.missingRequiredTypes.contains("test-coverage"))
+    }
+
+    @Test
     fun `getCoverageReports returns list for trail`() {
         val (_, trailId) = setupTrail()
         evidenceCollectionService.reportCoverage(trailId, ReportCoverageRequest(tool = "jacoco", lineCoverage = 90.0))
@@ -178,5 +195,14 @@ class EvidenceCollectionServiceTest {
         assertEquals(1, summary.passedAttestations)
         assertEquals(1, summary.failedAttestations)
         assertEquals(2, summary.totalAttestations)
+    }
+
+    @Test
+    fun `getEvidenceGaps returns empty response when no trails exist`() {
+        // In a fresh transaction the DB is empty — verify we get a valid empty response
+        val gapsResponse = evidenceCollectionService.getEvidenceGaps()
+        assertNotNull(gapsResponse)
+        assertEquals(0, gapsResponse.totalTrailsWithGaps)
+        assertTrue(gapsResponse.gaps.isEmpty())
     }
 }

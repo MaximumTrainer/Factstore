@@ -109,19 +109,27 @@ case "$cmd" in
     ;;
 
   report-scan)
-    trail_id="" tool="" report_file="" passed="true" details=""
+    trail_id="" tool="" report_file="" passed="true" details="" evidence_type="security-scan"
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        --trail-id)    trail_id="$2"; shift 2 ;;
-        --tool)        tool="$2"; shift 2 ;;
-        --report-file) report_file="$2"; shift 2 ;;
-        --passed)      passed="$2"; shift 2 ;;
-        --details)     details="$2"; shift 2 ;;
+        --trail-id)       trail_id="$2"; shift 2 ;;
+        --tool)           tool="$2"; shift 2 ;;
+        --report-file)    report_file="$2"; shift 2 ;;
+        --passed)         passed="$2"; shift 2 ;;
+        --details)        details="$2"; shift 2 ;;
+        --evidence-type)  evidence_type="$2"; shift 2 ;;
         *) _die "Unknown option: $1" ;;
       esac
     done
     [[ -n "$trail_id" ]] || _die "--trail-id is required"
     [[ -n "$tool" ]]     || _die "--tool is required"
+
+    # Normalize --passed to a JSON boolean literal
+    case "${passed,,}" in
+      true|1|yes)  passed_json="true"  ;;
+      false|0|no)  passed_json="false" ;;
+      *) _die "--passed must be true or false (got: '$passed')" ;;
+    esac
 
     if [[ -n "$report_file" && -f "$report_file" ]]; then
         details="${details:-$(head -c 4096 "$report_file")}"
@@ -129,13 +137,13 @@ case "$cmd" in
 
     payload=$(jq -n \
         --arg trailId "$trail_id" \
-        --arg evidenceType "security-scan" \
+        --arg evidenceType "$evidence_type" \
         --arg tool "$tool" \
-        --argjson passed "$passed" \
+        --argjson passed "$passed_json" \
         --arg details "${details:-Reported by factstore-agent}" \
         '[{trailId: $trailId, evidenceType: $evidenceType, tool: $tool, passed: $passed, details: $details}]')
 
-    echo "Reporting security scan for trail $trail_id (tool=$tool)..."
+    echo "Reporting ${evidence_type} for trail $trail_id (tool=$tool)..."
     _curl -X POST \
         "${FACTSTORE_URL}/api/v1/evidence/collect" \
         -d "{\"items\": $payload}" | jq .
@@ -180,6 +188,16 @@ case "$cmd" in
       esac
     done
     [[ -n "$trail_id" ]] || _die "--trail-id is required"
+    [[ -n "$flow_id" ]]  || _die "--flow-id is required"
+
+    # Verify the trail belongs to the expected flow before checking evidence completeness
+    echo "Verifying trail $trail_id belongs to flow $flow_id..."
+    trail_response=$(_curl "${FACTSTORE_URL}/api/v1/trails/${trail_id}")
+    actual_flow_id=$(echo "$trail_response" | jq -r '.flowId')
+    if [[ "$actual_flow_id" != "$flow_id" ]]; then
+        echo "ERROR: trail $trail_id belongs to flow $actual_flow_id, not $flow_id" >&2
+        exit 1
+    fi
 
     echo "Checking compliance for trail $trail_id..."
     response=$(_curl "${FACTSTORE_URL}/api/v1/trails/${trail_id}/evidence-summary")

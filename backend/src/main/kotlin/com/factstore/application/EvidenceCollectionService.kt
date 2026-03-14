@@ -50,11 +50,13 @@ class EvidenceCollectionService(
         )
         val saved = coverageReportRepository.save(report)
 
-        // Also record as an attestation for compliance tracking
+        // Record as a "test-coverage" attestation (base type) so compliance evaluation
+        // against Flow.requiredAttestationTypes works with exact matching. Tool details
+        // are captured in the attestation's details field.
         val attestationStatus = if (passed) AttestationStatus.PASSED else AttestationStatus.FAILED
         val attestation = Attestation(
             trailId = trailId,
-            type = "test-coverage-${request.tool}",
+            type = "test-coverage",
             status = attestationStatus,
             details = buildCoverageDetails(request, passed)
         )
@@ -101,7 +103,7 @@ class EvidenceCollectionService(
 
         val collectedTypes = attestations.map { it.type }.distinct()
         val requiredTypes = flow.requiredAttestationTypes
-        val missingTypes = requiredTypes.filter { required -> collectedTypes.none { collected -> collected == required || collected.startsWith("$required-") } }
+        val missingTypes = requiredTypes.filter { required -> required !in collectedTypes }
         val isComplete = missingTypes.isEmpty()
 
         return EvidenceSummaryResponse(
@@ -120,18 +122,28 @@ class EvidenceCollectionService(
     @Transactional(readOnly = true)
     override fun getEvidenceGaps(): EvidenceGapsResponse {
         val trails = trailRepository.findAll()
-        val gaps = mutableListOf<EvidenceGapItem>()
+        if (trails.isEmpty()) return EvidenceGapsResponse(gaps = emptyList(), totalTrailsWithGaps = 0)
 
+        // Bulk-load flows and attestations to avoid N+1 queries
+        val flowIds = trails.map { it.flowId }.toSet()
+        val flowsById = flowRepository.findAllByIds(flowIds).associateBy { it.id }
+
+        val trailIdsWithRequirements = trails
+            .filter { (flowsById[it.flowId]?.requiredAttestationTypes ?: emptyList()).isNotEmpty() }
+            .map { it.id }
+
+        val attestationsByTrailId = if (trailIdsWithRequirements.isEmpty()) emptyMap()
+        else attestationRepository.findByTrailIdIn(trailIdsWithRequirements)
+            .groupBy { it.trailId }
+
+        val gaps = mutableListOf<EvidenceGapItem>()
         for (trail in trails) {
-            val flow = flowRepository.findById(trail.flowId) ?: continue
+            val flow = flowsById[trail.flowId] ?: continue
             val requiredTypes = flow.requiredAttestationTypes
             if (requiredTypes.isEmpty()) continue
 
-            val attestations = attestationRepository.findByTrailId(trail.id)
-            val collectedTypes = attestations.map { it.type }.distinct()
-            val missingTypes = requiredTypes.filter { required ->
-                collectedTypes.none { collected -> collected == required || collected.startsWith("$required-") }
-            }
+            val collectedTypes = (attestationsByTrailId[trail.id] ?: emptyList()).map { it.type }.distinct()
+            val missingTypes = requiredTypes.filter { required -> required !in collectedTypes }
 
             if (missingTypes.isNotEmpty()) {
                 gaps.add(
@@ -182,11 +194,13 @@ class EvidenceCollectionService(
         val min = request.minCoverage ?: return true
         val line = request.lineCoverage
         val branch = request.branchCoverage
+        // When a minimum threshold is set but no coverage metrics are provided, we
+        // cannot verify compliance — treat as failed rather than silently passing.
         return when {
             line != null && branch != null -> line >= min && branch >= min
             line != null -> line >= min
             branch != null -> branch >= min
-            else -> true
+            else -> false
         }
     }
 
