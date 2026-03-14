@@ -1,4 +1,4 @@
--- V5__add_build_provenance.sql
+-- V7__add_build_provenance.sql
 -- Adds build provenance tracking to artifacts for SLSA compliance.
 
 CREATE TABLE build_provenances (
