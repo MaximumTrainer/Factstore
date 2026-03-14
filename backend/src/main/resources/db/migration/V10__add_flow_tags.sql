@@ -1,4 +1,4 @@
--- V3: Add flow_tags table for arbitrary key-value metadata on flows
+-- V10: Add flow_tags table for arbitrary key-value metadata on flows
 
 CREATE TABLE flow_tags (
     flow_id   UUID         NOT NULL,
