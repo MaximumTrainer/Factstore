@@ -11,4 +11,7 @@ interface IOrganisationService {
     fun getOrganisation(id: UUID): OrganisationResponse
     fun updateOrganisation(id: UUID, request: UpdateOrganisationRequest): OrganisationResponse
     fun deleteOrganisation(id: UUID)
+    fun getOrganisationBySlug(slug: String): OrganisationResponse
+    fun updateOrganisationBySlug(slug: String, request: UpdateOrganisationRequest): OrganisationResponse
+    fun deleteOrganisationBySlug(slug: String)
 }

@@ -29,4 +29,7 @@ class InMemoryFlowRepository : IFlowRepository {
     }
 
     override fun countAll(): Long = store.size.toLong()
+
+    override fun findAllByOrgSlug(orgSlug: String): List<Flow> =
+        store.values.filter { it.orgSlug == orgSlug }
 }

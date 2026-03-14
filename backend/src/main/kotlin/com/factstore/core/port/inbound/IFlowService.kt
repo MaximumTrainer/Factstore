@@ -13,4 +13,5 @@ interface IFlowService {
     fun updateFlow(id: UUID, request: UpdateFlowRequest): FlowResponse
     fun deleteFlow(id: UUID)
     fun getFlowEntity(id: UUID): Flow
+    fun listFlowsByOrg(orgSlug: String): List<FlowResponse>
 }

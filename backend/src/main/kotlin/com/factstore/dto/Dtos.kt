@@ -10,6 +10,7 @@ import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.NotificationDeliveryStatus
 import com.factstore.core.domain.NotificationSeverity
+import com.factstore.core.domain.OrgType
 import com.factstore.core.domain.SsoProvider
 import com.factstore.core.domain.ProvenanceStatus
 import com.factstore.core.domain.SlsaLevel
@@ -24,7 +25,8 @@ data class CreateFlowRequest(
     val name: String,
     val description: String = "",
     val requiredAttestationTypes: List<String> = emptyList(),
-    val tags: Map<String, String> = emptyMap()
+    val tags: Map<String, String> = emptyMap(),
+    val orgSlug: String? = null
 )
 
 data class UpdateFlowRequest(
@@ -40,6 +42,7 @@ data class FlowResponse(
     val description: String,
     val requiredAttestationTypes: List<String>,
     val tags: Map<String, String>,
+    val orgSlug: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )
@@ -53,7 +56,8 @@ data class CreateTrailRequest(
     val gitAuthorEmail: String,
     val pullRequestId: String? = null,
     val pullRequestReviewer: String? = null,
-    val deploymentActor: String? = null
+    val deploymentActor: String? = null,
+    val orgSlug: String? = null
 )
 
 data class TrailResponse(
@@ -67,6 +71,7 @@ data class TrailResponse(
     val pullRequestReviewer: String?,
     val deploymentActor: String?,
     val status: TrailStatus,
+    val orgSlug: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )
@@ -77,7 +82,8 @@ data class CreateAttestationRequest(
     val status: AttestationStatus = AttestationStatus.PENDING,
     val details: String? = null,
     val name: String? = null,
-    val evidenceUrl: String? = null
+    val evidenceUrl: String? = null,
+    val orgSlug: String? = null
 )
 
 data class AttestationResponse(
@@ -92,6 +98,7 @@ data class AttestationResponse(
     val name: String?,
     val evidenceUrl: String?,
     val compliant: Boolean,
+    val orgSlug: String? = null,
     val createdAt: Instant
 )
 
@@ -101,7 +108,8 @@ data class CreateArtifactRequest(
     val imageTag: String,
     val sha256Digest: String,
     val registry: String? = null,
-    val reportedBy: String
+    val reportedBy: String,
+    val orgSlug: String? = null
 )
 
 data class ArtifactResponse(
@@ -113,6 +121,7 @@ data class ArtifactResponse(
     val registry: String?,
     val reportedAt: Instant,
     val reportedBy: String,
+    val orgSlug: String? = null,
     val provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO_PROVENANCE
 )
 
@@ -506,7 +515,8 @@ data class UserResponse(
 data class CreateEnvironmentRequest(
     val name: String,
     val type: EnvironmentType,
-    val description: String = ""
+    val description: String = "",
+    val orgSlug: String? = null
 )
 
 data class UpdateEnvironmentRequest(
@@ -520,6 +530,7 @@ data class EnvironmentResponse(
     val name: String,
     val type: EnvironmentType,
     val description: String,
+    val orgSlug: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )
@@ -796,7 +807,8 @@ data class CreatePolicyRequest(
     val name: String,
     val enforceProvenance: Boolean = false,
     val enforceTrailCompliance: Boolean = false,
-    val requiredAttestationTypes: List<String> = emptyList()
+    val requiredAttestationTypes: List<String> = emptyList(),
+    val orgSlug: String? = null
 )
 
 data class UpdatePolicyRequest(
@@ -812,6 +824,7 @@ data class PolicyResponse(
     val enforceProvenance: Boolean,
     val enforceTrailCompliance: Boolean,
     val requiredAttestationTypes: List<String>,
+    val orgSlug: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )
@@ -871,7 +884,8 @@ data class LogicalEnvironmentResponse(
 data class CreateOrganisationRequest(
     val slug: String,
     val name: String,
-    val description: String = ""
+    val description: String = "",
+    val type: OrgType = OrgType.SHARED
 )
 
 data class UpdateOrganisationRequest(
@@ -884,6 +898,7 @@ data class OrganisationResponse(
     val slug: String,
     val name: String,
     val description: String,
+    val type: OrgType,
     val createdAt: Instant,
     val updatedAt: Instant
 )

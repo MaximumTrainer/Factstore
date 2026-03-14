@@ -38,7 +38,8 @@ class EnvironmentService(
         val environment = Environment(
             name = request.name,
             type = request.type,
-            description = request.description
+            description = request.description,
+            orgSlug = request.orgSlug
         )
         val saved = environmentRepository.save(environment)
         log.info("Created environment: ${saved.id} - ${saved.name}")
@@ -140,6 +141,7 @@ fun Environment.toResponse() = EnvironmentResponse(
     name = name,
     type = type,
     description = description,
+    orgSlug = orgSlug,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

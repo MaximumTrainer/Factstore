@@ -1,0 +1,13 @@
+ALTER TABLE organisations ADD COLUMN type VARCHAR(50) NOT NULL DEFAULT 'SHARED';
+ALTER TABLE flows ADD COLUMN org_slug VARCHAR(255);
+ALTER TABLE trails ADD COLUMN org_slug VARCHAR(255);
+ALTER TABLE artifacts ADD COLUMN org_slug VARCHAR(255);
+ALTER TABLE attestations ADD COLUMN org_slug VARCHAR(255);
+ALTER TABLE environments ADD COLUMN org_slug VARCHAR(255);
+ALTER TABLE policies ADD COLUMN org_slug VARCHAR(255);
+ALTER TABLE flows ADD CONSTRAINT fk_flows_org FOREIGN KEY (org_slug) REFERENCES organisations (slug);
+ALTER TABLE trails ADD CONSTRAINT fk_trails_org FOREIGN KEY (org_slug) REFERENCES organisations (slug);
+ALTER TABLE artifacts ADD CONSTRAINT fk_artifacts_org FOREIGN KEY (org_slug) REFERENCES organisations (slug);
+ALTER TABLE attestations ADD CONSTRAINT fk_attestations_org FOREIGN KEY (org_slug) REFERENCES organisations (slug);
+ALTER TABLE environments ADD CONSTRAINT fk_environments_org FOREIGN KEY (org_slug) REFERENCES organisations (slug);
+ALTER TABLE policies ADD CONSTRAINT fk_policies_org FOREIGN KEY (org_slug) REFERENCES organisations (slug);

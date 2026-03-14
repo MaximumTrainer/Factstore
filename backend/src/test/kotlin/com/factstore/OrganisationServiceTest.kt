@@ -1,6 +1,7 @@
 package com.factstore
 
 import com.factstore.application.OrganisationService
+import com.factstore.core.domain.OrgType
 import com.factstore.dto.CreateOrganisationRequest
 import com.factstore.dto.UpdateOrganisationRequest
 import com.factstore.exception.ConflictException
@@ -71,5 +72,19 @@ class OrganisationServiceTest {
     @Test
     fun `delete non-existent organisation throws NotFoundException`() {
         assertThrows<NotFoundException> { organisationService.deleteOrganisation(UUID.randomUUID()) }
+    }
+
+    @Test
+    fun `create organisation with PERSONAL type succeeds`() {
+        val req = CreateOrganisationRequest("personal-org", "Personal Org", type = OrgType.PERSONAL)
+        val resp = organisationService.createOrganisation(req)
+        assertEquals(OrgType.PERSONAL, resp.type)
+    }
+
+    @Test
+    fun `create organisation with default type is SHARED`() {
+        val req = CreateOrganisationRequest("shared-org", "Shared Org")
+        val resp = organisationService.createOrganisation(req)
+        assertEquals(OrgType.SHARED, resp.type)
     }
 }

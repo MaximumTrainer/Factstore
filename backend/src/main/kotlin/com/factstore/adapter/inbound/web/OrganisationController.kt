@@ -1,7 +1,9 @@
 package com.factstore.adapter.inbound.web
 
+import com.factstore.core.port.inbound.IFlowService
 import com.factstore.core.port.inbound.IOrganisationService
 import com.factstore.dto.CreateOrganisationRequest
+import com.factstore.dto.FlowResponse
 import com.factstore.dto.OrganisationResponse
 import com.factstore.dto.UpdateOrganisationRequest
 import io.swagger.v3.oas.annotations.Operation
@@ -9,12 +11,14 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/organisations")
 @Tag(name = "Organisations", description = "Organisation management")
-class OrganisationController(private val organisationService: IOrganisationService) {
+class OrganisationController(
+    private val organisationService: IOrganisationService,
+    private val flowService: IFlowService
+) {
 
     @PostMapping
     @Operation(summary = "Create a new organisation")
@@ -26,23 +30,28 @@ class OrganisationController(private val organisationService: IOrganisationServi
     fun listOrganisations(): ResponseEntity<List<OrganisationResponse>> =
         ResponseEntity.ok(organisationService.listOrganisations())
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Get organisation by ID")
-    fun getOrganisation(@PathVariable id: UUID): ResponseEntity<OrganisationResponse> =
-        ResponseEntity.ok(organisationService.getOrganisation(id))
+    @GetMapping("/{slug}")
+    @Operation(summary = "Get organisation by slug")
+    fun getOrganisationBySlug(@PathVariable slug: String): ResponseEntity<OrganisationResponse> =
+        ResponseEntity.ok(organisationService.getOrganisationBySlug(slug))
 
-    @PutMapping("/{id}")
+    @PutMapping("/{slug}")
     @Operation(summary = "Update an organisation")
-    fun updateOrganisation(
-        @PathVariable id: UUID,
+    fun updateOrganisationBySlug(
+        @PathVariable slug: String,
         @RequestBody request: UpdateOrganisationRequest
     ): ResponseEntity<OrganisationResponse> =
-        ResponseEntity.ok(organisationService.updateOrganisation(id, request))
+        ResponseEntity.ok(organisationService.updateOrganisationBySlug(slug, request))
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{slug}")
     @Operation(summary = "Delete an organisation")
-    fun deleteOrganisation(@PathVariable id: UUID): ResponseEntity<Void> {
-        organisationService.deleteOrganisation(id)
+    fun deleteOrganisationBySlug(@PathVariable slug: String): ResponseEntity<Void> {
+        organisationService.deleteOrganisationBySlug(slug)
         return ResponseEntity.noContent().build()
     }
+
+    @GetMapping("/{slug}/flows")
+    @Operation(summary = "List flows in an organisation")
+    fun listFlowsByOrg(@PathVariable slug: String): ResponseEntity<List<FlowResponse>> =
+        ResponseEntity.ok(flowService.listFlowsByOrg(slug))
 }

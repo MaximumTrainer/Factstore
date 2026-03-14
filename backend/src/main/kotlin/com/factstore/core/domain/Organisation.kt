@@ -4,6 +4,8 @@ import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID
 
+enum class OrgType { PERSONAL, SHARED }
+
 @Entity
 @Table(name = "organisations")
 class Organisation(
@@ -18,6 +20,10 @@ class Organisation(
 
     @Column(nullable = false, columnDefinition = "TEXT")
     var description: String = "",
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var type: OrgType = OrgType.SHARED,
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),

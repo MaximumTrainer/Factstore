@@ -11,6 +11,7 @@ import java.util.UUID
 interface FlowRepositoryJpa : JpaRepository<Flow, UUID> {
     fun existsByName(name: String): Boolean
     fun findByName(name: String): Flow?
+    fun findAllByOrgSlug(orgSlug: String): List<Flow>
 }
 
 @Component
@@ -22,4 +23,5 @@ class FlowRepositoryAdapter(private val jpa: FlowRepositoryJpa) : IFlowRepositor
     override fun existsByName(name: String): Boolean = jpa.existsByName(name)
     override fun deleteById(id: UUID) = jpa.deleteById(id)
     override fun countAll(): Long = jpa.count()
+    override fun findAllByOrgSlug(orgSlug: String): List<Flow> = jpa.findAllByOrgSlug(orgSlug)
 }

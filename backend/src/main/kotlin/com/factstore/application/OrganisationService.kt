@@ -27,7 +27,8 @@ class OrganisationService(private val organisationRepository: IOrganisationRepos
         val organisation = Organisation(
             slug = request.slug,
             name = request.name,
-            description = request.description
+            description = request.description,
+            type = request.type
         )
         val saved = organisationRepository.save(organisation)
         log.info("Created organisation: ${saved.id} - ${saved.slug}")
@@ -56,6 +57,26 @@ class OrganisationService(private val organisationRepository: IOrganisationRepos
         organisationRepository.deleteById(id)
         log.info("Deleted organisation: $id")
     }
+
+    @Transactional(readOnly = true)
+    override fun getOrganisationBySlug(slug: String): OrganisationResponse =
+        (organisationRepository.findBySlug(slug) ?: throw NotFoundException("Organisation not found: $slug")).toResponse()
+
+    override fun updateOrganisationBySlug(slug: String, request: UpdateOrganisationRequest): OrganisationResponse {
+        val org = organisationRepository.findBySlug(slug)
+            ?: throw NotFoundException("Organisation not found: $slug")
+        request.name?.let { org.name = it }
+        request.description?.let { org.description = it }
+        org.updatedAt = Instant.now()
+        return organisationRepository.save(org).toResponse()
+    }
+
+    override fun deleteOrganisationBySlug(slug: String) {
+        val org = organisationRepository.findBySlug(slug)
+            ?: throw NotFoundException("Organisation not found: $slug")
+        organisationRepository.deleteById(org.id)
+        log.info("Deleted organisation by slug: $slug")
+    }
 }
 
 fun Organisation.toResponse() = OrganisationResponse(
@@ -63,6 +84,7 @@ fun Organisation.toResponse() = OrganisationResponse(
     slug = slug,
     name = name,
     description = description,
+    type = type,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

@@ -38,7 +38,8 @@ class AttestationService(
             status = request.status,
             details = request.details,
             name = request.name,
-            evidenceUrl = request.evidenceUrl
+            evidenceUrl = request.evidenceUrl,
+            orgSlug = request.orgSlug
         )
         val saved = attestationRepository.save(attestation)
         if (request.status == AttestationStatus.FAILED) {
@@ -107,5 +108,6 @@ fun Attestation.toResponse() = AttestationResponse(
     name = name,
     evidenceUrl = evidenceUrl,
     compliant = status == AttestationStatus.PASSED,
+    orgSlug = orgSlug,
     createdAt = createdAt
 )

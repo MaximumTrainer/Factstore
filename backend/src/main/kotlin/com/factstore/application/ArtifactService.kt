@@ -35,7 +35,8 @@ class ArtifactService(
             imageTag = request.imageTag,
             sha256Digest = request.sha256Digest,
             registry = request.registry,
-            reportedBy = request.reportedBy
+            reportedBy = request.reportedBy,
+            orgSlug = request.orgSlug
         )
         val saved = artifactRepository.save(artifact)
         auditService.record(
@@ -89,5 +90,6 @@ fun Artifact.toResponse(provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO
     registry = registry,
     reportedAt = reportedAt,
     reportedBy = reportedBy,
+    orgSlug = orgSlug,
     provenanceStatus = provenanceStatus
 )

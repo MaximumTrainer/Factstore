@@ -27,7 +27,8 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
         validateTags(request.tags)
         val flow = Flow(
             name = request.name,
-            description = request.description
+            description = request.description,
+            orgSlug = request.orgSlug
         ).also {
             it.requiredAttestationTypes = request.requiredAttestationTypes
             it.tags = request.tags.toMutableMap()
@@ -71,6 +72,10 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
     override fun getFlowEntity(id: UUID): Flow =
         flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
 
+    @Transactional(readOnly = true)
+    override fun listFlowsByOrg(orgSlug: String): List<FlowResponse> =
+        flowRepository.findAllByOrgSlug(orgSlug).map { it.toResponse() }
+
     private fun validateTags(tags: Map<String, String>) {
         require(tags.size <= 50) { "Flow may have at most 50 tags" }
         tags.forEach { (k, v) ->
@@ -87,6 +92,7 @@ fun Flow.toResponse() = FlowResponse(
     description = description,
     requiredAttestationTypes = requiredAttestationTypes,
     tags = tags.toMap(),
+    orgSlug = orgSlug,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

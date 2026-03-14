@@ -27,7 +27,8 @@ class PolicyService(private val policyRepository: IPolicyRepository) : IPolicySe
         val policy = Policy(
             name = request.name,
             enforceProvenance = request.enforceProvenance,
-            enforceTrailCompliance = request.enforceTrailCompliance
+            enforceTrailCompliance = request.enforceTrailCompliance,
+            orgSlug = request.orgSlug
         ).also { it.requiredAttestationTypes = request.requiredAttestationTypes }
         val saved = policyRepository.save(policy)
         log.info("Created policy: ${saved.id} - ${saved.name}")
@@ -70,6 +71,7 @@ fun Policy.toResponse() = PolicyResponse(
     enforceProvenance = enforceProvenance,
     enforceTrailCompliance = enforceTrailCompliance,
     requiredAttestationTypes = requiredAttestationTypes,
+    orgSlug = orgSlug,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
