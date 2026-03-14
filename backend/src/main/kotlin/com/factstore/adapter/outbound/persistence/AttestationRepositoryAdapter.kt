@@ -17,4 +17,5 @@ class AttestationRepositoryAdapter(private val jpa: AttestationRepositoryJpa) : 
     override fun save(attestation: Attestation): Attestation = jpa.save(attestation)
     override fun findById(id: UUID): Attestation? = jpa.findById(id).orElse(null)
     override fun findByTrailId(trailId: UUID): List<Attestation> = jpa.findByTrailId(trailId)
+    override fun findAll(): List<Attestation> = jpa.findAll()
 }

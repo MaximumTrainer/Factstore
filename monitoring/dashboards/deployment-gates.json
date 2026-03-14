@@ -1,0 +1,59 @@
+{
+  "uid": "factstore-deployment-gates",
+  "title": "Deployment Gates",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Compliant Trails (Gate Allowed)",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        { "expr": "factstore_trails_compliant", "legendFormat": "Allowed" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Non-Compliant Trails (Gate Blocked)",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        { "expr": "factstore_trails_non_compliant", "legendFormat": "Blocked" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Gate Decisions Over Time",
+      "gridPos": { "x": 0, "y": 4, "w": 16, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_trails_compliant", "legendFormat": "Allowed" },
+        { "expr": "factstore_trails_non_compliant", "legendFormat": "Blocked" }
+      ]
+    }
+  ]
+}

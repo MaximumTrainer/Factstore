@@ -1,5 +1,6 @@
 package com.factstore.adapter.inbound.web
 
+import com.factstore.application.CiContextResolver
 import com.factstore.application.DryRunContext
 import com.factstore.core.domain.TrailStatus
 import com.factstore.core.port.inbound.IAuditService
@@ -28,29 +29,34 @@ class TrailController(
     @Operation(summary = "Create/begin a trail")
     fun createTrail(
         @RequestBody request: CreateTrailRequest,
+        @RequestHeader(value = "X-Factstore-CI-Context", required = false) ciContext: String?,
         httpRequest: HttpServletRequest
     ): ResponseEntity<*> {
+        val enrichedRequest = CiContextResolver.resolve(ciContext)
+            ?.let { CiContextResolver.enrich(request, it) }
+            ?: request
         if (DryRunContext.isDryRun(httpRequest)) {
             val now = Instant.now()
             val wouldBe = TrailResponse(
                 id = UUID.randomUUID(),
-                flowId = request.flowId,
-                gitCommitSha = request.gitCommitSha,
-                gitBranch = request.gitBranch,
-                gitAuthor = request.gitAuthor,
-                gitAuthorEmail = request.gitAuthorEmail,
-                pullRequestId = request.pullRequestId,
-                pullRequestReviewer = request.pullRequestReviewer,
-                deploymentActor = request.deploymentActor,
+                flowId = enrichedRequest.flowId,
+                gitCommitSha = enrichedRequest.gitCommitSha ?: "",
+                gitBranch = enrichedRequest.gitBranch ?: "",
+                gitAuthor = enrichedRequest.gitAuthor,
+                gitAuthorEmail = enrichedRequest.gitAuthorEmail,
+                pullRequestId = enrichedRequest.pullRequestId,
+                pullRequestReviewer = enrichedRequest.pullRequestReviewer,
+                deploymentActor = enrichedRequest.deploymentActor,
                 status = TrailStatus.PENDING,
-                orgSlug = request.orgSlug,
-                templateYaml = request.templateYaml,
+                orgSlug = enrichedRequest.orgSlug,
+                templateYaml = enrichedRequest.templateYaml,
+                buildUrl = enrichedRequest.buildUrl,
                 createdAt = now,
                 updatedAt = now
             )
             return ResponseEntity.ok(DryRunResponse(wouldCreate = wouldBe))
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(trailService.createTrail(request))
+        return ResponseEntity.status(HttpStatus.CREATED).body(trailService.createTrail(enrichedRequest))
     }
 
     @GetMapping("/api/v1/trails")

@@ -1,0 +1,57 @@
+{
+  "uid": "factstore-compliance-overview",
+  "title": "Compliance Overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Compliance Rate (%)",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 50 },
+              { "color": "green", "value": 80 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "targets": [
+        { "expr": "factstore_compliance_rate", "legendFormat": "Compliance Rate" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "piechart",
+      "title": "Trail Status Distribution",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_trails_compliant", "legendFormat": "Compliant" },
+        { "expr": "factstore_trails_non_compliant", "legendFormat": "Non-Compliant" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Trail Counts Over Time",
+      "gridPos": { "x": 0, "y": 8, "w": 16, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_trails_total", "legendFormat": "Total" },
+        { "expr": "factstore_trails_compliant", "legendFormat": "Compliant" },
+        { "expr": "factstore_trails_non_compliant", "legendFormat": "Non-Compliant" }
+      ]
+    }
+  ]
+}

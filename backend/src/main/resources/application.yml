@@ -71,6 +71,19 @@ vault:
   tls:
     enabled: false
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
 server:
   port: 8080
   # HTTPS / TLS configuration (production)

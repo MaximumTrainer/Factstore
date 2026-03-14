@@ -1,0 +1,1 @@
+ALTER TABLE trails ADD COLUMN build_url VARCHAR(2048);

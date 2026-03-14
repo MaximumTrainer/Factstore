@@ -74,15 +74,16 @@ data class FlowResponse(
 // Trail DTOs
 data class CreateTrailRequest(
     val flowId: UUID,
-    val gitCommitSha: String,
-    val gitBranch: String,
+    val gitCommitSha: String? = null,
+    val gitBranch: String? = null,
     val gitAuthor: String,
     val gitAuthorEmail: String,
     val pullRequestId: String? = null,
     val pullRequestReviewer: String? = null,
     val deploymentActor: String? = null,
     val orgSlug: String? = null,
-    val templateYaml: String? = null
+    val templateYaml: String? = null,
+    val buildUrl: String? = null
 )
 
 data class TrailResponse(
@@ -98,6 +99,7 @@ data class TrailResponse(
     val status: TrailStatus,
     val orgSlug: String? = null,
     val templateYaml: String? = null,
+    val buildUrl: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )
@@ -1322,5 +1324,28 @@ data class RegulatoryReportResponse(
     val frameworkName: String,
     val frameworkVersion: String,
     val assessments: List<AssessmentResponse>,
+    val generatedAt: Instant
+)
+
+// Metrics DTOs
+data class ComplianceMetricsSummary(
+    val totalTrails: Int,
+    val compliantTrails: Int,
+    val nonCompliantTrails: Int,
+    val complianceRate: Double,
+    val totalAttestations: Int,
+    val passedAttestations: Int,
+    val failedAttestations: Int,
+    val generatedAt: Instant
+)
+
+data class SecurityMetricsSummary(
+    val totalScans: Int,
+    val passedScans: Int,
+    val failedScans: Int,
+    val totalCritical: Int,
+    val totalHigh: Int,
+    val totalMedium: Int,
+    val totalLow: Int,
     val generatedAt: Instant
 )

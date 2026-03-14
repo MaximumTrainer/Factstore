@@ -7,6 +7,7 @@ import com.factstore.core.port.outbound.IFlowRepository
 import com.factstore.core.port.outbound.ITrailRepository
 import com.factstore.dto.CreateTrailRequest
 import com.factstore.dto.TrailResponse
+import com.factstore.exception.BadRequestException
 import com.factstore.exception.NotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -29,15 +30,18 @@ class TrailService(
         }
         val trail = Trail(
             flowId = request.flowId,
-            gitCommitSha = request.gitCommitSha,
-            gitBranch = request.gitBranch,
+            gitCommitSha = request.gitCommitSha
+                ?: throw BadRequestException("gitCommitSha is required (or use X-Factstore-CI-Context header)"),
+            gitBranch = request.gitBranch
+                ?: throw BadRequestException("gitBranch is required (or use X-Factstore-CI-Context header)"),
             gitAuthor = request.gitAuthor,
             gitAuthorEmail = request.gitAuthorEmail,
             pullRequestId = request.pullRequestId,
             pullRequestReviewer = request.pullRequestReviewer,
             deploymentActor = request.deploymentActor,
             orgSlug = request.orgSlug,
-            templateYaml = request.templateYaml
+            templateYaml = request.templateYaml,
+            buildUrl = request.buildUrl
         )
         val saved = trailRepository.save(trail)
         log.info("Created trail: ${saved.id} for flow: ${saved.flowId}")
@@ -83,6 +87,7 @@ fun Trail.toResponse() = TrailResponse(
     status = status,
     orgSlug = orgSlug,
     templateYaml = templateYaml,
+    buildUrl = buildUrl,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

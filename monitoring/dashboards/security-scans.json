@@ -1,0 +1,42 @@
+{
+  "uid": "factstore-security-scans",
+  "title": "Security Scans",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Security Scans",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_security_scans_total", "legendFormat": "Total Scans" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "piechart",
+      "title": "Scan Pass / Fail",
+      "gridPos": { "x": 6, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_security_scans_passed", "legendFormat": "Passed" },
+        { "expr": "factstore_security_scans_failed", "legendFormat": "Failed" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Vulnerability Counts Over Time",
+      "gridPos": { "x": 0, "y": 8, "w": 16, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_security_scans_passed", "legendFormat": "Passed" },
+        { "expr": "factstore_security_scans_failed", "legendFormat": "Failed" }
+      ]
+    }
+  ]
+}

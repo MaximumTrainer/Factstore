@@ -46,6 +46,9 @@ class Trail(
     @Column(name = "template_yaml", columnDefinition = "TEXT")
     var templateYaml: String? = null,
 
+    @Column(name = "build_url", length = 2048)
+    var buildUrl: String? = null,
+
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 

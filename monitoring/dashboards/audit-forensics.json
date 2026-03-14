@@ -1,0 +1,42 @@
+{
+  "uid": "factstore-audit-forensics",
+  "title": "Audit & Forensics",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Attestations",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_attestations_total", "legendFormat": "Total" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "piechart",
+      "title": "Attestation Outcomes",
+      "gridPos": { "x": 6, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_attestations_passed", "legendFormat": "Passed" },
+        { "expr": "factstore_attestations_failed", "legendFormat": "Failed" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Audit Event Volume",
+      "gridPos": { "x": 0, "y": 8, "w": 16, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "factstore_attestations_total", "legendFormat": "Attestations" },
+        { "expr": "factstore_trails_total", "legendFormat": "Trails" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+package com.factstore.application
+
+import com.factstore.adapter.mock.InMemoryAttestationRepository
+import com.factstore.adapter.mock.InMemorySecurityScanRepository
+import com.factstore.adapter.mock.InMemoryTrailRepository
+import com.factstore.core.domain.Attestation
+import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.SecurityScanResult
+import com.factstore.core.domain.Trail
+import com.factstore.core.domain.TrailStatus
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import java.util.UUID
+
+class ComplianceMetricsServiceTest {
+
+    private lateinit var service: ComplianceMetricsService
+    private lateinit var trailRepository: InMemoryTrailRepository
+    private lateinit var attestationRepository: InMemoryAttestationRepository
+    private lateinit var scanRepository: InMemorySecurityScanRepository
+    private lateinit var meterRegistry: SimpleMeterRegistry
+
+    @BeforeEach
+    fun setup() {
+        trailRepository = InMemoryTrailRepository()
+        attestationRepository = InMemoryAttestationRepository()
+        scanRepository = InMemorySecurityScanRepository()
+        meterRegistry = SimpleMeterRegistry()
+        service = ComplianceMetricsService(meterRegistry, trailRepository, attestationRepository, scanRepository)
+        service.registerMetrics()
+    }
+
+    private fun trail(status: TrailStatus = TrailStatus.PENDING): Trail {
+        val t = Trail(
+            flowId = UUID.randomUUID(),
+            gitCommitSha = "abc123",
+            gitBranch = "main",
+            gitAuthor = "Test User",
+            gitAuthorEmail = "test@example.com",
+            status = status
+        )
+        trailRepository.save(t)
+        return t
+    }
+
+    @Test
+    fun `metrics are registered with the meter registry`() {
+        assertNotNull(meterRegistry.find("factstore_trails_total").gauge())
+        assertNotNull(meterRegistry.find("factstore_trails_compliant").gauge())
+        assertNotNull(meterRegistry.find("factstore_trails_non_compliant").gauge())
+        assertNotNull(meterRegistry.find("factstore_attestations_total").gauge())
+        assertNotNull(meterRegistry.find("factstore_attestations_passed").gauge())
+        assertNotNull(meterRegistry.find("factstore_attestations_failed").gauge())
+        assertNotNull(meterRegistry.find("factstore_security_scans_total").gauge())
+        assertNotNull(meterRegistry.find("factstore_security_scans_passed").gauge())
+        assertNotNull(meterRegistry.find("factstore_security_scans_failed").gauge())
+        assertNotNull(meterRegistry.find("factstore_compliance_rate").gauge())
+    }
+
+    @Test
+    fun `getComplianceMetrics returns correct counts`() {
+        trail(TrailStatus.COMPLIANT)
+        trail(TrailStatus.COMPLIANT)
+        trail(TrailStatus.NON_COMPLIANT)
+
+        val trailId = UUID.randomUUID()
+        attestationRepository.save(Attestation(trailId = trailId, type = "junit", status = AttestationStatus.PASSED))
+        attestationRepository.save(Attestation(trailId = trailId, type = "snyk", status = AttestationStatus.FAILED))
+
+        val metrics = service.getComplianceMetrics()
+
+        assertEquals(3, metrics.totalTrails)
+        assertEquals(2, metrics.compliantTrails)
+        assertEquals(1, metrics.nonCompliantTrails)
+        assertEquals(2, metrics.totalAttestations)
+        assertEquals(1, metrics.passedAttestations)
+        assertEquals(1, metrics.failedAttestations)
+        assertNotNull(metrics.generatedAt)
+    }
+
+    @Test
+    fun `compliance rate is 100 when all trails are compliant`() {
+        trail(TrailStatus.COMPLIANT)
+        trail(TrailStatus.COMPLIANT)
+
+        val metrics = service.getComplianceMetrics()
+
+        assertEquals(100.0, metrics.complianceRate, 0.001)
+    }
+
+    @Test
+    fun `compliance rate is 0 when no trails exist`() {
+        val metrics = service.getComplianceMetrics()
+        assertEquals(0.0, metrics.complianceRate, 0.001)
+    }
+
+    @Test
+    fun `compliance rate is calculated correctly for mixed statuses`() {
+        trail(TrailStatus.COMPLIANT)
+        trail(TrailStatus.NON_COMPLIANT)
+        trail(TrailStatus.NON_COMPLIANT)
+
+        val metrics = service.getComplianceMetrics()
+
+        assertEquals(1.0 / 3.0 * 100, metrics.complianceRate, 0.001)
+    }
+
+    @Test
+    fun `getSecurityMetrics returns correct scan counts`() {
+        val trailId = UUID.randomUUID()
+        scanRepository.save(SecurityScanResult(trailId = trailId, tool = "Trivy", criticalVulnerabilities = 0, highVulnerabilities = 0))
+        scanRepository.save(SecurityScanResult(trailId = trailId, tool = "Snyk", criticalVulnerabilities = 2, highVulnerabilities = 1))
+
+        val metrics = service.getSecurityMetrics()
+
+        assertEquals(2, metrics.totalScans)
+        assertEquals(1, metrics.passedScans)
+        assertEquals(1, metrics.failedScans)
+        assertEquals(2, metrics.totalCritical)
+        assertEquals(1, metrics.totalHigh)
+    }
+
+    @Test
+    fun `gauge values reflect current repository state`() {
+        assertEquals(0.0, meterRegistry.find("factstore_trails_total").gauge()!!.value(), 0.001)
+
+        trail(TrailStatus.COMPLIANT)
+        trail(TrailStatus.COMPLIANT)
+        trail(TrailStatus.NON_COMPLIANT)
+
+        assertEquals(3.0, meterRegistry.find("factstore_trails_total").gauge()!!.value(), 0.001)
+        assertEquals(2.0, meterRegistry.find("factstore_trails_compliant").gauge()!!.value(), 0.001)
+        assertEquals(1.0, meterRegistry.find("factstore_trails_non_compliant").gauge()!!.value(), 0.001)
+    }
+}

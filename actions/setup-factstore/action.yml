@@ -1,0 +1,24 @@
+name: 'Setup Factstore'
+description: 'Install and configure the Factstore CLI'
+inputs:
+  base-url:
+    description: 'Factstore server base URL'
+    required: true
+  api-token:
+    description: 'Factstore API token'
+    required: true
+  version:
+    description: 'CLI version to install'
+    required: false
+    default: 'latest'
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Factstore CLI
+      shell: bash
+      run: |
+        echo "Installing Factstore CLI version ${{ inputs.version }}..."
+        # Download from GitHub releases when CLI (issue #33) is available
+        echo "FACTSTORE_BASE_URL=${{ inputs.base-url }}" >> $GITHUB_ENV
+        echo "FACTSTORE_API_TOKEN=${{ inputs.api-token }}" >> $GITHUB_ENV
+        echo "Factstore configured at: ${{ inputs.base-url }}"
