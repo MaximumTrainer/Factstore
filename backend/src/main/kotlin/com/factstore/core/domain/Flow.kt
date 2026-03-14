@@ -1,6 +1,7 @@
 package com.factstore.core.domain
 
 import jakarta.persistence.*
+import org.hibernate.annotations.BatchSize
 import java.time.Instant
 import java.util.UUID
 
@@ -34,5 +35,6 @@ class Flow(
     @CollectionTable(name = "flow_tags", joinColumns = [JoinColumn(name = "flow_id")])
     @MapKeyColumn(name = "tag_key", length = 64)
     @Column(name = "tag_value", length = 256)
+    @BatchSize(size = 50)
     var tags: MutableMap<String, String> = mutableMapOf()
 }
