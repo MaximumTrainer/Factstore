@@ -1,24 +1,37 @@
-# Factstore
+# OpenFactstore
 
-A **Supply Chain Compliance Fact Store** — a full-stack web application for tracking and verifying that software artifacts (container images) meet predefined security and quality requirements before deployment.
+![CI](https://github.com/MaximumTrainer/OpenFactstore/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+A **Supply Chain Compliance Fact Store** — a full-stack web application for tracking and verifying that software artifacts (container images) meet predefined security and quality requirements before deployment. Built for DevSecOps teams in financial services and other regulated industries.
 
 ---
 
-## Getting Started
+## Quick Start
 
-The [Getting Started guide](./docs/getting-started/01-overview.md) walks you through every concept from first principles:
+```bash
+git clone https://github.com/MaximumTrainer/OpenFactstore.git
+cd OpenFactstore
+docker compose up --build
+```
 
-1. [Overview](./docs/getting-started/01-overview.md)
-2. [Setup & Access](./docs/getting-started/02-setup.md)
-3. [Authentication](./docs/getting-started/03-authentication.md) *(coming soon)*
-4. [Flows](./docs/getting-started/04-flows.md)
-5. [Trails](./docs/getting-started/05-trails.md)
-6. [Artifacts](./docs/getting-started/06-artifacts.md)
-7. [Attestations](./docs/getting-started/07-attestations.md)
-8. [Environments](./docs/getting-started/08-environments.md) *(coming soon)*
-9. [Policies](./docs/getting-started/09-policies.md) *(coming soon)*
-10. [Approvals](./docs/getting-started/10-approvals.md) *(coming soon)*
-11. [Next Steps & Roadmap](./docs/getting-started/11-next-steps.md)
+- **API** → http://localhost:8080
+- **Swagger UI** → http://localhost:8080/swagger-ui.html
+- **Grafana** → http://localhost:3000 (admin / changeme)
+
+---
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| **[USER_GUIDE.md](./USER_GUIDE.md)** | Comprehensive guide: setup, tutorial, all features, security |
+| **[docs/API_REFERENCE.md](./docs/API_REFERENCE.md)** | Full REST API reference (200+ endpoints) |
+| **[docs/ci-integration.md](./docs/ci-integration.md)** | CI/CD integration: GitHub Actions, GitLab, Jenkins, CircleCI, Azure DevOps |
+| **[DEPLOY.md](./DEPLOY.md)** | Docker, JAR, and release deployment guide |
+| **[CONTRIBUTING.md](./CONTRIBUTING.md)** | Development setup, testing, and PR guidelines |
+| **[SECURITY.md](./SECURITY.md)** | Vulnerability reporting and production hardening |
+| **[docs/getting-started/](./docs/getting-started/)** | Step-by-step getting started series |
 
 ---
 
@@ -41,7 +54,7 @@ The [Getting Started guide](./docs/getting-started/01-overview.md) walks you thr
 
 ## Overview
 
-Factstore enables engineering teams to define **compliance flows** — sets of required attestations (e.g. unit tests passing, security scans completed) that a container image must satisfy before it can be considered safe to deploy.
+OpenFactstore enables engineering teams to define **compliance flows** — sets of required attestations (e.g. unit tests passing, security scans completed) that a container image must satisfy before it can be considered safe to deploy.
 
 When a software artifact is built, a **trail** captures provenance metadata (Git commit SHA, branch, PR number, author). Attestations (evidence such as test results or scan reports) are linked to that trail. At any point, you can **assert** whether a given artifact digest meets all requirements for a given flow.
 
@@ -49,13 +62,29 @@ When a software artifact is built, a **trail** captures provenance metadata (Git
 
 ## Key Features
 
-- **Flow Management** — Define named compliance flows with a list of required attestation types (e.g. `junit`, `snyk`, `trivy`).
-- **Trail Tracking** — Record Git commit metadata (SHA, branch, PR, author, deployment actor) tied to each build.
-- **Artifact Management** — Track container images by their SHA-256 digest, name, tag, and registry.
-- **Attestations** — Attach evidence (test results, scan reports) to an artifact's trail with a `PASSED`, `FAILED`, or `PENDING` status.
-- **Evidence Vault** — Store evidence files with cryptographic hash verification and timestamping.
-- **Compliance Assertion** — Query at any time whether a specific artifact digest satisfies all required attestations for a flow.
-- **Audit Trail** — Full chain of custody linking artifacts → trails → flows → attestations → evidence files.
+- **Flow Management** — Define named compliance flows with required attestation types (`junit`, `snyk`, `trivy`, …).
+- **Flow Tags** — Tag flows with arbitrary key-value pairs for filtering, dashboards, and policy rules.
+- **Flow Template YAML** — Version-control compliance specs as YAML templates.
+- **Trail Tracking** — Record Git commit metadata (SHA, branch, PR, author) per build.
+- **Artifact Management** — Track container images by SHA-256 digest, name, tag, and registry.
+- **Attestations** — Attach evidence (test results, scan reports) with `PASSED`, `FAILED`, or `PENDING` status.
+- **Evidence Vault** — Store evidence files with cryptographic hash verification, optionally backed by HashiCorp Vault.
+- **Pull Request Attestation** — Auto-fetch PR evidence directly from GitHub/GitLab/Bitbucket.
+- **Security Scan Integration** — Record structured results from Trivy, Snyk, Grype, Semgrep with per-flow thresholds.
+- **OPA Policy Integration** — Upload Rego bundles and evaluate artifacts against custom Open Policy Agent policies.
+- **Compliance Assertion** — Assert whether an artifact satisfies all requirements for a flow at any time.
+- **Release Approval Workflow** — Require human sign-off before a trail becomes compliant.
+- **Deployment Gate & Policy Engine** — Block deployments that fail compliance or policy evaluation.
+- **Environment Drift Detection** — Snapshot environments, set baselines, and detect drift.
+- **Allow-list Third-party Artifacts** — Exclude platform-managed images from drift alerts.
+- **Organisation Multi-tenancy** — Isolate flows, users, and integrations per organisation.
+- **Regulatory Compliance Framework** — Map flows to SOX, PCI-DSS, GDPR, ISO 27001 controls; generate audit reports.
+- **Dry-run Safe Mode** — Preview any mutating operation without persisting data (`X-Dry-Run: true`).
+- **CI/CD Integration** — Native support for GitHub Actions, GitLab CI, Jenkins, CircleCI, Azure DevOps via `X-Factstore-CI-Context` header.
+- **Immutable Audit Trail** — Full chain of custody linking artifacts → trails → flows → attestations → evidence.
+- **Prometheus Metrics & Grafana Dashboards** — Four pre-built dashboards for compliance, security, gates, and forensics.
+- **Slack & Atlassian Integrations** — Notify Slack on non-compliant trails; sync to Jira and Confluence.
+- **SSO / OIDC** — Per-organisation SSO configuration (Okta, Azure AD, any OIDC provider).
 
 ---
 
@@ -377,4 +406,4 @@ See **[DEPLOY.md](./DEPLOY.md)** for the full deployment guide, including:
 
 ## Contributing
 
-Pick an open [issue](https://github.com/MaximumTrainer/Factstore/issues) and open a pull request against `main`.
+Pick an open [issue](https://github.com/MaximumTrainer/OpenFactstore/issues) and open a pull request against `main`. See **[CONTRIBUTING.md](./CONTRIBUTING.md)** for development setup, code style, and PR guidelines.
