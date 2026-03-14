@@ -3,7 +3,7 @@ package com.factstore.adapter.outbound
 import com.factstore.config.LedgerProperties
 import com.factstore.core.domain.ChainVerificationResult
 import com.factstore.core.domain.LedgerEntry
-import com.factstore.core.domain.LedgerFact
+import com.factstore.core.domain.LedgerRecord
 import com.factstore.core.domain.LedgerReceipt
 import com.factstore.core.domain.VerificationResult
 import com.factstore.core.port.outbound.IImmutableLedger
@@ -35,7 +35,7 @@ class LocalHashChainLedger(properties: LedgerProperties) : IImmutableLedger {
         )
     }
 
-    override fun recordFact(fact: LedgerFact): LedgerReceipt {
+    override fun recordFact(fact: LedgerRecord): LedgerReceipt {
         // Synchronize the read-compute-append sequence to maintain a strictly sequential chain.
         // CopyOnWriteArrayList guarantees safe concurrent reads, but the "read tail → compute
         // previousHash → append" operation must be atomic to prevent two concurrent writers
@@ -48,7 +48,7 @@ class LocalHashChainLedger(properties: LedgerProperties) : IImmutableLedger {
 
             val entry = LedgerEntry(
                 entryId = entryId,
-                factId = fact.factId,
+                recordId = fact.recordId,
                 eventType = fact.eventType,
                 contentHash = contentHash,
                 previousHash = previousHash,
@@ -56,49 +56,49 @@ class LocalHashChainLedger(properties: LedgerProperties) : IImmutableLedger {
                 metadata = fact.metadata
             )
             entries.add(entry)
-            log.debug("Recorded ledger entry id={} factId={} position={}", entryId, fact.factId, entries.size - 1)
+            log.debug("Recorded ledger entry id={} recordId={} position={}", entryId, fact.recordId, entries.size - 1)
 
             return LedgerReceipt(
                 entryId = entryId,
-                factId = fact.factId,
+                recordId = fact.recordId,
                 contentHash = contentHash,
                 timestamp = timestamp
             )
         }
     }
 
-    override fun verifyFact(factId: UUID): VerificationResult {
+    override fun verifyFact(recordId: UUID): VerificationResult {
         val snapshot = entries.toList()
-        val index = snapshot.indexOfFirst { it.factId == factId }
+        val index = snapshot.indexOfFirst { it.recordId == recordId }
         if (index < 0) {
             return VerificationResult(
-                factId = factId,
+                recordId = recordId,
                 verified = false,
                 contentHash = null,
                 chainPosition = null,
                 previousHash = null,
                 ledgerTimestamp = null,
                 verifiedAt = Instant.now(),
-                message = "No ledger entry found for factId $factId"
+                message = "No ledger entry found for recordId $recordId"
             )
         }
         val entry = snapshot[index]
         val chainValid = isChainValidAt(snapshot, index)
         return VerificationResult(
-            factId = factId,
+            recordId = recordId,
             verified = chainValid,
             contentHash = entry.contentHash,
             chainPosition = index,
             previousHash = entry.previousHash,
             ledgerTimestamp = entry.timestamp,
             verifiedAt = Instant.now(),
-            message = if (chainValid) "Fact verified — chain integrity confirmed at position $index"
+            message = if (chainValid) "Record verified — chain integrity confirmed at position $index"
                       else "Chain integrity failure detected at or before position $index"
         )
     }
 
-    override fun getHistory(factId: UUID): List<LedgerEntry> =
-        entries.filter { it.factId == factId }
+    override fun getHistory(recordId: UUID): List<LedgerEntry> =
+        entries.filter { it.recordId == recordId }
 
     override fun verifyChainIntegrity(from: Instant, to: Instant): ChainVerificationResult {
         val snapshot = entries.toList()
@@ -155,7 +155,7 @@ class LocalHashChainLedger(properties: LedgerProperties) : IImmutableLedger {
     }
 
     private fun computeEntryHash(entry: LedgerEntry): String =
-        sha256("${entry.entryId}|${entry.factId}|${entry.eventType}|${entry.contentHash}|${entry.previousHash}|${entry.timestamp}")
+        sha256("${entry.entryId}|${entry.recordId}|${entry.eventType}|${entry.contentHash}|${entry.previousHash}|${entry.timestamp}")
 
     private fun sha256(input: String): String {
         val digest = MessageDigest.getInstance("SHA-256")

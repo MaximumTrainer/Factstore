@@ -72,7 +72,9 @@ data class TrailResponse(
 data class CreateAttestationRequest(
     val type: String,
     val status: AttestationStatus = AttestationStatus.PENDING,
-    val details: String? = null
+    val details: String? = null,
+    val name: String? = null,
+    val evidenceUrl: String? = null
 )
 
 data class AttestationResponse(
@@ -84,6 +86,9 @@ data class AttestationResponse(
     val evidenceFileName: String?,
     val evidenceFileSizeBytes: Long?,
     val details: String?,
+    val name: String?,
+    val evidenceUrl: String?,
+    val compliant: Boolean,
     val createdAt: Instant
 )
 
@@ -424,7 +429,7 @@ sealed class SlackNotification {
 // Ledger DTOs
 data class LedgerEntryResponse(
     val entryId: String,
-    val factId: UUID,
+    val recordId: UUID,
     val eventType: String,
     val contentHash: String,
     val previousHash: String,
@@ -441,7 +446,7 @@ data class PagedLedgerEntriesResponse(
 )
 
 data class VerificationResponse(
-    val factId: UUID,
+    val recordId: UUID,
     val verified: Boolean,
     val contentHash: String?,
     val chainPosition: Int?,

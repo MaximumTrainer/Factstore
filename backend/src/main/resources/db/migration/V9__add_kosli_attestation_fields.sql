@@ -1,0 +1,2 @@
+ALTER TABLE attestations ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+ALTER TABLE attestations ADD COLUMN IF NOT EXISTS evidence_url TEXT;

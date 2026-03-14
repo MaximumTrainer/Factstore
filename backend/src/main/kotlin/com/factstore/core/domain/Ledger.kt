@@ -3,8 +3,8 @@ package com.factstore.core.domain
 import java.time.Instant
 import java.util.UUID
 
-data class LedgerFact(
-    val factId: UUID,
+data class LedgerRecord(
+    val recordId: UUID,
     val eventType: String,
     val content: String,
     val metadata: Map<String, String> = emptyMap()
@@ -12,7 +12,7 @@ data class LedgerFact(
 
 data class LedgerEntry(
     val entryId: String,
-    val factId: UUID,
+    val recordId: UUID,
     val eventType: String,
     val contentHash: String,
     val previousHash: String,
@@ -22,13 +22,13 @@ data class LedgerEntry(
 
 data class LedgerReceipt(
     val entryId: String,
-    val factId: UUID,
+    val recordId: UUID,
     val contentHash: String,
     val timestamp: Instant
 )
 
 data class VerificationResult(
-    val factId: UUID,
+    val recordId: UUID,
     val verified: Boolean,
     val contentHash: String?,
     val chainPosition: Int?,

@@ -36,7 +36,9 @@ class AttestationService(
             trailId = trailId,
             type = request.type,
             status = request.status,
-            details = request.details
+            details = request.details,
+            name = request.name,
+            evidenceUrl = request.evidenceUrl
         )
         val saved = attestationRepository.save(attestation)
         if (request.status == AttestationStatus.FAILED) {
@@ -102,5 +104,8 @@ fun Attestation.toResponse() = AttestationResponse(
     evidenceFileName = evidenceFileName,
     evidenceFileSizeBytes = evidenceFileSizeBytes,
     details = details,
+    name = name,
+    evidenceUrl = evidenceUrl,
+    compliant = status == AttestationStatus.PASSED,
     createdAt = createdAt
 )

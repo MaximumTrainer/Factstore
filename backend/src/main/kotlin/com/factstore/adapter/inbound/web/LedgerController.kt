@@ -36,15 +36,15 @@ class LedgerController(
     ): ResponseEntity<PagedLedgerEntriesResponse> =
         ResponseEntity.ok(ledgerService.listEntries(page, size))
 
-    @GetMapping("/entries/{factId}")
-    @Operation(summary = "Get ledger entry for a specific fact")
-    fun getEntry(@PathVariable factId: UUID): ResponseEntity<LedgerEntryResponse> =
-        ResponseEntity.ok(ledgerService.getEntry(factId))
+    @GetMapping("/entries/{recordId}")
+    @Operation(summary = "Get ledger entry for a specific record")
+    fun getEntry(@PathVariable recordId: UUID): ResponseEntity<LedgerEntryResponse> =
+        ResponseEntity.ok(ledgerService.getEntry(recordId))
 
-    @PostMapping("/verify/{factId}")
-    @Operation(summary = "Verify the integrity of a specific fact")
-    fun verifyFact(@PathVariable factId: UUID): ResponseEntity<VerificationResponse> =
-        ResponseEntity.ok(ledgerService.verifyFact(factId))
+    @PostMapping("/verify/{recordId}")
+    @Operation(summary = "Verify the integrity of a specific record")
+    fun verifyFact(@PathVariable recordId: UUID): ResponseEntity<VerificationResponse> =
+        ResponseEntity.ok(ledgerService.verifyFact(recordId))
 
     @PostMapping("/verify-chain")
     @Operation(summary = "Verify chain integrity for a date range")

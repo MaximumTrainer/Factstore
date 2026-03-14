@@ -42,17 +42,17 @@ class LedgerService(
         )
     }
 
-    override fun getEntry(factId: UUID): LedgerEntryResponse {
-        val history = ledger.getHistory(factId)
+    override fun getEntry(recordId: UUID): LedgerEntryResponse {
+        val history = ledger.getHistory(recordId)
         return history.lastOrNull()?.toResponse()
-            ?: throw NotFoundException("No ledger entry found for factId: $factId")
+            ?: throw NotFoundException("No ledger entry found for recordId: $recordId")
     }
 
-    override fun verifyFact(factId: UUID): VerificationResponse {
-        log.info("Verifying ledger fact factId={}", factId)
-        val result = ledger.verifyFact(factId)
+    override fun verifyFact(recordId: UUID): VerificationResponse {
+        log.info("Verifying ledger record recordId={}", recordId)
+        val result = ledger.verifyFact(recordId)
         return VerificationResponse(
-            factId = result.factId,
+            recordId = result.recordId,
             verified = result.verified,
             contentHash = result.contentHash,
             chainPosition = result.chainPosition,
@@ -89,7 +89,7 @@ class LedgerService(
 
     private fun com.factstore.core.domain.LedgerEntry.toResponse() = LedgerEntryResponse(
         entryId = entryId,
-        factId = factId,
+        recordId = recordId,
         eventType = eventType,
         contentHash = contentHash,
         previousHash = previousHash,

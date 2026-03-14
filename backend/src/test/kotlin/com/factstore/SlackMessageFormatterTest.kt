@@ -104,7 +104,7 @@ class SlackMessageFormatterTest {
                 id = UUID.randomUUID(), trailId = trailId, type = "BUILD",
                 status = AttestationStatus.PASSED,
                 evidenceFileHash = null, evidenceFileName = null, evidenceFileSizeBytes = null,
-                details = null, createdAt = Instant.now()
+                details = null, name = null, evidenceUrl = null, compliant = true, createdAt = Instant.now()
             )
         )
         val result = formatter.formatTrailDetails(trail, flow, attestations)
@@ -157,7 +157,7 @@ class SlackMessageFormatterTest {
                 id = UUID.randomUUID(), trailId = trailId, type = "SECURITY_SCAN",
                 status = AttestationStatus.FAILED,
                 evidenceFileHash = null, evidenceFileName = null, evidenceFileSizeBytes = null,
-                details = null, createdAt = Instant.now()
+                details = null, name = null, evidenceUrl = null, compliant = false, createdAt = Instant.now()
             )
         )
         val result = formatter.formatTrailDetails(trail, flow, attestations)

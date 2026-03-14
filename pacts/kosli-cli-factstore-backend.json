@@ -1,0 +1,92 @@
+{
+  "consumer": {
+    "name": "kosli-cli"
+  },
+  "interactions": [
+    {
+      "description": "a POST request to record a Kosli v2 attestation",
+      "providerStates": [
+        {
+          "name": "a trail with id aabbccdd-0000-0000-0000-000000000001 exists"
+        }
+      ],
+      "request": {
+        "body": {
+          "details": "junit tests passed",
+          "name": "junit-test",
+          "status": "PASSED",
+          "type": "junit"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v2/attestations/my-org/my-flow/aabbccdd-0000-0000-0000-000000000001/sha256:abc123"
+      },
+      "response": {
+        "body": {
+          "compliant": true,
+          "name": "junit-test",
+          "status": "PASSED",
+          "type": "junit"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.compliant": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "factstore"
+  }
+}

@@ -3,7 +3,7 @@ package com.factstore
 import com.factstore.adapter.outbound.LocalHashChainLedger
 import com.factstore.application.LedgerService
 import com.factstore.config.LedgerProperties
-import com.factstore.core.domain.LedgerFact
+import com.factstore.core.domain.LedgerRecord
 import com.factstore.dto.VerifyChainRequest
 import com.factstore.exception.BadRequestException
 import com.factstore.exception.NotFoundException
@@ -36,11 +36,11 @@ class LedgerServiceTest {
     @Test
     fun `record a fact and retrieve the ledger entry`() {
         val factId = UUID.randomUUID()
-        ledger.recordFact(LedgerFact(factId, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
+        ledger.recordFact(LedgerRecord(factId, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
 
         val entry = service.getEntry(factId)
 
-        assertEquals(factId, entry.factId)
+        assertEquals(factId, entry.recordId)
         assertEquals("ATTESTATION_RECORDED", entry.eventType)
         assertNotNull(entry.contentHash)
         assertTrue(entry.contentHash.length == 64) // SHA-256 hex
@@ -49,12 +49,12 @@ class LedgerServiceTest {
     @Test
     fun `verify a recorded fact returns verified true`() {
         val factId = UUID.randomUUID()
-        ledger.recordFact(LedgerFact(factId, "ATTESTATION_RECORDED", """{"type":"snyk","status":"PASSED"}"""))
+        ledger.recordFact(LedgerRecord(factId, "ATTESTATION_RECORDED", """{"type":"snyk","status":"PASSED"}"""))
 
         val result = service.verifyFact(factId)
 
         assertTrue(result.verified)
-        assertEquals(factId, result.factId)
+        assertEquals(factId, result.recordId)
         assertNotNull(result.contentHash)
         assertEquals(0, result.chainPosition)
         assertNotNull(result.ledgerTimestamp)
@@ -82,8 +82,8 @@ class LedgerServiceTest {
     @Test
     fun `getEntry returns the latest entry when a fact has multiple history entries`() {
         val factId = UUID.randomUUID()
-        ledger.recordFact(LedgerFact(factId, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
-        ledger.recordFact(LedgerFact(factId, "ATTESTATION_UPDATED", """{"type":"junit","status":"FAILED"}"""))
+        ledger.recordFact(LedgerRecord(factId, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
+        ledger.recordFact(LedgerRecord(factId, "ATTESTATION_UPDATED", """{"type":"junit","status":"FAILED"}"""))
 
         val entry = service.getEntry(factId)
 
@@ -94,8 +94,8 @@ class LedgerServiceTest {
     fun `hash chain links entries correctly`() {
         val factId1 = UUID.randomUUID()
         val factId2 = UUID.randomUUID()
-        ledger.recordFact(LedgerFact(factId1, "TRAIL_CREATED", """{"trailId":"abc"}"""))
-        ledger.recordFact(LedgerFact(factId2, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
+        ledger.recordFact(LedgerRecord(factId1, "TRAIL_CREATED", """{"trailId":"abc"}"""))
+        ledger.recordFact(LedgerRecord(factId2, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
 
         val entry1 = service.getEntry(factId1)
         val entry2 = service.getEntry(factId2)
@@ -111,7 +111,7 @@ class LedgerServiceTest {
     @Test
     fun `listEntries returns paginated results`() {
         repeat(5) {
-            ledger.recordFact(LedgerFact(UUID.randomUUID(), "TRAIL_CREATED", """{"index":$it}"""))
+            ledger.recordFact(LedgerRecord(UUID.randomUUID(), "TRAIL_CREATED", """{"index":$it}"""))
         }
 
         val page0 = service.listEntries(0, 3)
@@ -142,8 +142,8 @@ class LedgerServiceTest {
         val before = Instant.now().minusSeconds(1)
         val factId1 = UUID.randomUUID()
         val factId2 = UUID.randomUUID()
-        ledger.recordFact(LedgerFact(factId1, "TRAIL_CREATED", """{"trailId":"x"}"""))
-        ledger.recordFact(LedgerFact(factId2, "ATTESTATION_RECORDED", """{"type":"junit"}"""))
+        ledger.recordFact(LedgerRecord(factId1, "TRAIL_CREATED", """{"trailId":"x"}"""))
+        ledger.recordFact(LedgerRecord(factId2, "ATTESTATION_RECORDED", """{"type":"junit"}"""))
         val after = Instant.now().plusSeconds(1)
 
         val result = service.verifyChain(VerifyChainRequest(from = before, to = after))
@@ -155,7 +155,7 @@ class LedgerServiceTest {
 
     @Test
     fun `getStatus returns correct enabled state and entry count`() {
-        ledger.recordFact(LedgerFact(UUID.randomUUID(), "ATTESTATION_RECORDED", """{"type":"junit"}"""))
+        ledger.recordFact(LedgerRecord(UUID.randomUUID(), "ATTESTATION_RECORDED", """{"type":"junit"}"""))
 
         val status = service.getStatus()
 
@@ -168,8 +168,8 @@ class LedgerServiceTest {
     @Test
     fun `getHistory returns all entries for a factId`() {
         val factId = UUID.randomUUID()
-        ledger.recordFact(LedgerFact(factId, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
-        ledger.recordFact(LedgerFact(factId, "ATTESTATION_UPDATED", """{"type":"junit","status":"FAILED"}"""))
+        ledger.recordFact(LedgerRecord(factId, "ATTESTATION_RECORDED", """{"type":"junit","status":"PASSED"}"""))
+        ledger.recordFact(LedgerRecord(factId, "ATTESTATION_UPDATED", """{"type":"junit","status":"FAILED"}"""))
 
         val entries = ledger.getHistory(factId)
 
@@ -198,7 +198,7 @@ class LedgerServiceTest {
         repeat(threadCount) {
             executor.submit {
                 try {
-                    ledger.recordFact(LedgerFact(UUID.randomUUID(), "CONCURRENT_EVENT", """{"thread":$it}"""))
+                    ledger.recordFact(LedgerRecord(UUID.randomUUID(), "CONCURRENT_EVENT", """{"thread":$it}"""))
                 } finally {
                     latch.countDown()
                 }

@@ -34,6 +34,12 @@ class Attestation(
     @Column(columnDefinition = "TEXT")
     var details: String? = null,
 
+    @Column(nullable = true)
+    var name: String? = null,
+
+    @Column(name = "evidence_url", nullable = true)
+    var evidenceUrl: String? = null,
+
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now()
 )

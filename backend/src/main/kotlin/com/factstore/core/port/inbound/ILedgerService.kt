@@ -10,8 +10,8 @@ import java.util.UUID
 
 interface ILedgerService {
     fun listEntries(page: Int, size: Int): PagedLedgerEntriesResponse
-    fun getEntry(factId: UUID): LedgerEntryResponse
-    fun verifyFact(factId: UUID): VerificationResponse
+    fun getEntry(recordId: UUID): LedgerEntryResponse
+    fun verifyFact(recordId: UUID): VerificationResponse
     fun verifyChain(request: VerifyChainRequest): ChainVerificationResponse
     fun getStatus(): LedgerStatusResponse
 }

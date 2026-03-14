@@ -7,7 +7,7 @@ import com.amazon.ion.system.IonSystemBuilder
 import com.factstore.config.LedgerProperties
 import com.factstore.core.domain.ChainVerificationResult
 import com.factstore.core.domain.LedgerEntry
-import com.factstore.core.domain.LedgerFact
+import com.factstore.core.domain.LedgerRecord
 import com.factstore.core.domain.LedgerReceipt
 import com.factstore.core.domain.VerificationResult
 import com.factstore.core.port.outbound.IImmutableLedger
@@ -67,8 +67,8 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
             }
     }
 
-    override fun recordFact(fact: LedgerFact): LedgerReceipt {
-        log.debug("Recording fact {} to QLDB ledger {}", fact.factId, properties.qldb.ledgerName)
+    override fun recordFact(fact: LedgerRecord): LedgerReceipt {
+        log.debug("Recording record {} to QLDB ledger {}", fact.recordId, properties.qldb.ledgerName)
         val contentHash = sha256(fact.content)
         val entryId = UUID.randomUUID().toString()
         val timestamp = Instant.now()
@@ -78,7 +78,7 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
                 // Store entryId and createdAt as explicit document fields so they can be read
                 // back reliably via SELECT * without needing system-metadata projection.
                 put("entryId", ionSystem.newString(entryId))
-                put("factId", ionSystem.newString(fact.factId.toString()))
+                put("factId", ionSystem.newString(fact.recordId.toString()))
                 put("eventType", ionSystem.newString(fact.eventType))
                 put("contentHash", ionSystem.newString(contentHash))
                 put("createdAt", ionSystem.newString(timestamp.toString()))
@@ -91,56 +91,56 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
 
         return LedgerReceipt(
             entryId = entryId,
-            factId = fact.factId,
+            recordId = fact.recordId,
             contentHash = contentHash,
             timestamp = timestamp
         )
     }
 
-    override fun verifyFact(factId: UUID): VerificationResult {
-        log.debug("Verifying fact {} in QLDB ledger {}", factId, properties.qldb.ledgerName)
+    override fun verifyFact(recordId: UUID): VerificationResult {
+        log.debug("Verifying record {} in QLDB ledger {}", recordId, properties.qldb.ledgerName)
         var entry: LedgerEntry? = null
 
         driver.execute { txn: TransactionExecutor ->
             val result = txn.execute(
                 "SELECT entryId, factId, eventType, contentHash, createdAt FROM FactLedger WHERE factId = ?",
-                ionSystem.newString(factId.toString())
+                ionSystem.newString(recordId.toString())
             )
             result.forEach { doc ->
                 val struct = doc as? IonStruct ?: return@forEach
-                entry = struct.toLedgerEntry(factId)
+                entry = struct.toLedgerEntry(recordId)
             }
         }
 
         val found = entry
         return if (found == null) {
             VerificationResult(
-                factId = factId,
+                recordId = recordId,
                 verified = false,
                 contentHash = null,
                 chainPosition = null,
                 previousHash = null,
                 ledgerTimestamp = null,
                 verifiedAt = Instant.now(),
-                message = "No ledger entry found for factId $factId"
+                message = "No ledger entry found for recordId $recordId"
             )
         } else {
             // QLDB guarantees cryptographic integrity via its journal and digest mechanism.
             // Full cryptographic proof requires calling GetDigest + GetRevision via the QLDB control-plane client.
             VerificationResult(
-                factId = factId,
+                recordId = recordId,
                 verified = true,
                 contentHash = found.contentHash,
                 chainPosition = null,
                 previousHash = null,
                 ledgerTimestamp = found.timestamp,
                 verifiedAt = Instant.now(),
-                message = "Fact found in QLDB — use GetDigest+GetRevision for full cryptographic proof"
+                message = "Record found in QLDB — use GetDigest+GetRevision for full cryptographic proof"
             )
         }
     }
 
-    override fun getHistory(factId: UUID): List<LedgerEntry> {
+    override fun getHistory(recordId: UUID): List<LedgerEntry> {
         val history = mutableListOf<LedgerEntry>()
         driver.execute { txn: TransactionExecutor ->
             // Project metadata.id (QLDB document ID) and metadata.txTime (commit timestamp)
@@ -151,7 +151,7 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
             val result = txn.execute(
                 "SELECT h.metadata.id AS metaId, h.metadata.txTime AS txTime, h.data.* " +
                     "FROM history(FactLedger) AS h WHERE h.data.factId = ?",
-                ionSystem.newString(factId.toString())
+                ionSystem.newString(recordId.toString())
             )
             result.forEach { doc ->
                 val struct = doc as? IonStruct ?: return@forEach
@@ -168,7 +168,7 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
                 history.add(
                     LedgerEntry(
                         entryId = resolvedEntryId,
-                        factId = factId,
+                        recordId = recordId,
                         eventType = (struct.get("eventType") as? IonText)?.stringValue() ?: "",
                         contentHash = (struct.get("contentHash") as? IonText)?.stringValue() ?: "",
                         previousHash = "",
@@ -215,10 +215,10 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
                 if (index >= safeOffset && page.size < limit) {
                     val struct = doc as? IonStruct
                     if (struct != null) {
-                        val factIdStr = (struct.get("factId") as? IonText)?.stringValue()
-                        val parsedFactId = factIdStr?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                        val recordIdStr = (struct.get("factId") as? IonText)?.stringValue()
+                        val parsedRecordId = recordIdStr?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                             ?: UUID.randomUUID()
-                        page.add(struct.toLedgerEntry(parsedFactId))
+                        page.add(struct.toLedgerEntry(parsedRecordId))
                     }
                 }
                 index++
@@ -243,9 +243,9 @@ class AwsQldbLedger(private val properties: LedgerProperties) : IImmutableLedger
      * Maps an Ion struct (from a SELECT query row) to a [LedgerEntry].
      * Reads `entryId` and `createdAt` from the document fields stored at insert time.
      */
-    private fun IonStruct.toLedgerEntry(factId: UUID): LedgerEntry = LedgerEntry(
+    private fun IonStruct.toLedgerEntry(recordId: UUID): LedgerEntry = LedgerEntry(
         entryId = (this.get("entryId") as? IonText)?.stringValue() ?: "",
-        factId = factId,
+        recordId = recordId,
         eventType = (this.get("eventType") as? IonText)?.stringValue() ?: "",
         contentHash = (this.get("contentHash") as? IonText)?.stringValue() ?: "",
         previousHash = "",
