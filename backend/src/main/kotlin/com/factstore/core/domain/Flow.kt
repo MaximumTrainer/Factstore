@@ -1,6 +1,7 @@
 package com.factstore.core.domain
 
 import jakarta.persistence.*
+import org.hibernate.annotations.BatchSize
 import java.time.Instant
 import java.util.UUID
 
@@ -29,4 +30,11 @@ class Flow(
         get() = if (requiredAttestationTypesRaw.isBlank()) emptyList()
                 else requiredAttestationTypesRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
         set(value) { requiredAttestationTypesRaw = value.joinToString(",") }
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "flow_tags", joinColumns = [JoinColumn(name = "flow_id")])
+    @MapKeyColumn(name = "tag_key", length = 64)
+    @Column(name = "tag_value", length = 256)
+    @BatchSize(size = 50)
+    var tags: MutableMap<String, String> = mutableMapOf()
 }

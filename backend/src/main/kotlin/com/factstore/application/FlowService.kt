@@ -6,6 +6,7 @@ import com.factstore.core.port.outbound.IFlowRepository
 import com.factstore.dto.CreateFlowRequest
 import com.factstore.dto.FlowResponse
 import com.factstore.dto.UpdateFlowRequest
+import com.factstore.exception.BadRequestException
 import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
 import org.slf4j.LoggerFactory
@@ -24,10 +25,14 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
         if (flowRepository.existsByName(request.name)) {
             throw ConflictException("Flow with name '${request.name}' already exists")
         }
+        validateTags(request.tags)
         val flow = Flow(
             name = request.name,
             description = request.description
-        ).also { it.requiredAttestationTypes = request.requiredAttestationTypes }
+        ).also {
+            it.requiredAttestationTypes = request.requiredAttestationTypes
+            it.tags.putAll(request.tags)
+        }
         val saved = flowRepository.save(flow)
         log.info("Created flow: ${saved.id} - ${saved.name}")
         return saved.toResponse()
@@ -50,6 +55,11 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
         }
         request.description?.let { flow.description = it }
         request.requiredAttestationTypes?.let { flow.requiredAttestationTypes = it }
+        request.tags?.let {
+            validateTags(it)
+            flow.tags.clear()
+            flow.tags.putAll(it)
+        }
         flow.updatedAt = Instant.now()
         return flowRepository.save(flow).toResponse()
     }
@@ -62,6 +72,17 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
 
     override fun getFlowEntity(id: UUID): Flow =
         flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
+
+    private fun validateTags(tags: Map<String, String>) {
+        if (tags.size > 50) {
+            throw BadRequestException("A flow may have at most 50 tags (got ${tags.size})")
+        }
+        for ((key, value) in tags) {
+            if (key.isBlank()) throw BadRequestException("Tag key must not be blank")
+            if (key.length > 64) throw BadRequestException("Tag key '${key.take(20)}…' exceeds 64 characters")
+            if (value.length > 256) throw BadRequestException("Tag value for key '$key' exceeds 256 characters")
+        }
+    }
 }
 
 fun Flow.toResponse() = FlowResponse(
@@ -69,6 +90,7 @@ fun Flow.toResponse() = FlowResponse(
     name = name,
     description = description,
     requiredAttestationTypes = requiredAttestationTypes,
+    tags = tags.toMap(),
     createdAt = createdAt,
     updatedAt = updatedAt
 )
