@@ -1,4 +1,4 @@
--- V9: Coverage reports table for continuous evidence collection pipeline
+-- V11: Coverage reports table for continuous evidence collection pipeline
 
 CREATE TABLE coverage_reports (
     id               UUID         NOT NULL,
