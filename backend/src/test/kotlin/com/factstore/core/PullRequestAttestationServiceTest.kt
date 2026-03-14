@@ -247,11 +247,11 @@ class NoOpAuditService : IAuditService {
         id = UUID.randomUUID(),
         eventType = eventType,
         actor = actor,
-        payload = payload,
+        payload = "{}",
         trailId = trailId,
         artifactSha256 = artifactSha256,
         environmentId = environmentId,
-        createdAt = Instant.now()
+        occurredAt = Instant.now()
     )
 
     override fun getEvent(id: UUID): AuditEventResponse =
