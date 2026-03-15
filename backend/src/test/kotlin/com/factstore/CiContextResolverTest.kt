@@ -257,4 +257,45 @@ class CiContextResolverTest {
         assertNull(result.gitBranch)
         assertNull(result.buildUrl)
     }
+
+    @Test
+    fun `getBuildUrl returns null for GITHUB_ACTIONS when only GITHUB_REPOSITORY is missing`() {
+        val env = mapOf(
+            "GITHUB_SERVER_URL" to "https://github.com",
+            "GITHUB_RUN_ID" to "9876543"
+        )
+        assertNull(CiContextResolver.getBuildUrl(CiProvider.GITHUB_ACTIONS, env))
+    }
+
+    @Test
+    fun `getBuildUrl returns null for GITHUB_ACTIONS when only GITHUB_RUN_ID is missing`() {
+        val env = mapOf(
+            "GITHUB_SERVER_URL" to "https://github.com",
+            "GITHUB_REPOSITORY" to "acme/myapp"
+        )
+        assertNull(CiContextResolver.getBuildUrl(CiProvider.GITHUB_ACTIONS, env))
+    }
+
+    @Test
+    fun `getBuildUrl returns null for AZURE_DEVOPS when only SYSTEM_TEAMPROJECT is missing`() {
+        val env = mapOf(
+            "SYSTEM_TEAMFOUNDATIONCOLLECTIONURI" to "https://dev.azure.com/acme/",
+            "BUILD_BUILDID" to "100"
+        )
+        assertNull(CiContextResolver.getBuildUrl(CiProvider.AZURE_DEVOPS, env))
+    }
+
+    @Test
+    fun `getBuildUrl returns null for AZURE_DEVOPS when only BUILD_BUILDID is missing`() {
+        val env = mapOf(
+            "SYSTEM_TEAMFOUNDATIONCOLLECTIONURI" to "https://dev.azure.com/acme/",
+            "SYSTEM_TEAMPROJECT" to "myproject"
+        )
+        assertNull(CiContextResolver.getBuildUrl(CiProvider.AZURE_DEVOPS, env))
+    }
+
+    @Test
+    fun `getBuildUrl returns null for AZURE_DEVOPS when all env vars missing`() {
+        assertNull(CiContextResolver.getBuildUrl(CiProvider.AZURE_DEVOPS, emptyMap()))
+    }
 }

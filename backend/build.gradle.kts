@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "2.0.20"
     kotlin("plugin.spring") version "2.0.20"
     kotlin("plugin.jpa") version "2.0.20"
+    id("info.solidsoft.pitest") version "1.19.0-rc.3"
 }
 
 group = "com.factstore"
@@ -78,6 +79,36 @@ tasks.register<Test>("migrationTest") {
     useJUnitPlatform()
     include("**/migration/**")
     filter { isFailOnNoMatchingTests = false }
+}
+
+configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+    junit5PluginVersion.set("1.2.1")
+    avoidCallsTo.set(setOf("kotlin.jvm.internal"))
+    mutators.set(setOf("STRONGER"))
+    targetClasses.set(setOf(
+        "com.factstore.application.FlowTemplateParser",
+        "com.factstore.application.SlackCommandParser",
+        "com.factstore.application.ScopeFilter",
+        "com.factstore.application.CiContextResolver",
+        "com.factstore.application.ComplianceMetricsService",
+        "com.factstore.application.SecurityScanService"
+    ))
+    targetTests.set(setOf(
+        "com.factstore.FlowTemplateParserTest",
+        "com.factstore.SlackCommandParserTest",
+        "com.factstore.SnapshotScopeFilterTest",
+        "com.factstore.CiContextResolverTest",
+        "com.factstore.application.ComplianceMetricsServiceTest",
+        "com.factstore.application.SecurityScanServiceTest"
+    ))
+    threads.set(Runtime.getRuntime().availableProcessors())
+    outputFormats.set(setOf("XML", "HTML"))
+    mutationThreshold.set(75)
+    coverageThreshold.set(60)
+}
+
+tasks.named("check") {
+    dependsOn("pitest")
 }
 
 tasks.bootJar {
