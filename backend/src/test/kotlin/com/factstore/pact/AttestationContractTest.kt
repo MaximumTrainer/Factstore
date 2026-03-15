@@ -8,8 +8,10 @@ import au.com.dius.pact.provider.junitsupport.State
 import au.com.dius.pact.provider.junitsupport.loader.PactFolder
 import com.factstore.adapter.outbound.persistence.AttestationRepositoryJpa
 import com.factstore.adapter.outbound.persistence.FlowRepositoryJpa
+import com.factstore.adapter.outbound.persistence.OrganisationRepositoryJpa
 import com.factstore.adapter.outbound.persistence.TrailRepositoryJpa
 import com.factstore.core.domain.Flow
+import com.factstore.core.domain.Organisation
 import com.factstore.core.domain.Trail
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestTemplate
@@ -38,6 +40,9 @@ class AttestationContractTest {
     @Autowired
     lateinit var trailRepository: TrailRepositoryJpa
 
+    @Autowired
+    lateinit var organisationRepository: OrganisationRepositoryJpa
+
     @BeforeEach
     fun setup(context: PactVerificationContext) {
         context.target = HttpTestTarget("localhost", port)
@@ -54,7 +59,9 @@ class AttestationContractTest {
         attestationRepository.deleteAll()
         trailRepository.deleteAll()
         flowRepository.deleteAll()
-        val flow = Flow(name = "my-flow", description = "Kosli contract test flow")
+        organisationRepository.deleteAll()
+        val org = organisationRepository.save(Organisation(slug = "my-org", name = "My Org"))
+        val flow = Flow(name = "my-flow", description = "Kosli contract test flow", orgSlug = org.slug)
         val savedFlow = flowRepository.save(flow)
         val trail = Trail(
             id = UUID.fromString("aabbccdd-0000-0000-0000-000000000001"),
