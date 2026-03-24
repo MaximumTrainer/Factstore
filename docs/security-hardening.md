@@ -59,7 +59,7 @@ Use this checklist during initial deployment, periodic security reviews, and bef
   - `GF_SECURITY_ADMIN_PASSWORD` (Grafana) — must not be `changeme`
 
 - [ ] **Enable HashiCorp Vault integration**  
-  Set `VAULT_ENABLED=true` and configure AppRole authentication (`VAULT_ROLE_ID` / `VAULT_SECRET_ID`) instead of a root token. Store all application secrets in Vault KV.
+  Set `VAULT_ENABLED=true` and configure AppRole authentication (`VAULT_ROLE_ID` / `VAULT_SECRET_ID`) instead of a root token. You **must** also set `VAULT_AUTH_METHOD=APPROLE` (matching `vault.authentication=APPROLE` in Spring config), otherwise the application will continue to use token auth and ignore the AppRole fields. Store all application secrets in Vault KV.
 
 - [ ] **Use short-lived Vault tokens**  
   Configure Vault policies with the minimum required capabilities (`read` on specific paths). Set token TTL ≤ 1 hour with renewal.
@@ -81,7 +81,7 @@ Use this checklist during initial deployment, periodic security reviews, and bef
   Minimum 7-day retention with point-in-time recovery (PITR) enabled. Test restores quarterly.
 
 - [ ] **Enable the immutable audit ledger (for regulated workloads)**  
-  Set `LEDGER_ENABLED=true` and `LEDGER_TYPE=qldb` (AWS) or `local` for air-gapped environments. This provides a cryptographically-tamper-evident audit chain.
+  Set `LEDGER_ENABLED=true` and `LEDGER_TYPE=qldb` (AWS) to obtain a cryptographically tamper-evident, durable audit chain. The current `LEDGER_TYPE=local` implementation is in-memory only (non-persistent, lost on restart) and does **not** provide a durable or compliance-grade immutable ledger; use it only for development or low-risk testing in air-gapped environments.
 
 - [ ] **Verify the AUDIT_HMAC_SECRET is a cryptographically random value**  
   Generate with: `openssl rand -hex 32`

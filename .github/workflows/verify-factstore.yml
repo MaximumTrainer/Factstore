@@ -59,7 +59,10 @@ jobs:
       - name: Start Factstore backend
         working-directory: backend
         run: |
-          java -jar build/libs/factstore-*.jar \
+          # Exclude the *-plain.jar produced by the Spring Boot Gradle plugin so that
+          # only the executable boot JAR is selected.
+          BOOT_JAR=$(find build/libs -maxdepth 1 -name "*.jar" ! -name "*-plain.jar" | head -1)
+          java -jar "$BOOT_JAR" \
             --spring.datasource.url="jdbc:postgresql://localhost:5432/factstore" \
             --spring.datasource.username=factstore \
             --spring.datasource.password=factstore \
@@ -244,8 +247,8 @@ jobs:
 
           echo "$RESULT" | jq .
 
-          COMPLIANT=$(echo "$RESULT" | jq -r '.compliant')
-          if [ "$COMPLIANT" != "true" ]; then
+          STATUS=$(echo "$RESULT" | jq -r '.status')
+          if [ "$STATUS" != "COMPLIANT" ]; then
             echo "❌ [Release Manager] Artifact is NOT compliant — deployment blocked"
             exit 1
           fi

@@ -104,7 +104,14 @@ kubectl create secret generic factstore-app \
   --from-literal=scm-encryption-key='<exactly-32-chars>'
 ```
 
-Apply the Deployment, Service, and Ingress manifests (adapt to your cluster):
+Also create the Vault credentials secret:
+
+```bash
+kubectl create secret generic factstore-vault \
+  --namespace factstore \
+  --from-literal=role-id='<vault-approle-role-id>' \
+  --from-literal=secret-id='<vault-approle-secret-id>'
+```
 
 ```yaml
 # factstore-deployment.yaml
@@ -151,6 +158,18 @@ spec:
               value: "true"
             - name: VAULT_ADDR
               value: "https://vault.internal.example.com"
+            - name: VAULT_AUTH_METHOD
+              value: "APPROLE"
+            - name: VAULT_ROLE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: factstore-vault
+                  key: role-id
+            - name: VAULT_SECRET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: factstore-vault
+                  key: secret-id
             - name: AUDIT_HMAC_SECRET
               valueFrom:
                 secretKeyRef:
@@ -161,6 +180,11 @@ spec:
                 secretKeyRef:
                   name: factstore-app
                   key: sso-jwt-secret
+            - name: SCM_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: factstore-app
+                  key: scm-encryption-key
           readinessProbe:
             httpGet:
               path: /actuator/health
@@ -263,6 +287,8 @@ All settings can be overridden via environment variables.
 
 ## 5. Service Account & API Key Setup
 
+> **Bootstrap note:** When `SECURITY_ENFORCE_AUTH=true` is set, the service account and API key endpoints are also protected. To mint the first key, deploy with `SECURITY_ENFORCE_AUTH=false` (or restrict access at the network level), create the service account and initial API key using the steps below, then re-deploy with `SECURITY_ENFORCE_AUTH=true`. Alternatively, enable GitHub OAuth2 SSO (see `application.yml`) and use an authenticated session to create service accounts via the UI.
+
 ### 5a. Create a service account for your CI/CD pipeline
 
 ```bash
@@ -272,8 +298,7 @@ SA=$(curl -sf -X POST "$BASE_URL/api/v1/service-accounts" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "github-actions-pipeline",
-    "description": "Service account for GitHub Actions compliance recording",
-    "orgSlug": "my-org"
+    "description": "Service account for GitHub Actions compliance recording"
   }')
 
 SA_ID=$(echo "$SA" | jq -r '.id')
@@ -285,9 +310,9 @@ echo "Service account ID: $SA_ID"
 ```bash
 KEY=$(curl -sf -X POST "$BASE_URL/api/v1/service-accounts/$SA_ID/api-keys" \
   -H "Content-Type: application/json" \
-  -d '{"name": "primary-key"}')
+  -d '{"label": "primary-key"}')
 
-API_KEY=$(echo "$KEY" | jq -r '.key')
+API_KEY=$(echo "$KEY" | jq -r '.plainTextKey')
 echo "API Key (save this — shown only once): $API_KEY"
 ```
 
