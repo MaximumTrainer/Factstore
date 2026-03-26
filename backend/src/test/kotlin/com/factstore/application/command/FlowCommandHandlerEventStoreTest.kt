@@ -56,11 +56,12 @@ class FlowCommandHandlerEventStoreTest {
     }
 
     @Test
-    fun `event store records are ordered by occurredAt`() {
+    fun `event store records are ordered by sequenceNumber`() {
         val created = commandHandler.createFlow(CreateFlowCommand(name = "es-order", description = "d"))
         commandHandler.updateFlow(UpdateFlowCommand(id = created.id, name = "es-order-updated"))
         val events = eventStore.findByAggregateId(created.id)
         assertTrue(events.size >= 2)
-        assertTrue(events.zipWithNext().all { (a, b) -> !a.occurredAt.isAfter(b.occurredAt) })
+        val sequenceNumbers = events.map { it.sequenceNumber }
+        assertTrue(sequenceNumbers.zipWithNext().all { (a, b) -> a <= b })
     }
 }

@@ -14,29 +14,29 @@ class InMemoryEventStore : IEventStore {
 
     override fun append(entry: EventLogEntry): EventLogEntry {
         val stored = EventLogEntry(
+            sequenceNumber = seq.incrementAndGet(),
             eventId = entry.eventId,
             aggregateId = entry.aggregateId,
             aggregateType = entry.aggregateType,
             eventType = entry.eventType,
             payload = entry.payload,
             metadata = entry.metadata,
-            occurredAt = entry.occurredAt,
-            sequenceNumber = seq.incrementAndGet()
+            occurredAt = entry.occurredAt
         )
         log.add(stored)
         return stored
     }
 
     override fun findByAggregateId(aggregateId: UUID): List<EventLogEntry> =
-        log.filter { it.aggregateId == aggregateId }.sortedBy { it.sequenceNumber ?: 0 }
+        log.filter { it.aggregateId == aggregateId }.sortedBy { it.sequenceNumber }
 
     override fun findByAggregateType(aggregateType: String): List<EventLogEntry> =
-        log.filter { it.aggregateType == aggregateType }.sortedBy { it.sequenceNumber ?: 0 }
+        log.filter { it.aggregateType == aggregateType }.sortedBy { it.sequenceNumber }
 
-    override fun findAll(): List<EventLogEntry> = log.sortedBy { it.sequenceNumber ?: 0 }
+    override fun findAll(): List<EventLogEntry> = log.sortedBy { it.sequenceNumber }
 
     override fun findAfterSequence(afterSequence: Long): List<EventLogEntry> =
-        log.filter { (it.sequenceNumber ?: 0) > afterSequence }.sortedBy { it.sequenceNumber ?: 0 }
+        log.filter { it.sequenceNumber > afterSequence }.sortedBy { it.sequenceNumber }
 
     /** Helper for tests to inspect events. */
     fun events(): List<EventLogEntry> = log.toList()

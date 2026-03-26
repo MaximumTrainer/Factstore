@@ -16,6 +16,16 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
+/**
+ * Handles flow-related commands on the write side of the CQRS split.
+ *
+ * **Dual-write strategy:** State is persisted to the JPA entity store *and*
+ * an event is appended to the event log within the same transaction.  The
+ * JPA entities remain the authoritative read model for now; the event log
+ * provides an immutable audit trail and enables future replay-based
+ * projections.  A later iteration may drop the direct JPA write and
+ * reconstruct state entirely from the event log.
+ */
 @Service
 @Transactional
 class FlowCommandHandler(

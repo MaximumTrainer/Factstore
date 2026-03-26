@@ -36,34 +36,40 @@ class EventProjector(
 
     /**
      * Replay every event in the store, invoking [handler] for each
-     * deserialised [DomainEvent].  Returns the number of events processed.
+     * successfully deserialized [DomainEvent].  Returns the number of events
+     * that were deserialized and handed to [handler]; entries with unknown
+     * types or malformed payloads are skipped and not counted.
      */
     fun replayAll(handler: (DomainEvent) -> Unit): Long {
         val entries = eventStore.findAll()
-        entries.forEach { entry -> deserialize(entry)?.let(handler) }
-        log.info("Replayed {} events from the event store", entries.size)
-        return entries.size.toLong()
+        var processed = 0L
+        entries.forEach { entry -> deserialize(entry)?.let { handler(it); processed++ } }
+        log.info("Replayed {}/{} events from the event store", processed, entries.size)
+        return processed
     }
 
     /**
      * Replay events whose sequence number is greater than [afterSequence].
      * Useful for incremental catch-up when the projector is running
-     * continuously.
+     * continuously.  Returns the number of events successfully processed.
      */
     fun replayAfter(afterSequence: Long, handler: (DomainEvent) -> Unit): Long {
         val entries = eventStore.findAfterSequence(afterSequence)
-        entries.forEach { entry -> deserialize(entry)?.let(handler) }
-        log.info("Replayed {} incremental events (after seq {})", entries.size, afterSequence)
-        return entries.size.toLong()
+        var processed = 0L
+        entries.forEach { entry -> deserialize(entry)?.let { handler(it); processed++ } }
+        log.info("Replayed {}/{} incremental events (after seq {})", processed, entries.size, afterSequence)
+        return processed
     }
 
     /**
      * Replay all events for a single aggregate.
+     * Returns the number of events successfully processed.
      */
     fun replayAggregate(aggregateId: java.util.UUID, handler: (DomainEvent) -> Unit): Long {
         val entries = eventStore.findByAggregateId(aggregateId)
-        entries.forEach { entry -> deserialize(entry)?.let(handler) }
-        return entries.size.toLong()
+        var processed = 0L
+        entries.forEach { entry -> deserialize(entry)?.let { handler(it); processed++ } }
+        return processed
     }
 
     private fun deserialize(entry: EventLogEntry): DomainEvent? {

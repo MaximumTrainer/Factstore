@@ -8,10 +8,10 @@ import org.springframework.stereotype.Repository
 import java.util.UUID
 
 @Repository
-interface EventLogEntryJpa : JpaRepository<EventLogEntry, UUID> {
-    fun findByAggregateIdOrderByOccurredAt(aggregateId: UUID): List<EventLogEntry>
-    fun findByAggregateTypeOrderByOccurredAt(aggregateType: String): List<EventLogEntry>
-    fun findAllByOrderByOccurredAt(): List<EventLogEntry>
+interface EventLogEntryJpa : JpaRepository<EventLogEntry, Long> {
+    fun findByAggregateIdOrderBySequenceNumber(aggregateId: UUID): List<EventLogEntry>
+    fun findByAggregateTypeOrderBySequenceNumber(aggregateType: String): List<EventLogEntry>
+    fun findAllByOrderBySequenceNumber(): List<EventLogEntry>
     fun findBySequenceNumberGreaterThanOrderBySequenceNumber(sequenceNumber: Long): List<EventLogEntry>
 }
 
@@ -21,12 +21,12 @@ class EventStoreAdapter(private val jpa: EventLogEntryJpa) : IEventStore {
     override fun append(entry: EventLogEntry): EventLogEntry = jpa.save(entry)
 
     override fun findByAggregateId(aggregateId: UUID): List<EventLogEntry> =
-        jpa.findByAggregateIdOrderByOccurredAt(aggregateId)
+        jpa.findByAggregateIdOrderBySequenceNumber(aggregateId)
 
     override fun findByAggregateType(aggregateType: String): List<EventLogEntry> =
-        jpa.findByAggregateTypeOrderByOccurredAt(aggregateType)
+        jpa.findByAggregateTypeOrderBySequenceNumber(aggregateType)
 
-    override fun findAll(): List<EventLogEntry> = jpa.findAllByOrderByOccurredAt()
+    override fun findAll(): List<EventLogEntry> = jpa.findAllByOrderBySequenceNumber()
 
     override fun findAfterSequence(afterSequence: Long): List<EventLogEntry> =
         jpa.findBySequenceNumberGreaterThanOrderBySequenceNumber(afterSequence)

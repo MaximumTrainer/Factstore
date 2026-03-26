@@ -76,7 +76,7 @@ class EventProjectorTest {
         ))
         val replayed = mutableListOf<DomainEvent>()
         val count = projector.replayAll { replayed.add(it) }
-        assertEquals(1L, count)
+        assertEquals(0L, count)
         assertEquals(0, replayed.size)
     }
 
@@ -90,7 +90,7 @@ class EventProjectorTest {
         ))
         val replayed = mutableListOf<DomainEvent>()
         val count = projector.replayAll { replayed.add(it) }
-        assertEquals(1L, count)
+        assertEquals(0L, count)
         assertEquals(0, replayed.size)
     }
 
