@@ -91,8 +91,8 @@ class FlowCommandHandler(
 
     override fun deleteFlow(command: DeleteFlowCommand) {
         if (!flowRepository.existsById(command.id)) throw NotFoundException("Flow not found: ${command.id}")
-        eventAppender.append(DomainEvent.FlowDeleted(aggregateId = command.id))
         flowRepository.deleteById(command.id)
+        eventAppender.append(DomainEvent.FlowDeleted(aggregateId = command.id))
         log.info("Deleted flow: ${command.id}")
     }
 

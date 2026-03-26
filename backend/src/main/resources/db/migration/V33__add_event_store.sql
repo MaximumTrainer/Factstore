@@ -10,7 +10,7 @@ CREATE TABLE domain_events (
     event_type      VARCHAR(128) NOT NULL,
     payload         TEXT         NOT NULL,
     metadata        TEXT,
-    occurred_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    occurred_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_domain_events_aggregate    ON domain_events (aggregate_id, sequence_number);

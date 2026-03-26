@@ -75,7 +75,7 @@ class EventProjector(
         return try {
             objectMapper.readValue(entry.payload, clazz)
         } catch (e: Exception) {
-            log.error("Failed to deserialise event seq={} type={}: {}", entry.sequenceNumber, entry.eventType, e.message)
+            log.error("Failed to deserialize event seq={} type={}: {}", entry.sequenceNumber, entry.eventType, e.message)
             null
         }
     }
