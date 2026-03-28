@@ -9,11 +9,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
 /**
- * Publishes [SupplyChainEvent]s to RabbitMQ for external consumers
- * (e.g. webhooks, notification pipelines).
+ * Publishes [SupplyChainEvent]s to a dedicated RabbitMQ exchange for
+ * external consumers (e.g. webhooks, notification pipelines).
  *
- * This is separate from [RabbitMqDomainEventPublisher], which handles
- * the internal CQRS event feed (domain events projected to the read DB).
+ * Uses a **separate exchange** from the CQRS domain-event feed
+ * ([RabbitMqDomainEventPublisher]) so that supply-chain messages never
+ * reach the projection queue and cause deserialization failures.
  *
  * Active when `factstore.events.publisher=rabbitmq`.
  */
@@ -26,9 +27,9 @@ class RabbitMqEventPublisher(
     private val log = LoggerFactory.getLogger(RabbitMqEventPublisher::class.java)
 
     override fun publish(event: SupplyChainEvent) {
-        val routingKey = "domain.event.${event::class.simpleName}"
-        rabbitTemplate.convertAndSend(RabbitMqConfig.EXCHANGE_NAME, routingKey, event)
-        log.info("Published event {} to RabbitMQ exchange={} routingKey={}",
-            event.id, RabbitMqConfig.EXCHANGE_NAME, routingKey)
+        val routingKey = "${RabbitMqConfig.SUPPLY_CHAIN_ROUTING_KEY_PREFIX}${event::class.simpleName}"
+        rabbitTemplate.convertAndSend(RabbitMqConfig.SUPPLY_CHAIN_EXCHANGE_NAME, routingKey, event)
+        log.info("Published supply-chain event {} to RabbitMQ exchange={} routingKey={}",
+            event.id, RabbitMqConfig.SUPPLY_CHAIN_EXCHANGE_NAME, routingKey)
     }
 }

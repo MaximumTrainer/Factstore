@@ -1,16 +1,12 @@
 package com.factstore.application
 
-import com.factstore.adapter.mock.InMemoryEventStore
-import com.factstore.core.domain.Artifact
-import com.factstore.core.domain.Attestation
+import com.factstore.adapter.mock.InMemoryArtifactRepository
+import com.factstore.adapter.mock.InMemoryAttestationRepository
+import com.factstore.adapter.mock.InMemoryFlowRepository
+import com.factstore.adapter.mock.InMemoryTrailRepository
 import com.factstore.core.domain.AttestationStatus
 import com.factstore.core.domain.Flow
-import com.factstore.core.domain.Trail
 import com.factstore.core.domain.event.DomainEvent
-import com.factstore.core.port.outbound.IArtifactRepository
-import com.factstore.core.port.outbound.IAttestationRepository
-import com.factstore.core.port.outbound.IFlowRepository
-import com.factstore.core.port.outbound.ITrailRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -188,59 +184,5 @@ class ReadModelProjectorTest {
     @Test
     fun `project malformed payload returns false`() {
         assertFalse(projector.project("FlowCreated", "not-json"))
-    }
-
-    // ── Simple in-memory repository implementations for testing ───────────────
-
-    private class InMemoryFlowRepository : IFlowRepository {
-        private val store = mutableMapOf<UUID, Flow>()
-        override fun save(flow: Flow): Flow { store[flow.id] = flow; return flow }
-        override fun findById(id: UUID): Flow? = store[id]
-        override fun findAll(): List<Flow> = store.values.toList()
-        override fun findAllByIds(ids: Collection<UUID>) = ids.mapNotNull { store[it] }
-        override fun existsById(id: UUID): Boolean = store.containsKey(id)
-        override fun existsByName(name: String): Boolean = store.values.any { it.name == name }
-        override fun deleteById(id: UUID) { store.remove(id) }
-        override fun countAll(): Long = store.size.toLong()
-        override fun findAllByOrgSlug(orgSlug: String) = store.values.filter { it.orgSlug == orgSlug }
-    }
-
-    private class InMemoryTrailRepository : ITrailRepository {
-        private val store = mutableMapOf<UUID, Trail>()
-        override fun save(trail: Trail): Trail { store[trail.id] = trail; return trail }
-        override fun findById(id: UUID): Trail? = store[id]
-        override fun findAll(): List<Trail> = store.values.toList()
-        override fun existsById(id: UUID): Boolean = store.containsKey(id)
-        override fun findByFlowId(flowId: UUID) = store.values.filter { it.flowId == flowId }
-        override fun searchByQuery(query: String) = emptyList<Trail>()
-        override fun findByFlowIdAndCreatedAtBetween(flowId: UUID, from: java.time.Instant, to: java.time.Instant) = emptyList<Trail>()
-        override fun findByFlowIdAndCreatedAtAfter(flowId: UUID, from: java.time.Instant) = emptyList<Trail>()
-        override fun findByFlowIdAndCreatedAtBefore(flowId: UUID, to: java.time.Instant) = emptyList<Trail>()
-        override fun findByCreatedAtBetween(from: java.time.Instant, to: java.time.Instant) = emptyList<Trail>()
-        override fun findByCreatedAtAfter(from: java.time.Instant) = emptyList<Trail>()
-        override fun findByCreatedAtBefore(to: java.time.Instant) = emptyList<Trail>()
-        override fun countAll(): Long = store.size.toLong()
-        override fun countByStatus(status: com.factstore.core.domain.TrailStatus): Long = 0
-    }
-
-    private class InMemoryArtifactRepository : IArtifactRepository {
-        private val store = mutableMapOf<UUID, Artifact>()
-        override fun save(artifact: Artifact): Artifact { store[artifact.id] = artifact; return artifact }
-        override fun findById(id: UUID): Artifact? = store[id]
-        override fun findByTrailId(trailId: UUID) = store.values.filter { it.trailId == trailId }
-        override fun findBySha256Digest(sha256Digest: String) = store.values.filter { it.sha256Digest == sha256Digest }
-        override fun findBySha256DigestStartingWith(prefix: String) = store.values.filter { it.sha256Digest.startsWith(prefix) }
-        override fun findAll(): List<Artifact> = store.values.toList()
-        override fun searchByQuery(query: String) = emptyList<Artifact>()
-    }
-
-    private class InMemoryAttestationRepository : IAttestationRepository {
-        private val store = mutableMapOf<UUID, Attestation>()
-        override fun save(attestation: Attestation): Attestation { store[attestation.id] = attestation; return attestation }
-        override fun findById(id: UUID): Attestation? = store[id]
-        override fun findByTrailId(trailId: UUID) = store.values.filter { it.trailId == trailId }
-        override fun findByTrailIdIn(trailIds: Collection<UUID>) = store.values.filter { it.trailId in trailIds }
-        override fun findAll(): List<Attestation> = store.values.toList()
-        override fun findByArtifactFingerprint(fingerprint: String) = store.values.filter { it.artifactFingerprint == fingerprint }
     }
 }

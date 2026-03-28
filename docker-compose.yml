@@ -78,6 +78,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      FACTSTORE_CQRS_ROLE: command
       DB_HOST: postgres-command
       DB_PORT: 5432
       DB_NAME: factstore_command
@@ -105,6 +106,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      FACTSTORE_CQRS_ROLE: query
       DB_HOST: postgres-query
       DB_PORT: 5432
       DB_NAME: factstore_query

@@ -6,12 +6,18 @@ import com.factstore.core.port.outbound.IDomainEventBus
 import com.factstore.core.port.outbound.IEventStore
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Component
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * Converts a [DomainEvent] into an [EventLogEntry] and appends it to the
- * event store.  After persisting, the entry is published to the
- * [IDomainEventBus] so that the query service can project it into the read
- * database.  Keeps the command-handler code focused on business logic.
+ * event store.  After the surrounding transaction **commits**, the entry
+ * is published to the [IDomainEventBus] so that the query service can
+ * project it into the read database.
+ *
+ * Publishing is deferred via [TransactionSynchronizationManager] to
+ * prevent phantom events:  if the transaction rolls back, the RabbitMQ
+ * message is never sent, keeping the write and read sides consistent.
  */
 @Component
 class EventAppender(
@@ -29,6 +35,16 @@ class EventAppender(
             occurredAt = event.occurredAt
         )
         val saved = eventStore.append(entry)
-        domainEventBus.publish(saved)
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+                override fun afterCommit() {
+                    domainEventBus.publish(saved)
+                }
+            })
+        } else {
+            // No active transaction (e.g. in unit tests) — publish immediately.
+            domainEventBus.publish(saved)
+        }
     }
 }

@@ -54,9 +54,9 @@ func Load() (*Config, error) {
 	}, nil
 }
 
-// Save writes host and token to ~/.factstore.yaml with owner-only permissions
-// (0600) to prevent token disclosure.
-func Save(host, token string) error {
+// Save writes host, token, and queryHost to ~/.factstore.yaml with owner-only
+// permissions (0600) to prevent token disclosure.
+func Save(host, token, queryHost string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("cannot determine home directory: %w", err)
@@ -79,6 +79,7 @@ func Save(host, token string) error {
 
 	viper.Set(KeyHost, host)
 	viper.Set(KeyToken, token)
+	viper.Set(KeyQueryHost, queryHost)
 	viper.SetConfigFile(path)
 
 	if err := viper.WriteConfig(); err != nil {

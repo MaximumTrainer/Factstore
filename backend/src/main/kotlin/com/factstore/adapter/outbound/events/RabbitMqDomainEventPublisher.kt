@@ -9,9 +9,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
 /**
- * Publishes serialised [EventLogEntry] records to the RabbitMQ topic
+ * Publishes [EventLogEntry] records to the dedicated CQRS domain-event
  * exchange so that the query service can project them into its read
  * database.
+ *
+ * The full [EventLogEntry] (including `eventType` and `payload`) is sent
+ * as a structured JSON message, avoiding double-encoding issues that would
+ * occur if only the raw payload string were sent through the Jackson
+ * message converter.
  *
  * Active when `factstore.events.publisher=rabbitmq`.
  */
@@ -24,8 +29,8 @@ class RabbitMqDomainEventPublisher(
     private val log = LoggerFactory.getLogger(RabbitMqDomainEventPublisher::class.java)
 
     override fun publish(entry: EventLogEntry) {
-        val routingKey = "domain.event.${entry.eventType}"
-        rabbitTemplate.convertAndSend(RabbitMqConfig.EXCHANGE_NAME, routingKey, entry.payload)
+        val routingKey = "cqrs.domain.event.${entry.eventType}"
+        rabbitTemplate.convertAndSend(RabbitMqConfig.DOMAIN_EXCHANGE_NAME, routingKey, entry)
         log.info("Published domain event seq={} type={} to RabbitMQ",
             entry.sequenceNumber, entry.eventType)
     }

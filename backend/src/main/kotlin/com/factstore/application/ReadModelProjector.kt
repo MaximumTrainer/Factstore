@@ -2,6 +2,7 @@ package com.factstore.application
 
 import com.factstore.core.domain.*
 import com.factstore.core.domain.event.DomainEvent
+import com.factstore.core.domain.event.DomainEventRegistry
 import com.factstore.core.port.outbound.IArtifactRepository
 import com.factstore.core.port.outbound.IAttestationRepository
 import com.factstore.core.port.outbound.IFlowRepository
@@ -33,15 +34,7 @@ class ReadModelProjector(
 
     private val log = LoggerFactory.getLogger(ReadModelProjector::class.java)
 
-    private val eventTypeMap: Map<String, Class<out DomainEvent>> = mapOf(
-        "FlowCreated" to DomainEvent.FlowCreated::class.java,
-        "FlowUpdated" to DomainEvent.FlowUpdated::class.java,
-        "FlowDeleted" to DomainEvent.FlowDeleted::class.java,
-        "TrailCreated" to DomainEvent.TrailCreated::class.java,
-        "ArtifactReported" to DomainEvent.ArtifactReported::class.java,
-        "AttestationRecorded" to DomainEvent.AttestationRecorded::class.java,
-        "EvidenceUploaded" to DomainEvent.EvidenceUploaded::class.java
-    )
+    private val eventTypeMap = DomainEventRegistry.eventTypeMap
 
     /**
      * Deserialise a JSON payload into a [DomainEvent] and apply it.

@@ -14,28 +14,46 @@ import org.springframework.context.annotation.Configuration
  * RabbitMQ infrastructure for the CQRS event feed.
  *
  * Active only when `factstore.events.publisher=rabbitmq`.  The command
- * service publishes domain events to the topic exchange; the query service
- * consumes them from the bound queue and projects into its read database.
+ * service publishes domain events to a dedicated topic exchange; the query
+ * service consumes them from the bound queue and projects into its read
+ * database.
+ *
+ * Supply-chain events ([com.factstore.core.port.outbound.SupplyChainEvent])
+ * are published to a separate exchange to avoid polluting the projection
+ * queue with messages the [com.factstore.application.ReadModelProjector]
+ * cannot deserialize.
  */
 @Configuration
 @ConditionalOnProperty(name = ["factstore.events.publisher"], havingValue = "rabbitmq")
 class RabbitMqConfig {
 
     companion object {
-        const val EXCHANGE_NAME = "factstore.events"
-        const val QUEUE_NAME = "factstore.events.projection"
-        const val ROUTING_KEY = "domain.event.#"
+        /** Dedicated exchange for CQRS domain events (EventLogEntry payloads). */
+        const val DOMAIN_EXCHANGE_NAME = "factstore.domain-events"
+        const val PROJECTION_QUEUE_NAME = "factstore.events.projection"
+        const val DOMAIN_ROUTING_KEY = "cqrs.domain.event.#"
+
+        /** Separate exchange for supply-chain events (webhooks, notifications). */
+        const val SUPPLY_CHAIN_EXCHANGE_NAME = "factstore.supply-chain-events"
+        const val SUPPLY_CHAIN_ROUTING_KEY_PREFIX = "supply-chain.event."
     }
 
-    @Bean
-    fun eventExchange(): TopicExchange = TopicExchange(EXCHANGE_NAME)
+    // ── Domain event infrastructure ────────────────────────────────────────
 
     @Bean
-    fun projectionQueue(): Queue = Queue(QUEUE_NAME, true)
+    fun domainEventExchange(): TopicExchange = TopicExchange(DOMAIN_EXCHANGE_NAME)
 
     @Bean
-    fun projectionBinding(projectionQueue: Queue, eventExchange: TopicExchange): Binding =
-        BindingBuilder.bind(projectionQueue).to(eventExchange).with(ROUTING_KEY)
+    fun projectionQueue(): Queue = Queue(PROJECTION_QUEUE_NAME, true)
+
+    @Bean
+    fun projectionBinding(projectionQueue: Queue, domainEventExchange: TopicExchange): Binding =
+        BindingBuilder.bind(projectionQueue).to(domainEventExchange).with(DOMAIN_ROUTING_KEY)
+
+    // ── Supply-chain event infrastructure ──────────────────────────────────
+
+    @Bean
+    fun supplyChainExchange(): TopicExchange = TopicExchange(SUPPLY_CHAIN_EXCHANGE_NAME)
 
     @Bean
     fun jacksonMessageConverter(): MessageConverter = Jackson2JsonMessageConverter()
