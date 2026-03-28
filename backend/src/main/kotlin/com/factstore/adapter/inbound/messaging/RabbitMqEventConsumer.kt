@@ -28,11 +28,15 @@ class RabbitMqEventConsumer(
 
     @RabbitListener(queues = [RabbitMqConfig.PROJECTION_QUEUE_NAME])
     fun onEvent(entry: EventLogEntry) {
-        log.info("Received domain event from RabbitMQ: type={} seq={}", entry.eventType, entry.sequenceNumber)
-        val projected = projector.project(entry.eventType, entry.payload)
-        if (!projected) {
-            log.error("Failed to project event type={} seq={} — message acknowledged but data may be stale. " +
-                    "Replay from the event store to recover.", entry.eventType, entry.sequenceNumber)
+        try {
+            log.info("Received domain event from RabbitMQ: type={} seq={}", entry.eventType, entry.sequenceNumber)
+            val projected = projector.project(entry.eventType, entry.payload)
+            if (!projected) {
+                log.error("Failed to project event type={} seq={} — message acknowledged but data may be stale. " +
+                        "Replay from the event store to recover.", entry.eventType, entry.sequenceNumber)
+            }
+        } catch (e: Exception) {
+            log.error("Unexpected error processing domain event: {}", e.message, e)
         }
     }
 }

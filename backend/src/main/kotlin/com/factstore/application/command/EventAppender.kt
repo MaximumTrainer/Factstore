@@ -5,6 +5,7 @@ import com.factstore.core.domain.event.DomainEvent
 import com.factstore.core.port.outbound.IDomainEventBus
 import com.factstore.core.port.outbound.IEventStore
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
@@ -25,6 +26,8 @@ class EventAppender(
     private val objectMapper: ObjectMapper,
     private val domainEventBus: IDomainEventBus
 ) {
+    private val log = LoggerFactory.getLogger(EventAppender::class.java)
+
     fun append(event: DomainEvent) {
         val entry = EventLogEntry(
             eventId = event.eventId,
@@ -39,7 +42,13 @@ class EventAppender(
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
                 override fun afterCommit() {
-                    domainEventBus.publish(saved)
+                    try {
+                        domainEventBus.publish(saved)
+                    } catch (e: Exception) {
+                        log.error("Failed to publish domain event seq={} type={} after commit — " +
+                                "replay from the event store to recover: {}",
+                            saved.sequenceNumber, saved.eventType, e.message)
+                    }
                 }
             })
         } else {
