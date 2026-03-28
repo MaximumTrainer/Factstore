@@ -15,8 +15,10 @@ cd OpenFactstore
 docker compose up --build
 ```
 
-- **API** → http://localhost:8080
+- **Command API** → http://localhost:8080
+- **Query API** → http://localhost:8081
 - **Swagger UI** → http://localhost:8080/swagger-ui.html
+- **RabbitMQ Management** → http://localhost:15672 (guest / guest)
 - **Grafana** → http://localhost:3000 (admin / changeme)
 
 ---
@@ -91,53 +93,58 @@ When a software artifact is built, a **trail** captures provenance metadata (Git
 
 ## Architecture
 
-Factstore is built on **Hexagonal Architecture** (Ports and Adapters) with a **CQRS + Event Sourcing** split. The core business logic is fully isolated from external systems. Dependencies always point **inward**: adapters depend on ports, ports depend on the domain — never the other way around.
+Factstore is built on **Hexagonal Architecture** (Ports and Adapters) with a **fully decoupled CQRS + Event Sourcing** design. The core business logic is fully isolated from external systems. Dependencies always point **inward**: adapters depend on ports, ports depend on the domain — never the other way around.
 
-The **Write** path accepts commands via v2 REST controllers, validates business rules, persists state, and appends immutable domain events to an append-only **Event Log**. The **Read** path serves queries from optimised read models. An **Event Projector** can replay the event log to rebuild read-model state from scratch or catch up incrementally.
+The **Command (Write) service** accepts mutations via v2 REST controllers, validates business rules, persists state, and appends immutable domain events to an append-only **Event Log**. Every state-changing event is published to a **Domain Event Bus** (RabbitMQ in production, in-memory in tests) for consumption by the Read side. The **Query (Read) service** consumes events from the bus, projects them into its own database, and serves queries from optimised read models.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Frontend (Vue 3 SPA)                         │
 │              Browser  ─►  Vite Dev Server :5173                 │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │ HTTP / REST (Axios)
-┌──────────────────────────────▼──────────────────────────────────┐
-│                  Backend (Spring Boot :8080)                     │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │            DRIVING ADAPTERS (Inbound)                   │    │
-│  │  adapter/inbound/web/command/ (v2 Command Controllers)  │    │
-│  │  adapter/inbound/web/query/   (v2 Query Controllers)    │    │
-│  │  adapter/inbound/web/         (v1 REST Controllers)     │    │
-│  └────────────────┬───────────────────┬────────────────────┘    │
-│       Commands    │                   │  Queries                 │
-│  ┌────────────────▼───────────┐  ┌────▼────────────────────┐    │
-│  │  COMMAND HANDLERS (Write)  │  │  QUERY HANDLERS (Read)  │    │
-│  │  application/command/      │  │  application/query/      │    │
-│  │  (FlowCommandHandler, …)  │  │  (FlowQueryHandler, …)  │    │
-│  └──────┬──────────┬──────────┘  └──────────┬──────────────┘    │
-│         │ save     │ append event            │ read              │
-│  ┌──────▼──────┐ ┌─▼────────────────┐ ┌─────▼──────────────┐   │
-│  │ JPA Entity  │ │  Event Store     │ │  Read Repositories  │   │
-│  │ Repositories│ │  (IEventStore)   │ │  (Read ports)       │   │
-│  └──────┬──────┘ └─┬────────────────┘ └─────┬──────────────┘   │
-│         │          │                         │                   │
-│  ┌──────▼──────────▼─────────────────────────▼──────────────┐   │
-│  │           DRIVEN ADAPTERS (Outbound)                     │   │
-│  │  adapter/outbound/persistence/ (JPA + EventStoreAdapter) │   │
-│  └──────────┬──────────────────────────────────────────────┘   │
-│             │                                                    │
-│  ┌──────────▼──────────────────────────────────────────────┐    │
-│  │  EVENT PROJECTOR (application/EventProjector)           │    │
-│  │  Replays event log → rebuilds read-model state          │    │
-│  └─────────────────────────────────────────────────────────┘    │
-└─────────────┬────────────────────────────────────────────────────┘
-              │ JDBC
-┌─────────────▼────────────────────────────────────────────────────┐
-│                    PostgreSQL Database                            │
-│   Entity tables (flows, trails, …)  +  domain_events (event log) │
-└──────────────────────────────────────────────────────────────────┘
+└──────────────────────┬──────────────────────┬───────────────────┘
+   POST/PUT/DELETE     │                      │  GET (reads)
+┌──────────────────────▼───────────┐  ┌───────▼──────────────────────┐
+│  COMMAND SERVICE (:8080)         │  │  QUERY SERVICE (:8081)       │
+│  spring.profiles.active=prod     │  │  spring.profiles.active=prod  │
+│  FACTSTORE_CQRS_ROLE=command     │  │  FACTSTORE_CQRS_ROLE=query    │
+│                                  │  │  (read-only — rejects POST/   │
+│  ┌─── DRIVING ADAPTERS ───────┐  │  │   PUT/PATCH/DELETE via filter)│
+│  │ v2 Command Controllers     │  │  │  ┌─── DRIVING ADAPTERS ───┐  │
+│  │ v1 REST Controllers        │  │  │  │ v2 Query Controllers   │  │
+│  └───────────┬────────────────┘  │  │  │ v1 REST Controllers    │  │
+│  └───────────┬────────────────┘  │  │  │ RabbitMQ Consumer      │  │
+│              │ Commands          │  │  └───────┬────────────────┘  │
+│  ┌───────────▼───────────────┐   │  │          │ Queries           │
+│  │ COMMAND HANDLERS (Write)  │   │  │  ┌───────▼──────────────┐   │
+│  │ FlowCommandHandler, …     │   │  │  │ QUERY HANDLERS       │   │
+│  │ EventAppender             │   │  │  │ FlowQueryHandler, …  │   │
+│  └──────┬──────────┬─────────┘   │  │  │ ReadModelProjector   │   │
+│   save  │  append  │ publish     │  │  └──────────┬───────────┘   │
+│  ┌──────▼──┐ ┌─────▼────────┐   │  │     read    │               │
+│  │ JPA     │ │ Event Store  │   │  │  ┌──────────▼───────────┐   │
+│  │ Repos   │ │ (IEventStore)│   │  │  │ Read Repositories    │   │
+│  └────┬────┘ └──────────────┘   │  │  └──────────┬───────────┘   │
+│       │                          │  │             │                │
+│  ┌────▼─────────────────────┐   │  │  ┌──────────▼───────────┐   │
+│  │ JPA / EventStoreAdapter  │   │  │  │ JPA Persistence      │   │
+│  └────┬─────────────────────┘   │  │  └──────────┬───────────┘   │
+└───────┼──────────────────────────┘  └─────────────┼───────────────┘
+        │ JDBC                  ▲ AMQP              │ JDBC
+┌───────▼──────┐   ┌───────────┴───────┐   ┌───────▼──────┐
+│  PostgreSQL  │   │     RabbitMQ      │   │  PostgreSQL  │
+│  (Write DB)  │   │   (Event Bus)     │   │  (Read DB)   │
+│   :5432      │   │ :5672 / :15672    │   │   :5433      │
+└──────────────┘   └───────────────────┘   └──────────────┘
 ```
+
+### Deployment Profiles
+
+| Profile | Database | Event Bus | Use Case |
+|---------|----------|-----------|----------|
+| `prod` | Dual PostgreSQL | RabbitMQ | Production / staging |
+| `test` | Dual H2 (in-memory) | In-memory (Spring events) | Integration tests |
+| `local` | Single PostgreSQL | Logging (no-op) | Local development |
+| *(default)* | Single PostgreSQL | Logging | Backward-compatible single-instance |
 
 ### Why Hexagonal Architecture + Event Sourcing?
 
@@ -160,18 +167,21 @@ com.factstore/
 │       │   └── query/     ← Query handler interfaces (IFlowQueryHandler, …)
 │       └── outbound/
 │           ├── read/      ← Read-model repository interfaces
-│           └── …          ← Write-model repository + IEventStore port
+│           └── …          ← Write-model repository + IEventStore + IDomainEventBus ports
 ├── application/
 │   ├── command/          ← Command handlers + EventAppender
 │   └── query/            ← Query handlers
-│   └── EventProjector   ← Replays event log to rebuild read models
+│   ├── EventProjector   ← Replays event log to rebuild read models
+│   └── ReadModelProjector ← Applies domain events to read DB entities
 ├── adapter/
 │   ├── inbound/
-│   │   └── web/
-│   │       ├── command/  ← v2 Command REST controllers
-│   │       └── query/    ← v2 Query REST controllers
+│   │   ├── web/
+│   │   │   ├── command/  ← v2 Command REST controllers
+│   │   │   └── query/    ← v2 Query REST controllers
+│   │   └── messaging/    ← RabbitMqEventConsumer + InMemoryEventListener
 │   └── outbound/
-│       └── persistence/  ← JPA adapters: entity repos + EventStoreAdapter
+│       ├── persistence/  ← JPA adapters: entity repos + EventStoreAdapter
+│       └── events/       ← Event bus adapters: RabbitMQ, InMemory, Noop
 ├── dto/
 │   └── command/          ← Command DTOs and request objects
 ├── exception/            ← Domain exceptions and global error handler
@@ -187,11 +197,14 @@ com.factstore/
 | Command Ports | `core/port/inbound/command/` | Command handler interfaces (`IFlowCommandHandler`, …) |
 | Query Ports | `core/port/inbound/query/` | Query handler interfaces (`IFlowQueryHandler`, …) |
 | Outbound Ports | `core/port/outbound/` | Repository interfaces + `IEventStore` (append-only event log) |
-| Command Handlers | `application/command/` | Write-side use cases + `EventAppender` (dual-write: JPA entity + event log) |
+| Command Handlers | `application/command/` | Write-side use cases + `EventAppender` (dual-write: JPA entity + event log + domain event bus) |
 | Query Handlers | `application/query/` | Read-side use cases (query read-model repositories) |
 | Event Projector | `application/` | `EventProjector` — replays event log to rebuild read-model state |
+| Read Model Projector | `application/` | `ReadModelProjector` — applies domain events to read DB entities |
 | Web Adapters | `adapter/inbound/web/` | REST controllers (v1 compat + v2 command/query split) |
+| Messaging Adapters | `adapter/inbound/messaging/` | `RabbitMqEventConsumer` + `InMemoryEventListener` |
 | Persistence Adapters | `adapter/outbound/persistence/` | JPA implementations of outbound ports + `EventStoreAdapter` |
+| Event Bus Adapters | `adapter/outbound/events/` | `RabbitMqDomainEventPublisher`, `InMemoryDomainEventPublisher`, `NoopDomainEventBus` |
 | DTO | `dto/` | Request/response objects and command DTOs |
 | Exception | `exception/` | Custom exceptions and global error handler |
 | Config | `config/` | CORS policy and OpenAPI/Swagger setup |
