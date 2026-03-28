@@ -23,14 +23,14 @@ import org.springframework.web.filter.OncePerRequestFilter
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 class QueryServiceReadOnlyFilter : OncePerRequestFilter() {
 
-    private val readOnlyMethods = setOf("GET", "HEAD", "OPTIONS")
+    private val readOnlyMethods = setOf("GET", "HEAD", "OPTIONS", "TRACE")
 
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-        if (request.method.uppercase() !in readOnlyMethods) {
+        if (request.method !in readOnlyMethods) {
             response.sendError(
                 HttpServletResponse.SC_METHOD_NOT_ALLOWED,
                 "Query service is read-only — mutations must be sent to the command service"
