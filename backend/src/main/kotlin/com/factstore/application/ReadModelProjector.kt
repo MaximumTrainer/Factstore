@@ -52,7 +52,7 @@ class ReadModelProjector(
             apply(event)
             true
         } catch (e: Exception) {
-            log.error("Failed to project event type={}: {}", eventType, e.message)
+            log.error("Failed to project event type={}", eventType, e)
             false
         }
     }
@@ -79,7 +79,9 @@ class ReadModelProjector(
             id = event.aggregateId,
             name = event.name,
             description = event.description,
-            orgSlug = event.orgSlug
+            orgSlug = event.orgSlug,
+            createdAt = event.occurredAt,
+            updatedAt = event.occurredAt
         ).also {
             it.requiredAttestationTypes = event.requiredAttestationTypes
             it.tags = event.tags.toMutableMap()
@@ -135,7 +137,9 @@ class ReadModelProjector(
             deploymentActor = event.deploymentActor,
             orgSlug = event.orgSlug,
             templateYaml = event.templateYaml,
-            buildUrl = event.buildUrl
+            buildUrl = event.buildUrl,
+            createdAt = event.occurredAt,
+            updatedAt = event.occurredAt
         )
         trailRepository.save(trail)
         log.debug("Projected TrailCreated: {}", event.aggregateId)
@@ -150,7 +154,8 @@ class ReadModelProjector(
             sha256Digest = event.sha256Digest,
             registry = event.registry,
             reportedBy = event.reportedBy,
-            orgSlug = event.orgSlug
+            orgSlug = event.orgSlug,
+            reportedAt = event.occurredAt
         )
         artifactRepository.save(artifact)
         log.debug("Projected ArtifactReported: {}", event.aggregateId)
@@ -166,7 +171,8 @@ class ReadModelProjector(
             name = event.name,
             evidenceUrl = event.evidenceUrl,
             orgSlug = event.orgSlug,
-            artifactFingerprint = event.artifactFingerprint
+            artifactFingerprint = event.artifactFingerprint,
+            createdAt = event.occurredAt
         )
         attestationRepository.save(attestation)
         log.debug("Projected AttestationRecorded: {}", event.aggregateId)

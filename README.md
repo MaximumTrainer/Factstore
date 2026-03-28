@@ -106,10 +106,12 @@ The **Command (Write) service** accepts mutations via v2 REST controllers, valid
 ┌──────────────────────▼───────────┐  ┌───────▼──────────────────────┐
 │  COMMAND SERVICE (:8080)         │  │  QUERY SERVICE (:8081)       │
 │  spring.profiles.active=prod     │  │  spring.profiles.active=prod  │
-│                                  │  │                               │
-│  ┌─── DRIVING ADAPTERS ───────┐  │  │  ┌─── DRIVING ADAPTERS ───┐  │
-│  │ v2 Command Controllers     │  │  │  │ v2 Query Controllers   │  │
-│  │ v1 REST Controllers        │  │  │  │ v1 REST Controllers    │  │
+│  FACTSTORE_CQRS_ROLE=command     │  │  FACTSTORE_CQRS_ROLE=query    │
+│                                  │  │  (read-only — rejects POST/   │
+│  ┌─── DRIVING ADAPTERS ───────┐  │  │   PUT/PATCH/DELETE via filter)│
+│  │ v2 Command Controllers     │  │  │  ┌─── DRIVING ADAPTERS ───┐  │
+│  │ v1 REST Controllers        │  │  │  │ v2 Query Controllers   │  │
+│  └───────────┬────────────────┘  │  │  │ v1 REST Controllers    │  │
 │  └───────────┬────────────────┘  │  │  │ RabbitMQ Consumer      │  │
 │              │ Commands          │  │  └───────┬────────────────┘  │
 │  ┌───────────▼───────────────┐   │  │          │ Queries           │

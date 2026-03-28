@@ -37,6 +37,7 @@ class RabbitMqEventConsumer(
             }
         } catch (e: Exception) {
             log.error("Unexpected error processing domain event: {}", e.message, e)
+            throw e
         }
     }
 }

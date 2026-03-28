@@ -45,9 +45,15 @@ class EventAppender(
                     try {
                         domainEventBus.publish(saved)
                     } catch (e: Exception) {
-                        log.error("Failed to publish domain event seq={} type={} after commit — " +
-                                "replay from the event store to recover: {}",
-                            saved.sequenceNumber, saved.eventType, e.message)
+                        log.error(
+                            "Failed to publish domain event seq={} type={} eventId={} aggregateId={} after commit — " +
+                                "replay from the event store to recover",
+                            saved.sequenceNumber,
+                            saved.eventType,
+                            saved.eventId,
+                            saved.aggregateId,
+                            e
+                        )
                     }
                 }
             })

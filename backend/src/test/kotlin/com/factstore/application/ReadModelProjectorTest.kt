@@ -182,6 +182,55 @@ class ReadModelProjectorTest {
     }
 
     @Test
+    fun `project EvidenceUploaded updates attestation in read model`() {
+        val attestationId = UUID.randomUUID()
+        val trailId = UUID.randomUUID()
+        // Pre-create attestation
+        val attestation = com.factstore.core.domain.Attestation(
+            id = attestationId,
+            trailId = trailId,
+            type = "snyk-scan",
+            status = AttestationStatus.PASSED
+        )
+        attestationRepo.save(attestation)
+
+        val event = DomainEvent.EvidenceUploaded(
+            aggregateId = attestationId,
+            trailId = trailId,
+            fileName = "report.pdf",
+            contentType = "application/pdf",
+            sha256Hash = "sha256:abc123",
+            fileSizeBytes = 42_000L
+        )
+        val payload = objectMapper.writeValueAsString(event)
+
+        assertTrue(projector.project("EvidenceUploaded", payload))
+
+        val updated = attestationRepo.findById(attestationId)
+        assertNotNull(updated)
+        assertEquals("report.pdf", updated!!.evidenceFileName)
+        assertEquals("sha256:abc123", updated.evidenceFileHash)
+        assertEquals(42_000L, updated.evidenceFileSizeBytes)
+    }
+
+    @Test
+    fun `project EvidenceUploaded for unknown attestation is skipped`() {
+        val unknownId = UUID.randomUUID()
+        val event = DomainEvent.EvidenceUploaded(
+            aggregateId = unknownId,
+            trailId = UUID.randomUUID(),
+            fileName = "report.pdf",
+            contentType = "application/pdf",
+            sha256Hash = "sha256:abc123",
+            fileSizeBytes = 42_000L
+        )
+        val payload = objectMapper.writeValueAsString(event)
+
+        // Should succeed (not crash) but skip because attestation doesn't exist
+        assertTrue(projector.project("EvidenceUploaded", payload))
+    }
+
+    @Test
     fun `project malformed payload returns false`() {
         assertFalse(projector.project("FlowCreated", "not-json"))
     }
