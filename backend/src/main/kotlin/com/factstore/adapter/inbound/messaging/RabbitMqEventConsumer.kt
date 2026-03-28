@@ -31,6 +31,10 @@ class RabbitMqEventConsumer(
     ) {
         val eventType = routingKey.substringAfterLast(".")
         log.info("Received domain event from RabbitMQ: type={}", eventType)
-        projector.project(eventType, payload)
+        val projected = projector.project(eventType, payload)
+        if (!projected) {
+            log.error("Failed to project event type={} — message acknowledged but data may be stale. " +
+                    "Replay from the event store to recover.", eventType)
+        }
     }
 }

@@ -34,6 +34,8 @@ services:
       retries: 5
 
   # ── RabbitMQ (CQRS event bus) ─────────────────────────────────────────────
+  # WARNING: Change default credentials for production deployments.
+  # Use RABBITMQ_DEFAULT_USER / RABBITMQ_DEFAULT_PASS environment variables.
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     environment:

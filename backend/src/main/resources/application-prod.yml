@@ -1,8 +1,10 @@
 # Profile: prod — Decoupled CQRS deployment with dual PostgreSQL databases and RabbitMQ.
 #
-# The command service and query service each run as separate containers,
-# each connecting to its own PostgreSQL instance.  RabbitMQ carries the
-# domain event feed from the command (write) side to the query (read) side.
+# The same application JAR is deployed twice: once as the command (write)
+# service and once as the query (read) service.  Each instance connects to
+# its own PostgreSQL database.  Spring's @ConditionalOnProperty annotations
+# ensure that only the relevant components are active in each instance
+# (e.g. RabbitMQ publisher on the command side, consumer on the query side).
 #
 # Activate with: --spring.profiles.active=prod
 #

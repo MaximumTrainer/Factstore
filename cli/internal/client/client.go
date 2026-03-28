@@ -60,11 +60,13 @@ func NewWithQueryHost(baseURL, queryBaseURL, token string) (*Client, error) {
 	}
 	c := &Client{
 		BaseURL:      strings.TrimRight(baseURL, "/"),
-		QueryBaseURL: strings.TrimRight(queryBaseURL, "/"),
 		Token:        token,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+	}
+	if queryBaseURL != "" {
+		c.QueryBaseURL = strings.TrimRight(queryBaseURL, "/")
 	}
 	return c, nil
 }

@@ -7,9 +7,9 @@ import org.springframework.stereotype.Component
 
 /**
  * Default no-op domain event bus.  Active when the event publisher is set
- * to `logging` (the default) or `none` — i.e. no CQRS replication is
- * configured.  Command-side events are still persisted to the event store
- * but are not forwarded to any query-side consumer.
+ * to `logging` (the default).  Command-side events are still persisted to
+ * the event store but are not forwarded to any query-side consumer.
+ * See [NoopDomainEventBusNone] for the `none` publisher profile.
  */
 @Component
 @ConditionalOnProperty(

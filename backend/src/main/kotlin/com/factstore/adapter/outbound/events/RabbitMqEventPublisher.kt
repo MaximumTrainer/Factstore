@@ -9,8 +9,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
 /**
- * Publishes [SupplyChainEvent]s to RabbitMQ so that the query service can
- * project them into its read database.
+ * Publishes [SupplyChainEvent]s to RabbitMQ for external consumers
+ * (e.g. webhooks, notification pipelines).
+ *
+ * This is separate from [RabbitMqDomainEventPublisher], which handles
+ * the internal CQRS event feed (domain events projected to the read DB).
  *
  * Active when `factstore.events.publisher=rabbitmq`.
  */
