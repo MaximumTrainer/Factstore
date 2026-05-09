@@ -3,6 +3,7 @@ package com.factstore.adapter.inbound.web
 import com.factstore.core.port.inbound.IPolicyService
 import com.factstore.dto.CreatePolicyRequest
 import com.factstore.dto.PolicyResponse
+import com.factstore.dto.PolicyVersionResponse
 import com.factstore.dto.UpdatePolicyRequest
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -45,4 +46,9 @@ class PolicyController(private val policyService: IPolicyService) {
         policyService.deletePolicy(id)
         return ResponseEntity.noContent().build()
     }
+
+    @GetMapping("/{id}/versions")
+    @Operation(summary = "List version history for a policy")
+    fun listPolicyVersions(@PathVariable id: UUID): ResponseEntity<List<PolicyVersionResponse>> =
+        ResponseEntity.ok(policyService.listPolicyVersions(id))
 }

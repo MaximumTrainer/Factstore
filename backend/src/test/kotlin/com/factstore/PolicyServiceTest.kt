@@ -3,6 +3,7 @@ package com.factstore
 import com.factstore.application.PolicyService
 import com.factstore.dto.CreatePolicyRequest
 import com.factstore.dto.UpdatePolicyRequest
+import com.factstore.exception.BadRequestException
 import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
 import org.junit.jupiter.api.Assertions.*
@@ -72,5 +73,66 @@ class PolicyServiceTest {
     @Test
     fun `delete non-existent policy throws NotFoundException`() {
         assertThrows<NotFoundException> { policyService.deletePolicy(UUID.randomUUID()) }
+    }
+
+    // Issue #130: Policy versioning
+
+    @Test
+    fun `should create version history on policy update`() {
+        val created = policyService.createPolicy(CreatePolicyRequest("ver-policy"))
+        policyService.updatePolicy(created.id, UpdatePolicyRequest(enforceProvenance = true, changeComment = "Enable provenance"))
+        val versions = policyService.listPolicyVersions(created.id)
+        assertEquals(1, versions.size)
+        assertEquals("Enable provenance", versions[0].changeComment)
+    }
+
+    @Test
+    fun `should increment version number on each update`() {
+        val created = policyService.createPolicy(CreatePolicyRequest("inc-ver-policy"))
+        assertEquals(1, created.version)
+        val updated = policyService.updatePolicy(created.id, UpdatePolicyRequest(enforceProvenance = true))
+        assertEquals(2, updated.version)
+        val updated2 = policyService.updatePolicy(created.id, UpdatePolicyRequest(enforceTrailCompliance = true))
+        assertEquals(3, updated2.version)
+    }
+
+    @Test
+    fun `should list all policy versions in descending order`() {
+        val created = policyService.createPolicy(CreatePolicyRequest("versions-policy"))
+        policyService.updatePolicy(created.id, UpdatePolicyRequest(enforceProvenance = true, changeComment = "first"))
+        policyService.updatePolicy(created.id, UpdatePolicyRequest(enforceTrailCompliance = true, changeComment = "second"))
+        val versions = policyService.listPolicyVersions(created.id)
+        assertEquals(2, versions.size)
+        assertTrue(versions[0].version > versions[1].version)
+    }
+
+    // Issue #131: Declarative YAML policy schema
+
+    @Test
+    fun `should accept valid policyYaml on create`() {
+        val yaml = "version: \"1\"\nrules:\n  - type: \"junit\"\n    required: true"
+        val resp = policyService.createPolicy(CreatePolicyRequest("yaml-policy", policyYaml = yaml))
+        assertEquals(yaml, resp.policyYaml)
+    }
+
+    @Test
+    fun `should reject invalid YAML on create`() {
+        val req = CreatePolicyRequest("bad-yaml-policy", policyYaml = "rules: [unclosed")
+        assertThrows<BadRequestException> { policyService.createPolicy(req) }
+    }
+
+    @Test
+    fun `should reject YAML missing rules on create`() {
+        val yaml = "version: \"1\""
+        val req = CreatePolicyRequest("no-rules-policy", policyYaml = yaml)
+        assertThrows<BadRequestException> { policyService.createPolicy(req) }
+    }
+
+    @Test
+    fun `should parse and store policy rules from YAML`() {
+        val yaml = "version: \"1\"\nrules:\n  - type: \"junit\"\n    required: true\n  - type: \"snyk\"\n    required: true\n    status: \"PASSED\""
+        val resp = policyService.createPolicy(CreatePolicyRequest("rules-policy", policyYaml = yaml))
+        assertNotNull(resp.policyYaml)
+        assertTrue(resp.policyYaml!!.contains("junit"))
     }
 }

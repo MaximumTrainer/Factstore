@@ -29,7 +29,10 @@ class Policy(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now(),
+
+    @Column(nullable = false)
+    var version: Int = 1
 ) {
     var requiredAttestationTypes: List<String>
         get() = if (requiredAttestationTypesRaw.isBlank()) emptyList()
