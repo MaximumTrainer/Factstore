@@ -22,6 +22,8 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
 import java.util.zip.GZIPOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -108,6 +110,46 @@ class AuditPackageService(
             attestationEntries = listOf(attestation.id.toString() to objectMapper.writeValueAsBytes(attestation.toResponse())),
             evidenceFiles = evidenceFiles
         )
+    }
+
+    override fun generateZip(trailId: UUID): ByteArray {
+        val trail = trailRepository.findById(trailId) ?: throw NotFoundException("Trail not found: $trailId")
+        val artifacts = artifactRepository.findByTrailId(trailId)
+        val attestations = attestationRepository.findByTrailId(trailId)
+        val evidenceFiles = evidenceFileRepository.findByTrailId(trailId)
+
+        log.info("Building ZIP audit package for trail=$trailId")
+
+        val baos = ByteArrayOutputStream()
+        ZipOutputStream(baos).use { zip ->
+            val manifest = mapOf(
+                "trailId" to trailId.toString(),
+                "generatedAt" to Instant.now().toString(),
+                "attestations" to attestations.map { it.toResponse() },
+                "artifacts" to artifacts.map { it.toResponse() }
+            )
+            addZipEntry(zip, "manifest.json", objectMapper.writeValueAsBytes(manifest))
+
+            for (attestation in attestations) {
+                addZipEntry(zip, "attestations/${attestation.id}.json", objectMapper.writeValueAsBytes(attestation.toResponse()))
+            }
+
+            val seenHashes = mutableSetOf<String>()
+            for (ev in evidenceFiles) {
+                if (ev.content != null && seenHashes.add(ev.sha256Hash)) {
+                    val ext = ev.fileName.substringAfterLast('.', "")
+                    val name = if (ext.isNotEmpty()) "${ev.sha256Hash}.$ext" else ev.sha256Hash
+                    addZipEntry(zip, "evidence/$name", ev.content)
+                }
+            }
+        }
+        return baos.toByteArray()
+    }
+
+    private fun addZipEntry(zip: ZipOutputStream, name: String, content: ByteArray) {
+        zip.putNextEntry(ZipEntry(name))
+        zip.write(content)
+        zip.closeEntry()
     }
 
     private fun buildArchive(

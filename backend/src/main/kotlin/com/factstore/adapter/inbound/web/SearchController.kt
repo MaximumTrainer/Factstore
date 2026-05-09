@@ -1,6 +1,8 @@
 package com.factstore.adapter.inbound.web
 
 import com.factstore.core.port.inbound.ISearchService
+import com.factstore.dto.GlobalSearchRequest
+import com.factstore.dto.GlobalSearchResponse
 import com.factstore.dto.SearchResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -19,4 +21,9 @@ class SearchController(private val searchService: ISearchService) {
         @RequestParam(required = false) type: String?
     ): ResponseEntity<SearchResponse> =
         ResponseEntity.ok(searchService.search(q, type))
+
+    @PostMapping
+    @Operation(summary = "Global search with tag/org/env filters", description = "Search flows, trails, and artifacts with optional filters for org slug, tags, and environment name.")
+    fun globalSearch(@RequestBody request: GlobalSearchRequest): ResponseEntity<GlobalSearchResponse> =
+        ResponseEntity.ok(searchService.search(request))
 }

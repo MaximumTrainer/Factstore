@@ -130,4 +130,92 @@ class SearchServiceTest {
         assertTrue(result.total > 0, "Expected to find result for trimmed query")
         assertEquals(uniqueBranch, result.query, "Echoed query should be trimmed")
     }
+
+    // ---- Global search tests (Issue #139) ----
+
+    @Test
+    fun `global search returns flows matching query`() {
+        val uniqueName = "global-search-flow-${System.nanoTime()}"
+        flowService.createFlow(CreateFlowRequest(uniqueName, "description"))
+
+        val result = searchService.search(GlobalSearchRequest(query = uniqueName))
+        assertTrue(result.flows.any { it.name == uniqueName }, "Should find flow matching query")
+        assertTrue(result.trails.isEmpty() || result.trails.all { true }, "Trails may be empty")
+    }
+
+    @Test
+    fun `global search filters by org slug`() {
+        val orgSlug = "org-${System.nanoTime()}"
+        val matchingFlowName = "org-flow-match-${System.nanoTime()}"
+        val otherFlowName = "org-flow-other-${System.nanoTime()}"
+        flowService.createFlow(CreateFlowRequest(matchingFlowName, "desc", orgSlug = orgSlug))
+        flowService.createFlow(CreateFlowRequest(otherFlowName, "desc", orgSlug = "different-org"))
+
+        val result = searchService.search(GlobalSearchRequest(orgSlug = orgSlug))
+        assertTrue(result.flows.any { it.name == matchingFlowName }, "Should include flow with matching orgSlug")
+        assertTrue(result.flows.none { it.name == otherFlowName }, "Should exclude flow with different orgSlug")
+    }
+
+    @Test
+    fun `global search filters flows by tag`() {
+        val tagKey = "env"
+        val tagValue = "production-${System.nanoTime()}"
+        val matchingFlowName = "tagged-flow-${System.nanoTime()}"
+        val untaggedFlowName = "untagged-flow-${System.nanoTime()}"
+        flowService.createFlow(CreateFlowRequest(matchingFlowName, "desc", tags = mapOf(tagKey to tagValue)))
+        flowService.createFlow(CreateFlowRequest(untaggedFlowName, "desc"))
+
+        val result = searchService.search(GlobalSearchRequest(tags = mapOf(tagKey to tagValue)))
+        assertTrue(result.flows.any { it.name == matchingFlowName }, "Should include flow with matching tag")
+        assertTrue(result.flows.none { it.name == untaggedFlowName }, "Should exclude flow without matching tag")
+    }
+
+    @Test
+    fun `global search with no filters returns all flows trails and artifacts`() {
+        val flowName = "all-inclusive-flow-${System.nanoTime()}"
+        val flow = flowService.createFlow(CreateFlowRequest(flowName, "desc"))
+        val trail = trailService.createTrail(CreateTrailRequest(
+            flowId = flow.id, gitCommitSha = "abc123", gitBranch = "main",
+            gitAuthor = "dev", gitAuthorEmail = "dev@test.com"
+        ))
+        val imageName = "all-inclusive-img-${System.nanoTime()}"
+        artifactService.reportArtifact(trail.id, CreateArtifactRequest(
+            imageName = imageName, imageTag = "v1", sha256Digest = "sha256:${"a".repeat(64)}", reportedBy = "ci"
+        ))
+
+        val result = searchService.search(GlobalSearchRequest())
+        assertTrue(result.flows.any { it.name == flowName })
+        assertTrue(result.trails.any { it.id == trail.id })
+        assertTrue(result.artifacts.any { it.imageName == imageName })
+    }
+
+    @Test
+    fun `global search returns trails matching query`() {
+        val flow = flowService.createFlow(CreateFlowRequest("trail-search-flow-${System.nanoTime()}", "desc"))
+        val uniqueBranch = "unique-branch-${System.nanoTime()}"
+        val trail = trailService.createTrail(CreateTrailRequest(
+            flowId = flow.id, gitCommitSha = "sha-abc", gitBranch = uniqueBranch,
+            gitAuthor = "dev", gitAuthorEmail = "dev@test.com"
+        ))
+
+        val result = searchService.search(GlobalSearchRequest(query = uniqueBranch))
+        assertTrue(result.trails.any { it.id == trail.id }, "Should find trail matching git branch query")
+    }
+
+    @Test
+    fun `global search returns artifacts matching query`() {
+        val flow = flowService.createFlow(CreateFlowRequest("artifact-search-flow-${System.nanoTime()}", "desc"))
+        val trail = trailService.createTrail(CreateTrailRequest(
+            flowId = flow.id, gitCommitSha = "sha-art", gitBranch = "main",
+            gitAuthor = "dev", gitAuthorEmail = "dev@test.com"
+        ))
+        val uniqueImage = "unique-image-${System.nanoTime()}"
+        artifactService.reportArtifact(trail.id, CreateArtifactRequest(
+            imageName = uniqueImage, imageTag = "latest",
+            sha256Digest = "sha256:${"b".repeat(64)}", reportedBy = "ci"
+        ))
+
+        val result = searchService.search(GlobalSearchRequest(query = uniqueImage))
+        assertTrue(result.artifacts.any { it.imageName == uniqueImage }, "Should find artifact matching image name query")
+    }
 }

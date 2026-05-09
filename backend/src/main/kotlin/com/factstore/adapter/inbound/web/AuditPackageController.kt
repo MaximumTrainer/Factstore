@@ -18,6 +18,16 @@ class AuditPackageController(private val auditPackageService: IAuditPackageServi
     fun downloadForTrail(@PathVariable trailId: UUID): ResponseEntity<ByteArray> =
         archiveResponse("trail-$trailId-audit-package.tar.gz", auditPackageService.buildForTrail(trailId))
 
+    @GetMapping("/api/v1/trails/{trailId}/audit-package/zip")
+    @Operation(summary = "Download a ZIP audit package for a trail")
+    fun downloadZipForTrail(@PathVariable trailId: UUID): ResponseEntity<ByteArray> {
+        val bytes = auditPackageService.generateZip(trailId)
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"trail-$trailId-audit.zip\"")
+            .contentType(MediaType.parseMediaType("application/zip"))
+            .body(bytes)
+    }
+
     @GetMapping("/api/v1/artifacts/{artifactId}/audit-package")
     @Operation(summary = "Download a tar.gz audit package for an artifact")
     fun downloadForArtifact(@PathVariable artifactId: UUID): ResponseEntity<ByteArray> =

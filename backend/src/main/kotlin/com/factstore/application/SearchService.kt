@@ -2,7 +2,10 @@ package com.factstore.application
 
 import com.factstore.core.port.inbound.ISearchService
 import com.factstore.core.port.outbound.IArtifactRepository
+import com.factstore.core.port.outbound.IFlowRepository
 import com.factstore.core.port.outbound.ITrailRepository
+import com.factstore.dto.GlobalSearchRequest
+import com.factstore.dto.GlobalSearchResponse
 import com.factstore.dto.SearchResponse
 import com.factstore.dto.SearchResultItem
 import com.factstore.exception.BadRequestException
@@ -16,7 +19,8 @@ private val ALLOWED_TYPES = setOf("trail", "artifact")
 @Transactional(readOnly = true)
 class SearchService(
     private val trailRepository: ITrailRepository,
-    private val artifactRepository: IArtifactRepository
+    private val artifactRepository: IArtifactRepository,
+    private val flowRepository: IFlowRepository
 ) : ISearchService {
 
     private val log = LoggerFactory.getLogger(SearchService::class.java)
@@ -70,5 +74,41 @@ class SearchService(
 
         log.debug("Search type={} queryLength={} results={}", type, trimmed.length, results.size)
         return SearchResponse(results = results, total = results.size, query = trimmed, type = type)
+    }
+
+    override fun search(request: GlobalSearchRequest): GlobalSearchResponse {
+        val query = request.query?.trim()
+
+        val flows = flowRepository.findAll()
+            .filter { flow ->
+                (request.orgSlug == null || flow.orgSlug == request.orgSlug) &&
+                (query.isNullOrBlank() || flow.name.contains(query, ignoreCase = true) || flow.description.contains(query, ignoreCase = true)) &&
+                request.tags.all { (k, v) -> flow.tags[k] == v }
+            }
+            .map { it.toResponse() }
+
+        val trails = trailRepository.findAll()
+            .filter { trail ->
+                (request.orgSlug == null || trail.orgSlug == request.orgSlug) &&
+                (query.isNullOrBlank() || trail.gitCommitSha.contains(query, ignoreCase = true) ||
+                    trail.name?.contains(query, ignoreCase = true) == true ||
+                    trail.gitBranch.contains(query, ignoreCase = true) ||
+                    trail.gitAuthor.contains(query, ignoreCase = true)) &&
+                request.tags.all { (k, v) -> trail.tags[k] == v }
+            }
+            .map { it.toResponse() }
+
+        val artifacts = artifactRepository.findAll()
+            .filter { artifact ->
+                (request.orgSlug == null || artifact.orgSlug == request.orgSlug) &&
+                (query.isNullOrBlank() || artifact.imageName.contains(query, ignoreCase = true) ||
+                    artifact.imageTag.contains(query, ignoreCase = true)) &&
+                request.tags.all { (k, v) -> artifact.tags[k] == v }
+            }
+            .map { it.toResponse() }
+
+        log.debug("GlobalSearch orgSlug={} queryLength={} flows={} trails={} artifacts={}",
+            request.orgSlug, query?.length, flows.size, trails.size, artifacts.size)
+        return GlobalSearchResponse(flows = flows, trails = trails, artifacts = artifacts)
     }
 }

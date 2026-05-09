@@ -9,4 +9,6 @@ interface IAuditPackageService {
     fun buildForArtifact(artifactId: UUID): ByteArray
     /** Builds a tar.gz audit package scoped to a single attestation and its evidence files. */
     fun buildForAttestation(attestationId: UUID): ByteArray
+    /** Builds a ZIP audit package containing manifest, attestation JSONs, and evidence files for the given trail. */
+    fun generateZip(trailId: UUID): ByteArray
 }

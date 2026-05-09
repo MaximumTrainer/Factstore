@@ -27,6 +27,7 @@ import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.zip.GZIPInputStream
+import java.util.zip.ZipInputStream
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -275,5 +276,69 @@ class AuditPackageServiceTest {
         val manifest = objectMapper.readTree(entries["manifest.json"])
         val manifestPaths = manifest.get("files").map { it.get("path").asText() }
         assertEquals(manifestPaths.size, manifestPaths.toSet().size, "Manifest must have no duplicate paths")
+    }
+
+    // ---- generateZip tests ----
+
+    /** Reads all entries from a ZIP byte array into a map of entry-name → bytes. */
+    private fun readZipEntries(bytes: ByteArray): Map<String, ByteArray> {
+        val result = mutableMapOf<String, ByteArray>()
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) {
+                    val baos = ByteArrayOutputStream()
+                    zip.copyTo(baos)
+                    result[entry.name] = baos.toByteArray()
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        return result
+    }
+
+    @Test
+    fun `generateZip returns valid zip containing manifest json`() {
+        val trail = createTrail()
+        val bytes = auditPackageService.generateZip(trail.id)
+        assertTrue(bytes.isNotEmpty(), "ZIP must not be empty")
+        val entries = readZipEntries(bytes)
+        assertTrue(entries.containsKey("manifest.json"), "ZIP must contain manifest.json")
+    }
+
+    @Test
+    fun `generateZip entry count matches attestation count plus manifest`() {
+        val trail = createTrail()
+        attestationService.recordAttestation(trail.id, CreateAttestationRequest("junit", AttestationStatus.PASSED))
+        attestationService.recordAttestation(trail.id, CreateAttestationRequest("snyk", AttestationStatus.PASSED))
+
+        val bytes = auditPackageService.generateZip(trail.id)
+        val entries = readZipEntries(bytes)
+
+        val relevant = entries.keys.filter { it == "manifest.json" || it.startsWith("attestations/") }
+        // manifest.json + 2 attestation JSONs = 3
+        assertEquals(3, relevant.size, "Should have manifest plus one entry per attestation")
+    }
+
+    @Test
+    fun `generateZip manifest contains trail id and attestation details`() {
+        val trail = createTrail()
+        attestationService.recordAttestation(trail.id, CreateAttestationRequest("junit", AttestationStatus.PASSED))
+
+        val bytes = auditPackageService.generateZip(trail.id)
+        val entries = readZipEntries(bytes)
+
+        val manifest = objectMapper.readTree(entries["manifest.json"])
+        assertEquals(trail.id.toString(), manifest.get("trailId").asText())
+        assertTrue(manifest.get("attestations").isArray)
+        assertEquals(1, manifest.get("attestations").size())
+    }
+
+    @Test
+    fun `generateZip throws NotFoundException for unknown trail`() {
+        assertThrows<NotFoundException> {
+            auditPackageService.generateZip(UUID.randomUUID())
+        }
     }
 }

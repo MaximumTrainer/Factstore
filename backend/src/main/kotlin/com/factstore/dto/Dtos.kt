@@ -1632,3 +1632,17 @@ data class LiveArtifactByRepoResponse(
     val imageName: String,
     val deployments: List<LiveArtifactDeployment>
 )
+
+// Issue #139: global search with tag/org/env filters
+data class GlobalSearchRequest(
+    val query: String? = null,
+    val orgSlug: String? = null,
+    val tags: Map<String, String> = emptyMap(),
+    val environmentName: String? = null
+)
+
+data class GlobalSearchResponse(
+    val flows: List<FlowResponse> = emptyList(),
+    val trails: List<TrailResponse> = emptyList(),
+    val artifacts: List<ArtifactResponse> = emptyList()
+)
