@@ -60,6 +60,8 @@ class ArtifactServiceUnitTest {
         ) = AuditEventPage(emptyList(), page, size, 0L, 0)
 
         override fun getEventsForTrail(trailId: UUID) = emptyList<AuditEventResponse>()
+
+        override fun exportEnvironmentAuditLogCsv(environmentId: UUID): String = ""
     }
 
     @BeforeEach

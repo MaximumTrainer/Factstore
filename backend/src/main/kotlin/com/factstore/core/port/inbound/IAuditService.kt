@@ -30,4 +30,6 @@ interface IAuditService {
     ): AuditEventPage
 
     fun getEventsForTrail(trailId: UUID): List<AuditEventResponse>
+
+    fun exportEnvironmentAuditLogCsv(environmentId: UUID): String
 }

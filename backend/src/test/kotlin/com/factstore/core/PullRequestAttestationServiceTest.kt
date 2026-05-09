@@ -271,4 +271,6 @@ class NoOpAuditService : IAuditService {
     ): AuditEventPage = throw UnsupportedOperationException("Not used in tests")
 
     override fun getEventsForTrail(trailId: UUID): List<AuditEventResponse> = emptyList()
+
+    override fun exportEnvironmentAuditLogCsv(environmentId: UUID): String = ""
 }

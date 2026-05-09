@@ -4,6 +4,7 @@ import com.factstore.core.domain.AuditEvent
 import com.factstore.core.domain.AuditEventType
 import com.factstore.core.port.inbound.IAuditService
 import com.factstore.core.port.outbound.IAuditEventRepository
+import com.factstore.core.port.outbound.IEnvironmentRepository
 import com.factstore.config.RegionContextHolder
 import com.factstore.dto.AuditEventPage
 import com.factstore.dto.AuditEventResponse
@@ -19,6 +20,7 @@ import java.util.UUID
 @Transactional
 class AuditEventService(
     private val auditEventRepository: IAuditEventRepository,
+    private val environmentRepository: IEnvironmentRepository,
     private val objectMapper: ObjectMapper
 ) : IAuditService {
 
@@ -76,6 +78,30 @@ class AuditEventService(
     @Transactional(readOnly = true)
     override fun getEventsForTrail(trailId: UUID): List<AuditEventResponse> =
         auditEventRepository.findByTrailId(trailId).map { it.toResponse() }
+
+    @Transactional(readOnly = true)
+    override fun exportEnvironmentAuditLogCsv(environmentId: UUID): String {
+        environmentRepository.findById(environmentId)
+            ?: throw NotFoundException("Environment not found: $environmentId")
+        val events = auditEventRepository.findByEnvironmentId(environmentId)
+        val sb = StringBuilder()
+        sb.appendLine("timestamp,eventType,actor,details,environmentId,resourceId")
+        for (event in events) {
+            val timestamp = event.occurredAt.toString()
+            val eventType = event.eventType.name
+            val actor = escapeCsvField(event.actor)
+            val details = escapeCsvField(event.payload)
+            val envId = event.environmentId?.toString() ?: ""
+            val resourceId = event.trailId?.toString() ?: event.artifactSha256 ?: ""
+            sb.appendLine("$timestamp,$eventType,$actor,$details,$envId,$resourceId")
+        }
+        return sb.toString()
+    }
+
+    private fun escapeCsvField(value: String): String {
+        val needsQuoting = value.contains(',') || value.contains('"') || value.contains('\n')
+        return if (needsQuoting) "\"${value.replace("\"", "\"\"")}\"" else value
+    }
 }
 
 fun AuditEvent.toResponse() = AuditEventResponse(

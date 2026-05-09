@@ -1,6 +1,7 @@
 package com.factstore.adapter.inbound.web
 
 import com.factstore.application.DryRunContext
+import com.factstore.core.port.inbound.IAuditService
 import com.factstore.core.port.inbound.IEnvironmentService
 import com.factstore.dto.BaselineResponse
 import com.factstore.dto.CreateBaselineRequest
@@ -10,6 +11,7 @@ import com.factstore.dto.DriftReportResponse
 import com.factstore.dto.DryRunResponse
 import com.factstore.dto.EnvironmentResponse
 import com.factstore.dto.EnvironmentSnapshotResponse
+import com.factstore.dto.LiveArtifactByRepoResponse
 import com.factstore.dto.PageResponse
 import com.factstore.dto.RecordSnapshotRequest
 import com.factstore.dto.SnapshotArtifactResponse
@@ -19,7 +21,9 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.Instant
@@ -28,7 +32,10 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/v1/environments")
 @Tag(name = "Environments", description = "Environment tracking and snapshot management")
-class EnvironmentController(private val environmentService: IEnvironmentService) {
+class EnvironmentController(
+    private val environmentService: IEnvironmentService,
+    private val auditService: IAuditService
+) {
 
     @PostMapping
     @Operation(summary = "Register a new environment")
@@ -61,6 +68,11 @@ class EnvironmentController(private val environmentService: IEnvironmentService)
         @RequestParam(defaultValue = "20") size: Int
     ): ResponseEntity<PageResponse<EnvironmentResponse>> =
         ResponseEntity.ok(environmentService.listEnvironments(page, size))
+
+    @GetMapping("/live-artifacts")
+    @Operation(summary = "Get live artifacts grouped by image name across all environments")
+    fun getLiveArtifactsByRepo(): ResponseEntity<List<LiveArtifactByRepoResponse>> =
+        ResponseEntity.ok(environmentService.getLiveArtifactsByRepo())
 
     @GetMapping("/{id}")
     @Operation(summary = "Get environment by ID")
@@ -159,5 +171,14 @@ class EnvironmentController(private val environmentService: IEnvironmentService)
     @Operation(summary = "List all drift reports for an environment")
     fun listDriftHistory(@PathVariable id: UUID): ResponseEntity<List<DriftReportResponse>> =
         ResponseEntity.ok(environmentService.listDriftHistory(id))
-}
 
+    @GetMapping("/{id}/audit-log/csv")
+    @Operation(summary = "Export the audit log for an environment as a CSV file")
+    fun exportAuditLogCsv(@PathVariable id: UUID): ResponseEntity<String> {
+        val csv = auditService.exportEnvironmentAuditLogCsv(id)
+        val headers = HttpHeaders()
+        headers.contentType = MediaType.parseMediaType("text/csv")
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"env-$id-audit-log.csv\"")
+        return ResponseEntity.ok().headers(headers).body(csv)
+    }
+}

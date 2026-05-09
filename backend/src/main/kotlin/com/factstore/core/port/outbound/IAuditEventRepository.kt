@@ -9,6 +9,7 @@ interface IAuditEventRepository {
     fun save(event: AuditEvent): AuditEvent
     fun findById(id: UUID): AuditEvent?
     fun findByTrailId(trailId: UUID): List<AuditEvent>
+    fun findByEnvironmentId(environmentId: UUID): List<AuditEvent>
     fun findWithFilters(
         eventType: AuditEventType? = null,
         trailId: UUID? = null,

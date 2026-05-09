@@ -29,6 +29,8 @@ import com.factstore.dto.DeploymentResponse
 import com.factstore.dto.DriftReportResponse
 import com.factstore.dto.EnvironmentResponse
 import com.factstore.dto.EnvironmentSnapshotResponse
+import com.factstore.dto.LiveArtifactByRepoResponse
+import com.factstore.dto.LiveArtifactDeployment
 import com.factstore.dto.PageResponse
 import com.factstore.dto.RecordSnapshotRequest
 import com.factstore.dto.ScopeListDto
@@ -77,6 +79,7 @@ class EnvironmentService(
             driftPolicy = request.driftPolicy
         )
         request.scope?.let { applyScope(environment, it) }
+        environment.tags = request.tags.toMutableMap()
         val saved = environmentRepository.save(environment)
         log.info("Created environment: ${saved.id} - ${saved.name}")
         return saved.toResponse()
@@ -114,6 +117,7 @@ class EnvironmentService(
         request.description?.let { environment.description = it }
         request.driftPolicy?.let { environment.driftPolicy = it }
         request.scope?.let { applyScope(environment, it) }
+        request.tags?.let { environment.tags = it.toMutableMap() }
         environment.updatedAt = Instant.now()
         return environmentRepository.save(environment).toResponse()
     }
@@ -392,6 +396,29 @@ class EnvironmentService(
         }
         return if (allPassed) "COMPLIANT" else "NON_COMPLIANT"
     }
+
+    @Transactional(readOnly = true)
+    override fun getLiveArtifactsByRepo(): List<LiveArtifactByRepoResponse> {
+        val environments = environmentRepository.findAll()
+        val deploymentsByImageName = mutableMapOf<String, MutableList<LiveArtifactDeployment>>()
+        for (environment in environments) {
+            val latestSnapshot = snapshotRepository.findLatestByEnvironmentId(environment.id) ?: continue
+            val artifacts = snapshotArtifactRepository.findAllBySnapshotId(latestSnapshot.id)
+            for (artifact in artifacts) {
+                val deployment = LiveArtifactDeployment(
+                    environmentId = environment.id,
+                    environmentName = environment.name,
+                    imageTag = artifact.artifactTag,
+                    sha256Digest = artifact.artifactSha256,
+                    snapshotCreatedAt = latestSnapshot.recordedAt
+                )
+                deploymentsByImageName.getOrPut(artifact.artifactName) { mutableListOf() }.add(deployment)
+            }
+        }
+        return deploymentsByImageName.map { (imageName, deployments) ->
+            LiveArtifactByRepoResponse(imageName = imageName, deployments = deployments)
+        }
+    }
 }
 
 fun Environment.toResponse(): EnvironmentResponse {
@@ -410,7 +437,8 @@ fun Environment.toResponse(): EnvironmentResponse {
         driftPolicy = driftPolicy,
         scope = scopeDto,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        tags = tags.toMap()
     )
 }
 

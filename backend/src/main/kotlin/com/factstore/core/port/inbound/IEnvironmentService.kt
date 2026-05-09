@@ -1,5 +1,6 @@
 package com.factstore.core.port.inbound
 
+import com.factstore.dto.LiveArtifactByRepoResponse
 import com.factstore.dto.BaselineResponse
 import com.factstore.dto.CreateBaselineRequest
 import com.factstore.dto.CreateEnvironmentRequest
@@ -30,4 +31,5 @@ interface IEnvironmentService {
     fun checkDrift(environmentId: UUID): DriftReportResponse
     fun listDriftHistory(environmentId: UUID): List<DriftReportResponse>
     fun listDeployments(environmentId: UUID): List<DeploymentResponse>
+    fun getLiveArtifactsByRepo(): List<LiveArtifactByRepoResponse>
 }
