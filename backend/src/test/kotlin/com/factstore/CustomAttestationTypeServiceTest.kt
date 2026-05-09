@@ -3,6 +3,7 @@ package com.factstore
 import com.factstore.core.port.inbound.ICustomAttestationTypeService
 import com.factstore.dto.CreateCustomAttestationTypeRequest
 import com.factstore.dto.UpdateCustomAttestationTypeRequest
+import com.factstore.exception.BadRequestException
 import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
 import org.junit.jupiter.api.Assertions.*
@@ -73,6 +74,38 @@ class CustomAttestationTypeServiceTest {
     fun `should throw NotFoundException for unknown id`() {
         assertThrows<NotFoundException> {
             service.getType(java.util.UUID.randomUUID())
+        }
+    }
+
+    @Test
+    fun `should store and return schemaJson and jqExpression`() {
+        val schema = """{"type":"object","properties":{"passed":{"type":"boolean"}}}"""
+        val created = service.createType(CreateCustomAttestationTypeRequest(
+            name = "typed-schema",
+            description = "desc",
+            schemaJson = schema,
+            jqExpression = ".passed == true"
+        ))
+        assertEquals(schema, created.schemaJson)
+        assertEquals(".passed == true", created.jqExpression)
+
+        val fetched = service.getType(created.id)
+        assertEquals(schema, fetched.schemaJson)
+        assertEquals(".passed == true", fetched.jqExpression)
+    }
+
+    @Test
+    fun `should reject invalid JSON as schemaJson on create`() {
+        assertThrows<BadRequestException> {
+            service.createType(CreateCustomAttestationTypeRequest("bad-schema", "desc", schemaJson = "not valid json{"))
+        }
+    }
+
+    @Test
+    fun `should reject invalid JSON as schemaJson on update`() {
+        val created = service.createType(CreateCustomAttestationTypeRequest("upd-schema", "desc"))
+        assertThrows<BadRequestException> {
+            service.updateType(created.id, UpdateCustomAttestationTypeRequest(schemaJson = "not valid json{"))
         }
     }
 }

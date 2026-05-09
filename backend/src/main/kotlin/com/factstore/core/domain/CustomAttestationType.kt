@@ -22,6 +22,12 @@ class CustomAttestationType(
     @Column(name = "org_slug", nullable = true, length = 255)
     var orgSlug: String? = null,
 
+    @Column(name = "schema_json", columnDefinition = "TEXT")
+    var schemaJson: String? = null,
+
+    @Column(name = "jq_expression", columnDefinition = "TEXT")
+    var jqExpression: String? = null,
+
     @Column(name = "archived_at", nullable = true)
     var archivedAt: Instant? = null,
 

@@ -4,8 +4,10 @@ import com.factstore.adapter.mock.InMemoryCustomAttestationTypeRepository
 import com.factstore.application.CustomAttestationTypeService
 import com.factstore.dto.CreateCustomAttestationTypeRequest
 import com.factstore.dto.UpdateCustomAttestationTypeRequest
+import com.factstore.exception.BadRequestException
 import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,7 +20,7 @@ class CustomAttestationTypeServiceUnitTest {
     @BeforeEach
     fun setup() {
         repo = InMemoryCustomAttestationTypeRepository()
-        service = CustomAttestationTypeService(repo)
+        service = CustomAttestationTypeService(repo, ObjectMapper())
     }
 
     @Test
@@ -77,5 +79,37 @@ class CustomAttestationTypeServiceUnitTest {
         assertThrows<ConflictException> {
             service.createType(CreateCustomAttestationTypeRequest("dup", "other"))
         }
+    }
+
+    @Test
+    fun `should store and return schemaJson`() {
+        val schema = """{"type":"object","properties":{"passed":{"type":"boolean"}}}"""
+        val created = service.createType(CreateCustomAttestationTypeRequest("schema-type", "desc", schemaJson = schema))
+        assertEquals(schema, created.schemaJson)
+
+        val fetched = service.getType(created.id)
+        assertEquals(schema, fetched.schemaJson)
+    }
+
+    @Test
+    fun `should reject invalid JSON as schemaJson`() {
+        assertThrows<BadRequestException> {
+            service.createType(CreateCustomAttestationTypeRequest("bad-schema-type", "desc", schemaJson = "not-valid-json{"))
+        }
+    }
+
+    @Test
+    fun `should store and return jqExpression`() {
+        val created = service.createType(CreateCustomAttestationTypeRequest("jq-type", "desc", jqExpression = ".passed == true"))
+        assertEquals(".passed == true", created.jqExpression)
+    }
+
+    @Test
+    fun `should update schemaJson and jqExpression`() {
+        val created = service.createType(CreateCustomAttestationTypeRequest("updatable", "desc"))
+        val schema = """{"type":"object"}"""
+        val updated = service.updateType(created.id, UpdateCustomAttestationTypeRequest(schemaJson = schema, jqExpression = ".ok"))
+        assertEquals(schema, updated.schemaJson)
+        assertEquals(".ok", updated.jqExpression)
     }
 }
