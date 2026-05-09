@@ -69,12 +69,21 @@
       <div>
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-semibold text-gray-900">Snapshot History</h2>
-          <button
-            class="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700"
-            @click="showRecordModal = true"
-          >
-            + Record Snapshot
-          </button>
+          <div class="flex gap-2">
+            <button
+              v-if="snapshots.length >= 2"
+              class="bg-white border border-indigo-600 text-indigo-600 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-50"
+              @click="router.push(`/environments/${id}/snapshot-diff`)"
+            >
+              Compare Snapshots
+            </button>
+            <button
+              class="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700"
+              @click="showRecordModal = true"
+            >
+              + Record Snapshot
+            </button>
+          </div>
         </div>
 
         <div v-if="snapshots.length === 0" class="bg-white shadow rounded-lg p-6 text-center text-gray-500">
@@ -183,13 +192,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getEnvironment, listSnapshots, getLatestSnapshot, recordSnapshot } from '../api/environments'
 import { useEnvironmentTypeBadge } from '../composables/useEnvironmentTypeBadge'
 import StatusBadge from '../components/StatusBadge.vue'
 import type { Environment, EnvironmentSnapshot } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const id = route.params.id as string
 
 const environment = ref<Environment | null>(null)

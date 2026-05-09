@@ -220,6 +220,38 @@ class AttestationServiceTest {
     }
 
     @Test
+    fun `should reject valid JSON attestationData that violates schema type constraints`() {
+        customAttestationTypeService.createType(CreateCustomAttestationTypeRequest(
+            name = "typed-schema-type",
+            description = "desc",
+            schemaJson = """{"type":"object","properties":{"count":{"type":"integer"}},"required":["count"]}"""
+        ))
+        val trailId = setupTrail()
+        assertThrows<BadRequestException> {
+            attestationService.recordAttestation(
+                trailId,
+                CreateAttestationRequest("typed-schema-type", AttestationStatus.PASSED, attestationData = """{"count": "not-an-integer"}""")
+            )
+        }
+    }
+
+    @Test
+    fun `should reject valid JSON attestationData missing required schema fields`() {
+        customAttestationTypeService.createType(CreateCustomAttestationTypeRequest(
+            name = "required-fields-type",
+            description = "desc",
+            schemaJson = """{"type":"object","properties":{"passed":{"type":"boolean"}},"required":["passed"]}"""
+        ))
+        val trailId = setupTrail()
+        assertThrows<BadRequestException> {
+            attestationService.recordAttestation(
+                trailId,
+                CreateAttestationRequest("required-fields-type", AttestationStatus.PASSED, attestationData = """{"other": "field"}""")
+            )
+        }
+    }
+
+    @Test
     fun `should auto-set status to PASSED when jq expression evaluates to true`() {
         customAttestationTypeService.createType(CreateCustomAttestationTypeRequest(
             name = "jq-pass-type",

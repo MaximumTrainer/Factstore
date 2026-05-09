@@ -1,0 +1,82 @@
+name: 'Factstore Attest'
+description: 'Record an attestation in Factstore'
+inputs:
+  factstore-url:
+    description: 'Factstore server URL'
+    required: true
+  trail-id:
+    description: 'Trail ID to attest on'
+    required: true
+  type:
+    description: 'Attestation type (e.g., junit, snyk, approval)'
+    required: true
+  status:
+    description: 'Attestation status: PASSED, FAILED, or PENDING'
+    required: true
+    default: 'PASSED'
+  name:
+    description: 'Attestation name'
+    required: false
+  details:
+    description: 'Additional details'
+    required: false
+  evidence-url:
+    description: 'URL to external evidence'
+    required: false
+  git-commit-sha:
+    description: 'Git commit SHA'
+    required: false
+    default: ${{ github.sha }}
+  git-branch:
+    description: 'Git branch name'
+    required: false
+    default: ${{ github.ref_name }}
+  api-key:
+    description: 'Factstore API key'
+    required: false
+outputs:
+  attestation-id:
+    description: 'ID of the created attestation'
+    value: ${{ steps.record.outputs.attestation-id }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Record attestation
+      id: record
+      shell: bash
+      env:
+        FS_URL: ${{ inputs.factstore-url }}
+        FS_TRAIL_ID: ${{ inputs.trail-id }}
+        FS_TYPE: ${{ inputs.type }}
+        FS_STATUS: ${{ inputs.status }}
+        FS_NAME: ${{ inputs.name }}
+        FS_DETAILS: ${{ inputs.details }}
+        FS_EVIDENCE_URL: ${{ inputs.evidence-url }}
+        FS_GIT_SHA: ${{ inputs.git-commit-sha }}
+        FS_GIT_BRANCH: ${{ inputs.git-branch }}
+        FS_API_KEY: ${{ inputs.api-key }}
+      run: |
+        # Build JSON payload using jq so all values are properly escaped
+        PAYLOAD=$(jq -n \
+          --arg type      "$FS_TYPE" \
+          --arg status    "$FS_STATUS" \
+          --arg name      "$FS_NAME" \
+          --arg details   "$FS_DETAILS" \
+          --arg evUrl     "$FS_EVIDENCE_URL" \
+          --arg gitSha    "$FS_GIT_SHA" \
+          --arg gitBranch "$FS_GIT_BRANCH" \
+          '{type: $type, status: $status, name: $name, details: $details,
+            evidenceUrl: $evUrl, gitCommitSha: $gitSha, gitBranch: $gitBranch}')
+
+        # Build curl header array — avoids word-splitting issues with embedded quotes
+        CURL_ARGS=(-sf -X POST
+          "${FS_URL}/api/v1/trails/${FS_TRAIL_ID}/attestations"
+          -H "Content-Type: application/json"
+          -d "$PAYLOAD")
+        if [[ -n "$FS_API_KEY" ]]; then
+          CURL_ARGS+=(-H "X-API-Key: $FS_API_KEY")
+        fi
+
+        RESPONSE=$(curl "${CURL_ARGS[@]}")
+        ATTESTATION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+        echo "attestation-id=${ATTESTATION_ID}" >> "$GITHUB_OUTPUT"

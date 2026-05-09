@@ -26,6 +26,8 @@ import com.factstore.exception.BadRequestException
 import com.factstore.exception.NotFoundException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.networknt.schema.JsonSchemaFactory
+import com.networknt.schema.SpecVersion
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -71,7 +73,7 @@ class AttestationService(
 
         val customType = customAttestationTypeRepository.findByName(request.type)
         if (customType?.schemaJson != null && request.attestationData != null) {
-            validateDataIsJson(request.attestationData, request.type)
+            validateDataAgainstSchema(request.attestationData, customType.schemaJson!!, request.type)
         }
 
         val attestation = Attestation(
@@ -234,11 +236,21 @@ class AttestationService(
         return evidenceFile.toResponse()
     }
 
-    private fun validateDataIsJson(data: String, typeName: String) {
+    private fun validateDataAgainstSchema(data: String, schemaJson: String, typeName: String) {
         try {
-            objectMapper.readTree(data)
+            val dataNode = objectMapper.readTree(data)
+            val schemaNode = objectMapper.readTree(schemaJson)
+            val factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7)
+            val schema = factory.getSchema(schemaNode)
+            val errors = schema.validate(dataNode)
+            if (errors.isNotEmpty()) {
+                val message = errors.take(3).joinToString("; ") { it.message }
+                throw BadRequestException("attestationData does not conform to schema for type '$typeName': $message")
+            }
+        } catch (e: BadRequestException) {
+            throw e
         } catch (e: Exception) {
-            throw BadRequestException("attestationData does not conform to schema for type '$typeName'")
+            throw BadRequestException("attestationData is not valid JSON for type '$typeName': ${e.message}")
         }
     }
 

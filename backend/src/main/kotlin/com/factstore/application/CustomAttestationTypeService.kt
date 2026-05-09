@@ -10,6 +10,8 @@ import com.factstore.exception.BadRequestException
 import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.networknt.schema.JsonSchemaFactory
+import com.networknt.schema.SpecVersion
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -77,9 +79,10 @@ class CustomAttestationTypeService(
 
     private fun validateJsonSchema(schemaJson: String) {
         try {
-            objectMapper.readTree(schemaJson)
+            val node = objectMapper.readTree(schemaJson)
+            JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7).getSchema(node)
         } catch (e: Exception) {
-            throw BadRequestException("schemaJson is not valid JSON")
+            throw BadRequestException("schemaJson is not a valid JSON Schema: ${e.message}")
         }
     }
 }

@@ -36,10 +36,15 @@ func init() {
 	RootCmd.AddCommand(trailsCmd)
 	RootCmd.AddCommand(artifactsCmd)
 	RootCmd.AddCommand(attestationsCmd)
+	RootCmd.AddCommand(attestCmd)
 	RootCmd.AddCommand(assertCmd)
 	RootCmd.AddCommand(complianceCmd)
 	RootCmd.AddCommand(webhooksCmd)
 	RootCmd.AddCommand(gateCmd)
+	RootCmd.AddCommand(environmentsCmd)
+	RootCmd.AddCommand(snapshotsCmd)
+	RootCmd.AddCommand(logCmd)
+	RootCmd.AddCommand(reportCmd)
 }
 
 // newClient builds an HTTP client from merged config + flag overrides.

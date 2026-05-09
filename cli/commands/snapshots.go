@@ -96,9 +96,6 @@ Use:   "record <env-id>",
 Short: "Record a new snapshot for an environment",
 Args:  cobra.ExactArgs(1),
 RunE: func(cmd *cobra.Command, args []string) error {
-if snapshotRecordedBy == "" {
-return fmt.Errorf("--recorded-by is required")
-}
 c, err := newClient()
 if err != nil {
 return err
@@ -140,9 +137,112 @@ return nil
 },
 }
 
+var snapshotsDiffCmd = &cobra.Command{
+Use:   "diff <env-id> <index1> <index2>",
+Short: "Show the diff between two snapshots",
+Args:  cobra.ExactArgs(3),
+RunE: func(cmd *cobra.Command, args []string) error {
+envID := args[0]
+from, err := parseInt64(args[1])
+if err != nil {
+return fmt.Errorf("invalid index1: %w", err)
+}
+to, err := parseInt64(args[2])
+if err != nil {
+return fmt.Errorf("invalid index2: %w", err)
+}
+c, err := newClient()
+if err != nil {
+return err
+}
+diff, err := api.DiffSnapshots(c, envID, from, to)
+if err != nil {
+return err
+}
+if jsonOutput {
+output.PrintJSON(diff)
+return nil
+}
+var rows [][]string
+for _, a := range diff.Added {
+rows = append(rows, []string{a.ArtifactName, a.ArtifactTag, truncate(a.Sha256To, 16), "ADDED"})
+}
+for _, r := range diff.Removed {
+rows = append(rows, []string{r.ArtifactName, r.ArtifactTag, truncate(r.Sha256From, 16), "REMOVED"})
+}
+for _, u := range diff.Updated {
+rows = append(rows, []string{u.ArtifactName, u.ArtifactTag, truncate(u.Sha256To, 16), "CHANGED"})
+}
+if len(rows) == 0 {
+fmt.Println("No differences found between snapshots.")
+return nil
+}
+output.PrintTable([]string{"NAME", "TAG", "SHA256", "CHANGE"}, rows)
+return nil
+},
+}
+
+var snapshotsLatestCmd = &cobra.Command{
+Use:   "latest <env-id>",
+Short: "Show the most recent snapshot for an environment",
+Args:  cobra.ExactArgs(1),
+RunE: func(cmd *cobra.Command, args []string) error {
+c, err := newClient()
+if err != nil {
+return err
+}
+snapshots, err := api.ListSnapshots(c, args[0])
+if err != nil {
+return err
+}
+if len(snapshots) == 0 {
+fmt.Println("No snapshots found.")
+return nil
+}
+latest := snapshots[0]
+for _, s := range snapshots[1:] {
+if s.SnapshotIndex > latest.SnapshotIndex {
+latest = s
+}
+}
+if jsonOutput {
+output.PrintJSON(latest)
+return nil
+}
+output.PrintTable(
+[]string{"FIELD", "VALUE"},
+[][]string{
+{"ID", latest.ID},
+{"Environment ID", latest.EnvironmentID},
+{"Snapshot Index", fmt.Sprintf("%d", latest.SnapshotIndex)},
+{"Recorded By", latest.RecordedBy},
+{"Recorded At", latest.RecordedAt},
+{"Artifact Count", fmt.Sprintf("%d", len(latest.Artifacts))},
+},
+)
+if len(latest.Artifacts) > 0 {
+artifactRows := make([][]string, len(latest.Artifacts))
+for i, a := range latest.Artifacts {
+artifactRows[i] = []string{a.ArtifactName, a.ArtifactTag, truncate(a.ArtifactSha256, 16), strconv.Itoa(a.InstanceCount)}
+}
+output.PrintTable([]string{"NAME", "TAG", "SHA256", "INSTANCES"}, artifactRows)
+}
+return nil
+},
+}
+
+func parseInt64(s string) (int64, error) {
+n, err := strconv.ParseInt(s, 10, 64)
+if err != nil {
+return 0, err
+}
+return n, nil
+}
+
 func init() {
 snapshotsRecordCmd.Flags().StringVar(&snapshotRecordedBy, "recorded-by", "", "Identity recording the snapshot (required)")
+_ = snapshotsRecordCmd.MarkFlagRequired("recorded-by")
 snapshotsRecordCmd.Flags().StringArrayVar(&snapshotArtifacts, "artifact", nil, "Artifact in format sha256:name:tag[:count] (repeatable)")
 
-snapshotsCmd.AddCommand(snapshotsListCmd, snapshotsGetCmd, snapshotsRecordCmd)
+snapshotsCmd.AddCommand(snapshotsListCmd, snapshotsGetCmd, snapshotsRecordCmd, snapshotsDiffCmd, snapshotsLatestCmd)
 }

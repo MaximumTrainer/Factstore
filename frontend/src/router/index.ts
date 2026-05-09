@@ -21,6 +21,9 @@ import SsoConfigView from '../views/SsoConfigView.vue'
 import ComplianceView from '../views/ComplianceView.vue'
 import PoliciesView from '../views/PoliciesView.vue'
 import DriftView from '../views/DriftView.vue'
+import CompliancePostureView from '../views/CompliancePostureView.vue'
+import SnapshotDiffView from '../views/SnapshotDiffView.vue'
+import AttestationTypesView from '../views/AttestationTypesView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -45,8 +48,11 @@ const router = createRouter({
     { path: '/notifications', component: NotificationsView },
     { path: '/notifications/rules', component: NotificationRulesView },
     { path: '/compliance', component: ComplianceView },
+    { path: '/compliance-posture', component: CompliancePostureView },
     { path: '/policies', component: PoliciesView },
-    { path: '/drift', component: DriftView }
+    { path: '/drift', component: DriftView },
+    { path: '/environments/:id/snapshot-diff', component: SnapshotDiffView },
+    { path: '/attestation-types', component: AttestationTypesView }
   ]
 })
 

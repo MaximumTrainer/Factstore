@@ -46,6 +46,7 @@ dependencies {
     implementation("org.springframework.vault:spring-vault-core:3.1.2")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-amqp")
+    implementation("com.networknt:json-schema-validator:1.5.3")
     testRuntimeOnly("com.h2database:h2")
     testImplementation("org.springframework.amqp:spring-rabbit-test")
     testImplementation("org.springframework.boot:spring-boot-starter-test")

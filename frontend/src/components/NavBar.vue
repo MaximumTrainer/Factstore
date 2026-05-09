@@ -111,11 +111,13 @@ const links = [
   { to: '/evidence', label: 'Evidence Vault' },
   { to: '/vault', label: 'Secure Vault' },
   { to: '/compliance', label: 'Compliance' },
+  { to: '/compliance-posture', label: 'Posture' },
   { to: '/policies', label: 'Policies' },
   { to: '/integrations', label: 'Integrations' },
   { to: '/audit', label: 'Audit Log' },
   { to: '/ledger', label: 'Ledger' },
-  { to: '/notifications/rules', label: 'Alerts' }
+  { to: '/notifications/rules', label: 'Alerts' },
+  { to: '/attestation-types', label: 'Attestation Types' }
 ]
 
 function isActive(path: string): boolean {
