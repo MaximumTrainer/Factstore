@@ -20,7 +20,13 @@
 12. [Compliance Frameworks](#12-compliance-frameworks)
 13. [Drift Detection](#13-drift-detection)
 14. [Search](#14-search)
-15. [Troubleshooting](#15-troubleshooting)
+15. [Attestation Types](#15-attestation-types)
+16. [Compliance Posture](#16-compliance-posture)
+17. [Snapshot Diff](#17-snapshot-diff)
+18. [CI Integration — GitHub Actions](#18-ci-integration--github-actions)
+19. [Infrastructure as Code — Terraform](#19-infrastructure-as-code--terraform)
+20. [CLI Reference](#20-cli-reference)
+21. [Troubleshooting](#21-troubleshooting)
 
 ---
 
@@ -401,7 +407,375 @@ Global Search allows you to find trails, artifacts, and attestations by branch n
 
 ---
 
-## 15. Troubleshooting
+## 15. Attestation Types
+
+![Attestation Types](public/screenshots/13-attestation-types.png)
+
+The **Attestation Types** page (`/attestation-types`) is your organisation's registry of all recognised quality gate categories. Each type defines the shape of evidence that must be collected before a trail is considered compliant.
+
+### Viewing types
+
+The table lists every type with its **Name**, **Description**, **Version**, and **Status** (Active / Archived). Archived types remain visible when "Show archived types" is checked — they still appear on historic trails but can no longer be assigned to new flows.
+
+### Creating a type
+
+1. Click **+ New Type** in the top-right corner.
+2. Enter a **Name** (e.g., `SAST`, `SBOM`, `DAST`), an optional **Description**, and a **JSON Schema** that describes the expected payload structure.
+3. Optionally add a **jq expression** — a filter evaluated against the attestation payload to compute the `PASSED` / `FAILED` status automatically.
+4. Click **Save**.
+
+### JSON Schema example
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["tool", "result"],
+  "properties": {
+    "tool":   { "type": "string" },
+    "result": { "enum": ["PASSED", "FAILED", "SKIPPED"] },
+    "issues": { "type": "integer", "minimum": 0 }
+  }
+}
+```
+
+Any attestation payload submitted against this type is validated against the schema. A non-conforming payload is rejected with HTTP 422.
+
+### jq compliance expression example
+
+```
+.result == "PASSED" and .issues == 0
+```
+
+If the expression evaluates to `true` the attestation receives status `PASSED`; `false` maps to `FAILED`. Omit the field to leave status determination to the CI pipeline.
+
+### Editing and archiving
+
+Click **Edit** on a row to update the description or schema. Each save bumps the **Version** counter. To retire a type without deleting historical data, click **Archive**.
+
+---
+
+## 16. Compliance Posture
+
+![Compliance Posture](public/screenshots/14-compliance-posture.png)
+
+The **Compliance Posture** dashboard (`/compliance-posture`) gives leadership a bird's-eye view of compliance health across every flow in the organisation.
+
+### Summary cards
+
+| Card | Description |
+|------|-------------|
+| **Total Flows** | Number of active delivery pipelines |
+| **Compliant Trails %** | Percentage of all trails that have passed every required attestation |
+| **Non-Compliant Trails** | Count of trails with at least one `FAILED` or missing attestation |
+| **Pending Trails** | Trails that are still accumulating evidence |
+
+### Per-flow breakdown
+
+The table beneath the summary cards shows one row per flow:
+
+- **Total Trails** — all trails ever opened for the flow.
+- **Compliant / Non-Compliant / Pending** — breakdown by trail status.
+- **Compliance %** — colour-coded: green ≥ 80%, yellow ≥ 50%, red < 50%.
+
+Click any flow name to navigate to its trail list for deeper investigation.
+
+### Interpreting the dashboard
+
+A high **Pending** count typically means CI pipelines have not completed yet or evidence upload is failing silently. Check the trail detail view and verify that attestation steps are executing and posting results via the API or CLI.
+
+---
+
+## 17. Snapshot Diff
+
+![Snapshot Diff](public/screenshots/15-snapshot-diff.png)
+
+The **Snapshot Diff** viewer (`/environments/:id/snapshot-diff`) lets you compare two point-in-time snapshots of an environment to understand exactly what changed between them.
+
+### Opening the diff viewer
+
+From any Environment detail page, click **Compare Snapshots** to open the diff view for that environment.
+
+### Selecting snapshots
+
+Use the two drop-downs to choose **Snapshot A** (older) and **Snapshot B** (newer). Each entry shows its sequence number and the timestamp at which it was recorded. Click **Compare** to run the diff.
+
+### Reading the diff table
+
+| Column | Meaning |
+|--------|---------|
+| **Image** | Container image name and tag |
+| **Digest A** | SHA-256 digest in the older snapshot |
+| **Digest B** | SHA-256 digest in the newer snapshot |
+| **Change** | `ADDED`, `REMOVED`, or `CHANGED` |
+
+Rows highlighted in green represent newly deployed images; rows in red are images that were removed; rows in amber indicate digest changes (i.e., the same tag now points to a different image).
+
+### Typical use-cases
+
+- **Incident investigation** — identify which images changed around the time of an outage.
+- **Deployment verification** — confirm that a release promoted exactly the expected images and nothing else changed.
+- **Compliance audit** — demonstrate to auditors that only approved artifacts entered the production environment between two dates.
+
+---
+
+## 18. CI Integration — GitHub Actions
+
+OpenFactstore ships a reusable **composite GitHub Actions action** at `.github/actions/factstore-attest/` that records attestations directly from your CI workflows.
+
+### Quick-start example
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push image
+        id: build
+        run: |
+          docker build -t myapp:${{ github.sha }} .
+          docker push myapp:${{ github.sha }}
+          echo "sha=$(docker inspect --format='{{index .RepoDigests 0}}' myapp:${{ github.sha }})" >> "$GITHUB_OUTPUT"
+
+      - name: Create build trail
+        id: trail
+        run: |
+          TRAIL_ID=$(curl -sf -X POST "${{ secrets.FACTSTORE_URL }}/api/v1/trails" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "flowId":      "${{ vars.FACTSTORE_FLOW_ID }}",
+              "commitSha":   "${{ github.sha }}",
+              "branch":      "${{ github.ref_name }}",
+              "author":      "${{ github.actor }}",
+              "authorEmail": "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+            }' | jq -r '.id')
+          echo "trail-id=$TRAIL_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Record JUnit attestation
+        uses: ./.github/actions/factstore-attest
+        with:
+          factstore-url: ${{ secrets.FACTSTORE_URL }}
+          trail-id:      ${{ steps.trail.outputs.trail-id }}
+          type:          junit
+          status:        PASSED
+          details:       "All tests green on ${{ github.sha }}"
+          evidence-url:  ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          api-key:       ${{ secrets.FACTSTORE_API_KEY }}
+
+      - name: Record Snyk scan attestation
+        uses: ./.github/actions/factstore-attest
+        with:
+          factstore-url: ${{ secrets.FACTSTORE_URL }}
+          trail-id:      ${{ steps.trail.outputs.trail-id }}
+          type:          snyk
+          status:        PASSED
+          details:       "No critical vulnerabilities found"
+          api-key:       ${{ secrets.FACTSTORE_API_KEY }}
+
+      - name: Assert compliance before deploy
+        run: |
+          curl -sf "${{ secrets.FACTSTORE_URL }}/api/v1/assert" \
+            -G --data-urlencode "sha256=${{ steps.build.outputs.sha }}" \
+               --data-urlencode "flowId=${{ vars.FACTSTORE_FLOW_ID }}"
+```
+
+### Action inputs reference
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `factstore-url` | ✅ | — | Factstore server base URL |
+| `trail-id` | ✅ | — | Trail to attach the attestation to |
+| `type` | ✅ | — | Attestation type key (e.g., `junit`, `snyk`, `sbom`) |
+| `status` | ✅ | `PASSED` | `PASSED`, `FAILED`, or `PENDING` |
+| `name` | ❌ | — | Optional human-readable name |
+| `details` | ❌ | — | Free-text description |
+| `evidence-url` | ❌ | — | Link to external evidence (e.g., CI run URL) |
+| `git-commit-sha` | ❌ | `${{ github.sha }}` | Auto-populated from context |
+| `git-branch` | ❌ | `${{ github.ref_name }}` | Auto-populated from context |
+| `api-key` | ❌ | — | API key for authenticated instances |
+
+### Action output
+
+| Output | Description |
+|--------|-------------|
+| `attestation-id` | UUID of the newly created attestation |
+
+---
+
+## 19. Infrastructure as Code — Terraform
+
+OpenFactstore provides a Terraform provider in `terraform/provider/` so you can manage flows and environments alongside your infrastructure using standard HCL.
+
+### Provider configuration
+
+```hcl
+terraform {
+  required_providers {
+    factstore = {
+      source  = "local/factstore"
+      version = "~> 1.0"
+    }
+  }
+}
+
+provider "factstore" {
+  url     = "http://localhost:8080"
+  api_key = var.factstore_api_key   # optional
+}
+```
+
+### Managing a Flow
+
+```hcl
+resource "factstore_flow" "payment_service" {
+  name        = "payment-service"
+  description = "Compliance pipeline for the payment microservice"
+
+  required_attestation_types = [
+    "junit",
+    "snyk",
+    "sbom",
+    "change-approval",
+  ]
+
+  tags = {
+    team        = "payments"
+    environment = "production"
+    sox-scope   = "true"
+  }
+}
+
+output "flow_id" {
+  value = factstore_flow.payment_service.id
+}
+```
+
+### Managing an Environment
+
+```hcl
+resource "factstore_environment" "production" {
+  name        = "production"
+  description = "Live customer-facing environment"
+  type        = "KUBERNETES"
+
+  tags = {
+    region = "eu-west-1"
+    tier   = "production"
+  }
+}
+```
+
+### Full workflow
+
+```bash
+cd terraform/provider
+
+# Initialize the provider
+terraform init
+
+# Preview changes
+terraform plan -var="factstore_api_key=$FACTSTORE_TOKEN"
+
+# Apply
+terraform apply -var="factstore_api_key=$FACTSTORE_TOKEN"
+```
+
+Terraform state tracks resource IDs so subsequent `plan` / `apply` runs will only update drifted attributes, enabling GitOps-style management of your compliance configuration.
+
+---
+
+## 20. CLI Reference
+
+The OpenFactstore CLI provides a complete command-line interface for all API operations, suitable for scripting and CI/CD pipelines.
+
+### Installation
+
+```bash
+# Build from source (requires Go 1.21+)
+cd cli
+go build -o factstore .
+sudo mv factstore /usr/local/bin/
+
+# Configure
+export FACTSTORE_HOST=http://localhost:8080
+export FACTSTORE_TOKEN=your-api-key   # if authentication is enabled
+```
+
+### Typed attest commands
+
+```bash
+# JUnit test results
+factstore attest junit \
+  --trail-id "$TRAIL_ID" \
+  --results junit-results.xml \
+  --name "Unit Tests"
+
+# Snyk vulnerability scan
+factstore attest snyk \
+  --trail-id "$TRAIL_ID" \
+  --results snyk-report.json \
+  --name "Snyk Scan"
+
+# Custom attestation type
+factstore attest custom \
+  --trail-id "$TRAIL_ID" \
+  --type "change-approval" \
+  --status PASSED \
+  --details "Approved by Alice Smith (Jira CHANGE-42)" \
+  --evidence-url "https://jira.example.com/browse/CHANGE-42"
+```
+
+### Deployment report
+
+```bash
+# Record a deployment event against an environment
+factstore report deployment \
+  --environment "production" \
+  --artifact "sha256:abc123..." \
+  --flow-id "$FLOW_ID"
+```
+
+### Environment snapshots
+
+```bash
+# Capture the current state of a Kubernetes namespace
+factstore environment snapshot \
+  --environment "production" \
+  --source kubernetes \
+  --namespace default
+
+# List recent snapshots
+factstore environment snapshots --environment "production"
+```
+
+### Compliance assertion
+
+```bash
+# Assert before deploying — exits non-zero if NON_COMPLIANT
+factstore assert \
+  --sha256 "sha256:abc123..." \
+  --flow-id "$FLOW_ID"
+```
+
+### JSON output and scripting
+
+All commands accept `--json` to emit raw JSON for use with `jq`:
+
+```bash
+factstore flows list --json | jq '.[].name'
+factstore trails list --flow-id "$FLOW_ID" --json | jq 'map(select(.status == "NON_COMPLIANT"))'
+```
+
+---
+
+## 21. Troubleshooting
 
 ### The UI shows "Loading…" indefinitely
 

@@ -85,3 +85,21 @@ test('Drift Detection page loads', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Environment Drift Detection' })).toBeVisible()
   await screenshot(page, '12-drift.png')
 })
+
+test('Attestation Types page loads', async ({ page }) => {
+  await page.goto('/attestation-types')
+  await expect(page.getByRole('heading', { name: 'Attestation Types' })).toBeVisible()
+  await screenshot(page, '13-attestation-types.png')
+})
+
+test('Compliance Posture page loads', async ({ page }) => {
+  await page.goto('/compliance-posture')
+  await expect(page.getByRole('heading', { name: 'Compliance Posture' })).toBeVisible()
+  await screenshot(page, '14-compliance-posture.png')
+})
+
+test('Snapshot Diff page loads', async ({ page }) => {
+  await page.goto('/environments/00000000-0000-0000-0000-000000000000/snapshot-diff')
+  await expect(page.getByRole('heading', { name: 'Compare Snapshots' })).toBeVisible()
+  await screenshot(page, '15-snapshot-diff.png')
+})

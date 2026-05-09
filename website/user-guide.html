@@ -53,6 +53,11 @@
         <li><a href="#compliance">Compliance Frameworks</a></li>
         <li><a href="#drift">Drift Detection</a></li>
         <li><a href="#search">Search</a></li>
+        <li><a href="#attestation-types">Attestation Types</a></li>
+        <li><a href="#compliance-posture">Compliance Posture</a></li>
+        <li><a href="#snapshot-diff">Snapshot Diff</a></li>
+        <li><a href="#github-actions">CI Integration — GitHub Actions</a></li>
+        <li><a href="#terraform">Infrastructure as Code — Terraform</a></li>
         <li><a href="#cli">Command-Line Interface (CLI)</a></li>
         <li><a href="#troubleshooting">Troubleshooting</a></li>
       </ol>
@@ -360,9 +365,339 @@
       </figure>
     </section>
 
-    <!-- 15. CLI Reference -->
+    <!-- 15. Attestation Types -->
+    <section id="attestation-types" style="padding:0;border:none;margin-bottom:40px;">
+      <h2>15. Attestation Types</h2>
+      <p>
+        The <strong>Attestation Types</strong> page (<code>/attestation-types</code>) is your
+        organisation's registry of all recognised quality gate categories. Each type defines the
+        shape of evidence that must be collected before a trail is considered compliant.
+      </p>
+      <figure class="screenshot">
+        <img src="screenshots/13-attestation-types.png" alt="Attestation Types management page" loading="lazy">
+        <figcaption>Attestation Types — registry of custom quality gate categories with schema validation</figcaption>
+      </figure>
+
+      <h3 style="font-size:16px;margin-top:28px;">Creating a type</h3>
+      <ol>
+        <li>Click <strong>+ New Type</strong> in the top-right corner.</li>
+        <li>Enter a <strong>Name</strong> (e.g., <code>SAST</code>, <code>SBOM</code>, <code>DAST</code>), an optional description, and a JSON Schema.</li>
+        <li>Optionally add a <strong>jq expression</strong> to compute <code>PASSED</code> / <code>FAILED</code> status automatically.</li>
+        <li>Click <strong>Save</strong>.</li>
+      </ol>
+
+      <h3 style="font-size:16px;margin-top:28px;">JSON Schema example</h3>
+      <pre><code>{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["tool", "result"],
+  "properties": {
+    "tool":   { "type": "string" },
+    "result": { "enum": ["PASSED", "FAILED", "SKIPPED"] },
+    "issues": { "type": "integer", "minimum": 0 }
+  }
+}</code></pre>
+      <p>
+        Any attestation payload submitted against this type is validated against the schema. A
+        non-conforming payload is rejected with HTTP 422.
+      </p>
+
+      <h3 style="font-size:16px;margin-top:28px;">jq compliance expression</h3>
+      <pre><code>.result == "PASSED" and .issues == 0</code></pre>
+      <p>
+        If the expression evaluates to <code>true</code> the attestation receives status
+        <code>PASSED</code>; <code>false</code> maps to <code>FAILED</code>.
+        Omit the field to let the CI pipeline set the status explicitly.
+      </p>
+
+      <h3 style="font-size:16px;margin-top:28px;">Archiving types</h3>
+      <p>
+        Click <strong>Archive</strong> on any row to retire a type without deleting historical data.
+        Archived types can be shown by checking <strong>Show archived types</strong>.
+        Each save bumps the <strong>Version</strong> counter, providing an audit trail of schema evolution.
+      </p>
+    </section>
+
+    <!-- 16. Compliance Posture -->
+    <section id="compliance-posture" style="padding:0;border:none;margin-bottom:40px;">
+      <h2>16. Compliance Posture</h2>
+      <p>
+        The <strong>Compliance Posture</strong> dashboard (<code>/compliance-posture</code>) gives
+        leadership a bird's-eye view of compliance health across every flow in the organisation.
+      </p>
+      <figure class="screenshot">
+        <img src="screenshots/14-compliance-posture.png" alt="Compliance Posture dashboard showing per-flow breakdown" loading="lazy">
+        <figcaption>Compliance Posture — organisation-wide compliance overview with per-flow breakdown</figcaption>
+      </figure>
+
+      <h3 style="font-size:16px;margin-top:28px;">Summary cards</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border,#dee2e6);">
+            <th style="text-align:left;padding:8px 12px;">Card</th>
+            <th style="text-align:left;padding:8px 12px;">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Total Flows</strong></td>
+            <td style="padding:8px 12px;">Number of active delivery pipelines</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Compliant Trails %</strong></td>
+            <td style="padding:8px 12px;">Percentage of all trails that passed every required attestation</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Non-Compliant Trails</strong></td>
+            <td style="padding:8px 12px;">Count of trails with at least one <code>FAILED</code> or missing attestation</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;"><strong>Pending Trails</strong></td>
+            <td style="padding:8px 12px;">Trails still accumulating evidence</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-size:16px;margin-top:28px;">Per-flow breakdown</h3>
+      <p>
+        The table shows one row per flow with Compliant / Non-Compliant / Pending counts.
+        The <strong>Compliance %</strong> column is colour-coded: green ≥ 80%, yellow ≥ 50%, red &lt; 50%.
+        A high <strong>Pending</strong> count typically means CI pipelines have not completed or
+        evidence upload is failing silently — investigate the trail detail view.
+      </p>
+    </section>
+
+    <!-- 17. Snapshot Diff -->
+    <section id="snapshot-diff" style="padding:0;border:none;margin-bottom:40px;">
+      <h2>17. Snapshot Diff</h2>
+      <p>
+        The <strong>Snapshot Diff</strong> viewer (<code>/environments/:id/snapshot-diff</code>)
+        lets you compare two point-in-time snapshots of an environment to understand exactly what
+        changed between them. Open it from any Environment detail page via <strong>Compare Snapshots</strong>.
+      </p>
+      <figure class="screenshot">
+        <img src="screenshots/15-snapshot-diff.png" alt="Snapshot Diff viewer with two drop-downs and diff table" loading="lazy">
+        <figcaption>Snapshot Diff — compare two environment snapshots to see exactly what changed</figcaption>
+      </figure>
+
+      <h3 style="font-size:16px;margin-top:28px;">Reading the diff table</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border,#dee2e6);">
+            <th style="text-align:left;padding:8px 12px;">Column</th>
+            <th style="text-align:left;padding:8px 12px;">Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Image</strong></td>
+            <td style="padding:8px 12px;">Container image name and tag</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Digest A / B</strong></td>
+            <td style="padding:8px 12px;">SHA-256 digest in the older / newer snapshot</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;"><strong>Change</strong></td>
+            <td style="padding:8px 12px;"><code>ADDED</code>, <code>REMOVED</code>, or <code>CHANGED</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;">
+        Typical use-cases: incident investigation, deployment verification, and compliance audits
+        demonstrating that only approved artifacts entered production between two dates.
+      </p>
+    </section>
+
+    <!-- 18. GitHub Actions -->
+    <section id="github-actions" style="padding:0;border:none;margin-bottom:40px;">
+      <h2>18. CI Integration — GitHub Actions</h2>
+      <p>
+        OpenFactstore ships a reusable <strong>composite GitHub Actions action</strong> at
+        <code>.github/actions/factstore-attest/</code> that records attestations directly from
+        your CI workflows with no extra tooling required.
+      </p>
+
+      <h3 style="font-size:16px;margin-top:28px;">Quick-start example</h3>
+      <pre><code># .github/workflows/ci.yml
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push image
+        id: build
+        run: |
+          docker build -t myapp:${{ github.sha }} .
+          docker push myapp:${{ github.sha }}
+          echo "sha=$(docker inspect --format='{{index .RepoDigests 0}}' \
+            myapp:${{ github.sha }})" &gt;&gt; "$GITHUB_OUTPUT"
+
+      - name: Create build trail
+        id: trail
+        run: |
+          TRAIL_ID=$(curl -sf -X POST "${{ secrets.FACTSTORE_URL }}/api/v1/trails" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "flowId":    "${{ vars.FACTSTORE_FLOW_ID }}",
+              "commitSha": "${{ github.sha }}",
+              "branch":    "${{ github.ref_name }}",
+              "author":    "${{ github.actor }}"
+            }' | jq -r '.id')
+          echo "trail-id=$TRAIL_ID" &gt;&gt; "$GITHUB_OUTPUT"
+
+      - name: Record JUnit attestation
+        uses: ./.github/actions/factstore-attest
+        with:
+          factstore-url: ${{ secrets.FACTSTORE_URL }}
+          trail-id:      ${{ steps.trail.outputs.trail-id }}
+          type:          junit
+          status:        PASSED
+          details:       "All tests green on ${{ github.sha }}"
+          evidence-url:  ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          api-key:       ${{ secrets.FACTSTORE_API_KEY }}
+
+      - name: Assert compliance before deploy
+        run: |
+          curl -sf "${{ secrets.FACTSTORE_URL }}/api/v1/assert" \
+            -G --data-urlencode "sha256=${{ steps.build.outputs.sha }}" \
+               --data-urlencode "flowId=${{ vars.FACTSTORE_FLOW_ID }}"</code></pre>
+
+      <h3 style="font-size:16px;margin-top:28px;">Action inputs</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border,#dee2e6);">
+            <th style="text-align:left;padding:8px 12px;">Input</th>
+            <th style="text-align:left;padding:8px 12px;">Required</th>
+            <th style="text-align:left;padding:8px 12px;">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><code>factstore-url</code></td>
+            <td style="padding:8px 12px;">✅</td>
+            <td style="padding:8px 12px;">Factstore server base URL</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><code>trail-id</code></td>
+            <td style="padding:8px 12px;">✅</td>
+            <td style="padding:8px 12px;">Trail to attach the attestation to</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><code>type</code></td>
+            <td style="padding:8px 12px;">✅</td>
+            <td style="padding:8px 12px;">Attestation type key (e.g., <code>junit</code>, <code>snyk</code>, <code>sbom</code>)</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><code>status</code></td>
+            <td style="padding:8px 12px;">✅ (default: <code>PASSED</code>)</td>
+            <td style="padding:8px 12px;"><code>PASSED</code>, <code>FAILED</code>, or <code>PENDING</code></td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><code>details</code></td>
+            <td style="padding:8px 12px;">❌</td>
+            <td style="padding:8px 12px;">Free-text description of the attestation</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><code>evidence-url</code></td>
+            <td style="padding:8px 12px;">❌</td>
+            <td style="padding:8px 12px;">Link to external evidence (e.g., CI run URL)</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;"><code>api-key</code></td>
+            <td style="padding:8px 12px;">❌</td>
+            <td style="padding:8px 12px;">API key for authenticated instances</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;">
+        The action outputs <code>attestation-id</code> — the UUID of the newly created attestation —
+        which can be used in subsequent steps.
+      </p>
+    </section>
+
+    <!-- 19. Terraform -->
+    <section id="terraform" style="padding:0;border:none;margin-bottom:40px;">
+      <h2>19. Infrastructure as Code — Terraform</h2>
+      <p>
+        OpenFactstore provides a Terraform provider in <code>terraform/provider/</code> so you can
+        manage flows and environments alongside your infrastructure using standard HCL and GitOps workflows.
+      </p>
+
+      <h3 style="font-size:16px;margin-top:28px;">Provider configuration</h3>
+      <pre><code>terraform {
+  required_providers {
+    factstore = {
+      source  = "local/factstore"
+      version = "~&gt; 1.0"
+    }
+  }
+}
+
+provider "factstore" {
+  url     = "http://localhost:8080"
+  api_key = var.factstore_api_key   # optional
+}</code></pre>
+
+      <h3 style="font-size:16px;margin-top:28px;">Managing a Flow</h3>
+      <pre><code>resource "factstore_flow" "payment_service" {
+  name        = "payment-service"
+  description = "Compliance pipeline for the payment microservice"
+
+  required_attestation_types = [
+    "junit",
+    "snyk",
+    "sbom",
+    "change-approval",
+  ]
+
+  tags = {
+    team      = "payments"
+    sox-scope = "true"
+  }
+}
+
+output "flow_id" {
+  value = factstore_flow.payment_service.id
+}</code></pre>
+
+      <h3 style="font-size:16px;margin-top:28px;">Managing an Environment</h3>
+      <pre><code>resource "factstore_environment" "production" {
+  name        = "production"
+  description = "Live customer-facing environment"
+  type        = "KUBERNETES"
+
+  tags = {
+    region = "eu-west-1"
+    tier   = "production"
+  }
+}</code></pre>
+
+      <h3 style="font-size:16px;margin-top:28px;">Applying changes</h3>
+      <pre><code>cd terraform/provider
+
+# Initialise the provider
+terraform init
+
+# Preview changes
+terraform plan -var="factstore_api_key=$FACTSTORE_TOKEN"
+
+# Apply
+terraform apply -var="factstore_api_key=$FACTSTORE_TOKEN"</code></pre>
+      <p>
+        Terraform state tracks resource IDs so subsequent <code>plan</code> / <code>apply</code> runs
+        update only drifted attributes — enabling GitOps-style management of your compliance configuration.
+      </p>
+    </section>
+
+    <!-- 20. CLI Reference -->
     <section id="cli" style="padding:0;border:none;margin-bottom:40px;">
-      <h2>15. Command-Line Interface (CLI)</h2>
+      <h2>20. Command-Line Interface (CLI)</h2>
       <p>
         The <code>factstore</code> CLI is a Go binary that lets pipelines and engineers interact with
         the Factstore API from any terminal or CI environment — without needing the web UI.
@@ -463,6 +798,45 @@ factstore gate list --environment production
 # Full chain of custody report
 factstore compliance artifact sha256:abc123...</code></pre>
 
+      <h3 style="font-size:16px;margin-top:28px;">Typed attest commands</h3>
+      <p>Higher-level commands parse known report formats and set status automatically:</p>
+      <pre><code># JUnit XML — parses failures from the report
+factstore attest junit \
+  --trail-id "$TRAIL_ID" \
+  --results junit-results.xml \
+  --name "Unit Tests"
+
+# Snyk JSON — parses critical/high vulnerabilities
+factstore attest snyk \
+  --trail-id "$TRAIL_ID" \
+  --results snyk-report.json \
+  --name "Snyk Scan"
+
+# Custom attestation type
+factstore attest custom \
+  --trail-id "$TRAIL_ID" \
+  --type "change-approval" \
+  --status PASSED \
+  --details "Approved by Alice Smith (Jira CHANGE-42)" \
+  --evidence-url "https://jira.example.com/browse/CHANGE-42"</code></pre>
+
+      <h3 style="font-size:16px;margin-top:28px;">Deployment report</h3>
+      <pre><code># Record a deployment event against an environment
+factstore report deployment \
+  --environment "production" \
+  --artifact "sha256:abc123..." \
+  --flow-id "$FLOW_ID"</code></pre>
+
+      <h3 style="font-size:16px;margin-top:28px;">Environment snapshots</h3>
+      <pre><code># Capture the current state of a Kubernetes namespace
+factstore environment snapshot \
+  --environment "production" \
+  --source kubernetes \
+  --namespace default
+
+# List recent snapshots
+factstore environment snapshots --environment "production"</code></pre>
+
       <h3 style="font-size:16px;margin-top:28px;">Webhooks</h3>
       <pre><code>factstore webhooks list
 factstore webhooks create --source github --secret &lt;secret&gt; --flow-id &lt;flow-id&gt;
@@ -513,9 +887,9 @@ factstore webhooks deliveries &lt;id&gt;</code></pre>
       --flow-id "$FLOW_ID"</code></pre>
     </section>
 
-    <!-- 16. Troubleshooting -->
+    <!-- 21. Troubleshooting -->
     <section id="troubleshooting" style="padding:0;border:none;margin-bottom:40px;">
-      <h2>16. Troubleshooting</h2>
+      <h2>21. Troubleshooting</h2>
 
       <h3 style="font-size:16px;margin-top:24px;">Empty lists / "No data" messages</h3>
       <p>
