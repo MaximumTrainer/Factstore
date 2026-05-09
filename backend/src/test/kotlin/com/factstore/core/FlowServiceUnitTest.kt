@@ -138,4 +138,69 @@ class FlowServiceUnitTest {
             flowService.createFlow(CreateFlowRequest("long-val-flow", "desc", tags = mapOf("key" to longValue)))
         }
     }
+
+    // ── Issue #136: Archive / Unarchive ──────────────────────────────────────
+
+    @Test
+    fun `archive flow hides it from list`() {
+        val created = flowService.createFlow(CreateFlowRequest("arc-flow", "desc"))
+        flowService.archiveFlow(created.id)
+        val flows = flowService.listFlows()
+        assertTrue(flows.none { it.id == created.id })
+    }
+
+    @Test
+    fun `archived flow can be unarchived`() {
+        val created = flowService.createFlow(CreateFlowRequest("unarch-flow", "desc"))
+        flowService.archiveFlow(created.id)
+        val unarchived = flowService.unarchiveFlow(created.id)
+        assertNull(unarchived.archivedAt)
+        val flows = flowService.listFlows()
+        assertTrue(flows.any { it.id == created.id })
+    }
+
+    @Test
+    fun `archiving non-existent flow throws NotFoundException`() {
+        assertThrows<NotFoundException> { flowService.archiveFlow(UUID.randomUUID()) }
+    }
+
+    @Test
+    fun `creating flow with name of archived flow succeeds`() {
+        val first = flowService.createFlow(CreateFlowRequest("recycled-name", "original"))
+        flowService.archiveFlow(first.id)
+        val second = flowService.createFlow(CreateFlowRequest("recycled-name", "new active"))
+        assertNotNull(second.id)
+        assertNotEquals(first.id, second.id)
+    }
+
+    // ── Issue #137: Rename with old-name forwarding ──────────────────────────
+
+    @Test
+    fun `rename flow updates name and records previous name`() {
+        val created = flowService.createFlow(CreateFlowRequest("original-name", "desc"))
+        val renamed = flowService.renameFlow(created.id, "new-name")
+        assertEquals("new-name", renamed.name)
+        val entity = flowService.getFlowEntity(created.id)
+        assertTrue(entity.parsedPreviousNames.contains("original-name"))
+    }
+
+    @Test
+    fun `rename to conflicting active name throws ConflictException`() {
+        flowService.createFlow(CreateFlowRequest("taken-name", "desc"))
+        val other = flowService.createFlow(CreateFlowRequest("to-rename", "desc"))
+        assertThrows<ConflictException> {
+            flowService.renameFlow(other.id, "taken-name")
+        }
+    }
+
+    @Test
+    fun `renamed flow can be found by old name via repository`() {
+        val repo = InMemoryFlowRepository()
+        val svc = FlowService(repo)
+        val created = svc.createFlow(CreateFlowRequest("old-flow-name", "desc"))
+        svc.renameFlow(created.id, "new-flow-name")
+        val found = repo.findByNameOrPreviousName("old-flow-name")
+        assertNotNull(found)
+        assertEquals(created.id, found!!.id)
+    }
 }

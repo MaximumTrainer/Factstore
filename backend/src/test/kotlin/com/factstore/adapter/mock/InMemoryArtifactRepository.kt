@@ -35,4 +35,7 @@ class InMemoryArtifactRepository : IArtifactRepository {
                 a.sha256Digest.contains(query, ignoreCase = true) ||
                 a.reportedBy.contains(query, ignoreCase = true)
         }
+
+    override fun findByTrailIdIn(trailIds: List<UUID>): List<Artifact> =
+        store.values.filter { it.trailId in trailIds }
 }

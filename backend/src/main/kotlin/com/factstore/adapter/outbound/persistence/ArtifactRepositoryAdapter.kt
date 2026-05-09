@@ -14,6 +14,7 @@ interface ArtifactRepositoryJpa : JpaRepository<Artifact, UUID> {
     fun findByTrailId(trailId: UUID): List<Artifact>
     fun findBySha256Digest(sha256Digest: String): List<Artifact>
     fun findBySha256DigestStartingWith(prefix: String): List<Artifact>
+    fun findByTrailIdIn(trailIds: List<UUID>): List<Artifact>
 
     @Query("""
         SELECT a FROM Artifact a WHERE
@@ -34,4 +35,5 @@ class ArtifactRepositoryAdapter(private val jpa: ArtifactRepositoryJpa) : IArtif
     override fun findBySha256DigestStartingWith(prefix: String): List<Artifact> = jpa.findBySha256DigestStartingWith(prefix)
     override fun findAll(): List<Artifact> = jpa.findAll()
     override fun searchByQuery(query: String): List<Artifact> = jpa.searchByQuery(query)
+    override fun findByTrailIdIn(trailIds: List<UUID>): List<Artifact> = jpa.findByTrailIdIn(trailIds)
 }

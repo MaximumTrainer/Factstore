@@ -4,6 +4,7 @@ import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID
 
+
 enum class EnvironmentType { K8S, ECS, LAMBDA, S3, DOCKER, GENERIC }
 
 enum class DriftPolicy { WARN, BLOCK, IGNORE }
@@ -49,6 +50,15 @@ class Environment(
     @Column(name = "scope_exclude_patterns", columnDefinition = "TEXT")
     var scopeExcludePatterns: String? = null
 ) {
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "environment_tags",
+        joinColumns = [JoinColumn(name = "environment_id")],
+        uniqueConstraints = [UniqueConstraint(columnNames = ["environment_id", "tag_key"])]
+    )
+    @MapKeyColumn(name = "tag_key", length = 64)
+    @Column(name = "tag_value", length = 256)
+    var tags: MutableMap<String, String> = mutableMapOf()
     val parsedIncludeNames: List<String>
         get() = scopeIncludeNames?.split("||")?.filter { it.isNotBlank() } ?: emptyList()
 

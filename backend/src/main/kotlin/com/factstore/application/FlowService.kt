@@ -26,7 +26,7 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
     private val log = LoggerFactory.getLogger(FlowService::class.java)
 
     override fun createFlow(request: CreateFlowRequest): FlowResponse {
-        if (flowRepository.existsByName(request.name)) {
+        if (flowRepository.findByName(request.name) != null) {
             throw ConflictException("Flow with name '${request.name}' already exists")
         }
         validateTags(request.tags)
@@ -47,7 +47,9 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
     }
 
     @Transactional(readOnly = true)
-    override fun listFlows(): List<FlowResponse> = flowRepository.findAll().map { it.toResponse() }
+    override fun listFlows(includeArchived: Boolean): List<FlowResponse> =
+        if (includeArchived) flowRepository.findAll().map { it.toResponse() }
+        else flowRepository.findAllActive().map { it.toResponse() }
 
     @Transactional(readOnly = true)
     override fun listFlows(page: Int, size: Int): PageResponse<FlowResponse> {
@@ -68,7 +70,7 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
     override fun updateFlow(id: UUID, request: UpdateFlowRequest): FlowResponse {
         val flow = flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
         request.name?.let {
-            if (it != flow.name && flowRepository.existsByName(it)) {
+            if (it != flow.name && flowRepository.findByName(it) != null) {
                 throw ConflictException("Flow with name '$it' already exists")
             }
             flow.name = it
@@ -90,6 +92,31 @@ class FlowService(private val flowRepository: IFlowRepository) : IFlowService {
         if (!flowRepository.existsById(id)) throw NotFoundException("Flow not found: $id")
         flowRepository.deleteById(id)
         log.info("Deleted flow: $id")
+    }
+
+    override fun archiveFlow(id: UUID): FlowResponse {
+        val flow = flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
+        flow.archivedAt = Instant.now()
+        flow.updatedAt = Instant.now()
+        return flowRepository.save(flow).toResponse()
+    }
+
+    override fun unarchiveFlow(id: UUID): FlowResponse {
+        val flow = flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
+        flow.archivedAt = null
+        flow.updatedAt = Instant.now()
+        return flowRepository.save(flow).toResponse()
+    }
+
+    override fun renameFlow(id: UUID, newName: String): FlowResponse {
+        val flow = flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
+        if (newName != flow.name && flowRepository.findByName(newName) != null) {
+            throw ConflictException("Flow with name '$newName' already exists")
+        }
+        flow.addPreviousName(flow.name)
+        flow.name = newName
+        flow.updatedAt = Instant.now()
+        return flowRepository.save(flow).toResponse()
     }
 
     override fun getFlowEntity(id: UUID): Flow =
@@ -134,6 +161,7 @@ fun Flow.toResponse() = FlowResponse(
     createdAt = createdAt,
     updatedAt = updatedAt,
     requiresApproval = requiresApproval,
-    requiredApproverRoles = requiredApproverRoles
+    requiredApproverRoles = requiredApproverRoles,
+    archivedAt = archivedAt
 )
 

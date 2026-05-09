@@ -8,4 +8,5 @@ interface IArtifactService {
     fun reportArtifact(trailId: UUID, request: CreateArtifactRequest): ArtifactResponse
     fun listArtifactsForTrail(trailId: UUID): List<ArtifactResponse>
     fun findBySha256(sha256Digest: String): List<ArtifactResponse>
+    fun searchByCommitSha(commitSha: String): List<ArtifactResponse>
 }

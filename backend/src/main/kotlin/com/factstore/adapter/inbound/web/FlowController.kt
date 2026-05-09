@@ -6,6 +6,7 @@ import com.factstore.dto.CreateFlowRequest
 import com.factstore.dto.DryRunResponse
 import com.factstore.dto.FlowResponse
 import com.factstore.dto.FlowTemplateResponse
+import com.factstore.dto.RenameFlowRequest
 import com.factstore.dto.UpdateFlowRequest
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -49,8 +50,10 @@ class FlowController(private val flowService: IFlowService) {
 
     @GetMapping
     @Operation(summary = "List all flows")
-    fun listFlows(): ResponseEntity<List<FlowResponse>> =
-        ResponseEntity.ok(flowService.listFlows())
+    fun listFlows(
+        @RequestParam(defaultValue = "false") includeArchived: Boolean
+    ): ResponseEntity<List<FlowResponse>> =
+        ResponseEntity.ok(flowService.listFlows(includeArchived))
 
     @GetMapping("/{id}")
     @Operation(summary = "Get flow by ID")
@@ -73,4 +76,22 @@ class FlowController(private val flowService: IFlowService) {
     @Operation(summary = "Get flow template")
     fun getFlowTemplate(@PathVariable id: UUID): ResponseEntity<FlowTemplateResponse> =
         ResponseEntity.ok(flowService.getFlowTemplate(id))
+
+    @PostMapping("/{id}/archive")
+    @Operation(summary = "Archive a flow (soft delete)")
+    fun archiveFlow(@PathVariable id: UUID): ResponseEntity<FlowResponse> =
+        ResponseEntity.ok(flowService.archiveFlow(id))
+
+    @PostMapping("/{id}/unarchive")
+    @Operation(summary = "Unarchive a flow")
+    fun unarchiveFlow(@PathVariable id: UUID): ResponseEntity<FlowResponse> =
+        ResponseEntity.ok(flowService.unarchiveFlow(id))
+
+    @PostMapping("/{id}/rename")
+    @Operation(summary = "Rename a flow, preserving the old name for forwarding")
+    fun renameFlow(
+        @PathVariable id: UUID,
+        @RequestBody request: RenameFlowRequest
+    ): ResponseEntity<FlowResponse> =
+        ResponseEntity.ok(flowService.renameFlow(id, request.newName))
 }

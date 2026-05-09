@@ -34,7 +34,7 @@ class InMemoryFlowRepository : IFlowRepository {
 
     override fun existsById(id: UUID): Boolean = store.containsKey(id)
 
-    override fun existsByName(name: String): Boolean = store.values.any { it.name == name }
+    override fun existsByName(name: String): Boolean = store.values.any { it.name == name && it.archivedAt == null }
 
     override fun deleteById(id: UUID) {
         store.remove(id)
@@ -44,4 +44,15 @@ class InMemoryFlowRepository : IFlowRepository {
 
     override fun findAllByOrgSlug(orgSlug: String): List<Flow> =
         store.values.filter { it.orgSlug == orgSlug }
+
+    override fun findAllActive(): List<Flow> = store.values.filter { it.archivedAt == null }
+
+    override fun findByName(name: String): Flow? =
+        store.values.firstOrNull { it.name == name && it.archivedAt == null }
+
+    override fun findByNameOrPreviousName(name: String): Flow? =
+        store.values.firstOrNull { flow ->
+            flow.archivedAt == null &&
+                (flow.name == name || flow.parsedPreviousNames.contains(name))
+        }
 }

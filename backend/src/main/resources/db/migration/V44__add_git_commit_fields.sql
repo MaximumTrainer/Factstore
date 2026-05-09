@@ -1,0 +1,3 @@
+ALTER TABLE attestations ADD COLUMN IF NOT EXISTS git_commit_sha VARCHAR(255);
+ALTER TABLE attestations ADD COLUMN IF NOT EXISTS git_branch VARCHAR(255);
+ALTER TABLE attestations ADD COLUMN IF NOT EXISTS git_repo_url TEXT;

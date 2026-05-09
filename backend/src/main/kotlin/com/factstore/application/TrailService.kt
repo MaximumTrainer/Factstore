@@ -46,6 +46,7 @@ class TrailService(
             buildUrl = request.buildUrl
         )
         trail.name = request.name
+        trail.tags = request.tags.toMutableMap()
         val saved = trailRepository.save(trail)
         log.info("Created trail: ${saved.id} for flow: ${saved.flowId}")
         return saved.toResponse()
@@ -111,5 +112,6 @@ fun Trail.toResponse() = TrailResponse(
     buildUrl = buildUrl,
     name = name,
     createdAt = createdAt,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    tags = tags.toMap()
 )

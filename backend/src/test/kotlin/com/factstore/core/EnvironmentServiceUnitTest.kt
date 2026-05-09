@@ -69,6 +69,7 @@ class EnvironmentServiceUnitTest {
             override fun findBySha256DigestStartingWith(prefix: String) = emptyList<Artifact>()
             override fun findAll() = emptyList<Artifact>()
             override fun searchByQuery(query: String) = emptyList<Artifact>()
+            override fun findByTrailIdIn(trailIds: List<UUID>) = emptyList<Artifact>()
         }
         val noopAttestationRepo = object : IAttestationRepository {
             override fun save(attestation: Attestation) = attestation
@@ -91,6 +92,9 @@ class EnvironmentServiceUnitTest {
             override fun deleteById(id: UUID) {}
             override fun countAll() = 0L
             override fun findAllByOrgSlug(orgSlug: String) = emptyList<Flow>()
+            override fun findAllActive() = emptyList<Flow>()
+            override fun findByName(name: String): Flow? = null
+            override fun findByNameOrPreviousName(name: String): Flow? = null
         }
         val noopTrailRepo = object : ITrailRepository {
             override fun save(trail: Trail) = trail
@@ -109,6 +113,7 @@ class EnvironmentServiceUnitTest {
             override fun countAll() = 0L
             override fun countByStatus(status: com.factstore.core.domain.TrailStatus) = 0L
             override fun findByFlowIdAndName(flowId: UUID, name: String): Trail? = null
+            override fun findByGitCommitSha(sha: String) = emptyList<Trail>()
         }
 
         environmentService = EnvironmentService(

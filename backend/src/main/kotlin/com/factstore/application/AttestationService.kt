@@ -66,8 +66,19 @@ class AttestationService(
             name = request.name,
             evidenceUrl = request.evidenceUrl,
             orgSlug = orgSlug ?: request.orgSlug,
-            artifactFingerprint = artifactFingerprint
+            artifactFingerprint = artifactFingerprint,
+            attestationData = request.attestationData,
+            gitCommitSha = request.gitCommitSha,
+            gitBranch = request.gitBranch,
+            gitRepoUrl = request.gitRepoUrl
         )
+        val effectiveExternalUrls = if (request.externalUrls.isEmpty() && request.evidenceUrl != null) {
+            listOf(request.evidenceUrl)
+        } else {
+            request.externalUrls
+        }
+        attestation.externalUrls = effectiveExternalUrls
+        attestation.annotations.putAll(request.annotations)
         val saved = attestationRepository.save(attestation)
         eventPublisher.publish(
             SupplyChainEvent.AttestationRecorded(
@@ -175,5 +186,11 @@ fun Attestation.toResponse() = AttestationResponse(
     compliant = status == AttestationStatus.PASSED,
     orgSlug = orgSlug,
     artifactFingerprint = artifactFingerprint,
-    createdAt = createdAt
+    createdAt = createdAt,
+    attestationData = attestationData,
+    externalUrls = externalUrls,
+    annotations = annotations.toMap(),
+    gitCommitSha = gitCommitSha,
+    gitBranch = gitBranch,
+    gitRepoUrl = gitRepoUrl
 )

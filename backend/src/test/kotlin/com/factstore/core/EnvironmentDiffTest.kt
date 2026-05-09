@@ -13,6 +13,7 @@ import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.Flow
 import com.factstore.core.domain.PolicyAttachment
 import com.factstore.core.domain.Trail
+import com.factstore.core.domain.TrailStatus
 import com.factstore.core.port.outbound.IArtifactRepository
 import com.factstore.core.port.outbound.IAttestationRepository
 import com.factstore.core.port.outbound.IDeploymentRepository
@@ -68,13 +69,13 @@ class EnvironmentDiffTest {
             override fun findBySha256DigestStartingWith(prefix: String) = emptyList<Artifact>()
             override fun findAll() = emptyList<Artifact>()
             override fun searchByQuery(query: String) = emptyList<Artifact>()
+            override fun findByTrailIdIn(trailIds: List<UUID>) = emptyList<Artifact>()
         }
         val noopAttestationRepo = object : IAttestationRepository {
             override fun save(attestation: Attestation) = attestation
             override fun findById(id: UUID): Attestation? = null
             override fun findByTrailId(trailId: UUID) = emptyList<Attestation>()
-            override fun findByTrailId(trailId: UUID, pageable: Pageable): Page<Attestation> =
-                PageImpl(emptyList())
+            override fun findByTrailId(trailId: UUID, pageable: Pageable): Page<Attestation> = PageImpl(emptyList())
             override fun findByTrailIdIn(trailIds: Collection<UUID>) = emptyList<Attestation>()
             override fun findAll() = emptyList<Attestation>()
             override fun findByArtifactFingerprint(fingerprint: String) = emptyList<Attestation>()
@@ -90,6 +91,9 @@ class EnvironmentDiffTest {
             override fun deleteById(id: UUID) {}
             override fun countAll() = 0L
             override fun findAllByOrgSlug(orgSlug: String) = emptyList<Flow>()
+            override fun findAllActive() = emptyList<Flow>()
+            override fun findByName(name: String): Flow? = null
+            override fun findByNameOrPreviousName(name: String): Flow? = null
         }
         val noopTrailRepo = object : ITrailRepository {
             override fun save(trail: Trail) = trail
@@ -106,9 +110,11 @@ class EnvironmentDiffTest {
             override fun findByCreatedAtAfter(from: Instant) = emptyList<Trail>()
             override fun findByCreatedAtBefore(to: Instant) = emptyList<Trail>()
             override fun countAll() = 0L
-            override fun countByStatus(status: com.factstore.core.domain.TrailStatus) = 0L
+            override fun countByStatus(status: TrailStatus) = 0L
             override fun findByFlowIdAndName(flowId: UUID, name: String): Trail? = null
+            override fun findByGitCommitSha(sha: String) = emptyList<Trail>()
         }
+
         environmentService = EnvironmentService(
             InMemoryEnvironmentRepository(),
             InMemoryEnvironmentSnapshotRepository(),

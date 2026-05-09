@@ -47,5 +47,35 @@ class Attestation(
     var artifactFingerprint: String? = null,
 
     @Column(name = "created_at", nullable = false)
-    val createdAt: Instant = Instant.now()
-)
+    val createdAt: Instant = Instant.now(),
+
+    // Issue #126: structured JSON payload
+    @Column(name = "attestation_data", columnDefinition = "TEXT")
+    var attestationData: String? = null,
+
+    // Issue #127: external URLs (pipe-separated)
+    @Column(name = "external_urls", columnDefinition = "TEXT")
+    var externalUrlsRaw: String? = null,
+
+    // Issue #129: git commit info
+    @Column(name = "git_commit_sha")
+    var gitCommitSha: String? = null,
+
+    @Column(name = "git_branch")
+    var gitBranch: String? = null,
+
+    @Column(name = "git_repo_url", columnDefinition = "TEXT")
+    var gitRepoUrl: String? = null
+) {
+    // Issue #127: computed property for external URLs list
+    var externalUrls: List<String>
+        get() = externalUrlsRaw?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+        set(value) { externalUrlsRaw = value.joinToString("|") }
+
+    // Issue #128: key-value annotations
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "attestation_annotations", joinColumns = [JoinColumn(name = "attestation_id")])
+    @MapKeyColumn(name = "annotation_key")
+    @Column(name = "annotation_value")
+    var annotations: MutableMap<String, String> = mutableMapOf()
+}

@@ -11,4 +11,5 @@ interface IArtifactRepository {
     fun findBySha256DigestStartingWith(prefix: String): List<Artifact>
     fun findAll(): List<Artifact>
     fun searchByQuery(query: String): List<Artifact>
+    fun findByTrailIdIn(trailIds: List<UUID>): List<Artifact>
 }

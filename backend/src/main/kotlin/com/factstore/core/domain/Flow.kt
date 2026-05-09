@@ -11,7 +11,7 @@ class Flow(
     @Id
     val id: UUID = UUID.randomUUID(),
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     var name: String,
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -30,12 +30,25 @@ class Flow(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now(),
+
+    @Column(name = "archived_at", nullable = true)
+    var archivedAt: Instant? = null,
+
+    @Column(name = "previous_names", columnDefinition = "TEXT", nullable = true)
+    var previousNames: String? = null
 ) {
     var requiredAttestationTypes: List<String>
         get() = if (requiredAttestationTypesRaw.isBlank()) emptyList()
                 else requiredAttestationTypesRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
         set(value) { requiredAttestationTypesRaw = value.joinToString(",") }
+
+    val parsedPreviousNames: List<String>
+        get() = previousNames?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+
+    fun addPreviousName(name: String) {
+        previousNames = (parsedPreviousNames + name).joinToString("|")
+    }
 
     @Column(name = "requires_approval", nullable = false)
     var requiresApproval: Boolean = false

@@ -38,6 +38,7 @@ class ArtifactService(
             reportedBy = request.reportedBy,
             orgSlug = request.orgSlug
         )
+        artifact.tags = request.tags.toMutableMap()
         val saved = artifactRepository.save(artifact)
         auditService.record(
             eventType = AuditEventType.ARTIFACT_DEPLOYED,
@@ -79,6 +80,19 @@ class ArtifactService(
             artifact.toResponse(provenanceByArtifactId[artifact.id]?.provenanceStatus() ?: ProvenanceStatus.NO_PROVENANCE)
         }
     }
+
+    @Transactional(readOnly = true)
+    override fun searchByCommitSha(commitSha: String): List<ArtifactResponse> {
+        val trails = trailRepository.findByGitCommitSha(commitSha)
+        if (trails.isEmpty()) return emptyList()
+        val artifacts = artifactRepository.findByTrailIdIn(trails.map { it.id })
+        val provenanceByArtifactId = buildProvenanceRepository
+            .findByArtifactIdIn(artifacts.map { it.id })
+            .associateBy { it.artifactId }
+        return artifacts.map { artifact ->
+            artifact.toResponse(provenanceByArtifactId[artifact.id]?.provenanceStatus() ?: ProvenanceStatus.NO_PROVENANCE)
+        }
+    }
 }
 
 fun Artifact.toResponse(provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO_PROVENANCE) = ArtifactResponse(
@@ -91,5 +105,6 @@ fun Artifact.toResponse(provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO
     reportedAt = reportedAt,
     reportedBy = reportedBy,
     orgSlug = orgSlug,
-    provenanceStatus = provenanceStatus
+    provenanceStatus = provenanceStatus,
+    tags = tags.toMap()
 )

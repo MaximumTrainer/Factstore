@@ -16,4 +16,7 @@ interface IFlowRepository {
     fun deleteById(id: UUID)
     fun countAll(): Long
     fun findAllByOrgSlug(orgSlug: String): List<Flow>
+    fun findAllActive(): List<Flow>
+    fun findByName(name: String): Flow?
+    fun findByNameOrPreviousName(name: String): Flow?
 }

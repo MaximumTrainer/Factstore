@@ -33,4 +33,14 @@ class Artifact(
 
     @Column(name = "org_slug", nullable = true, length = 255)
     var orgSlug: String? = null
-)
+) {
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "artifact_tags",
+        joinColumns = [JoinColumn(name = "artifact_id")],
+        uniqueConstraints = [UniqueConstraint(columnNames = ["artifact_id", "tag_key"])]
+    )
+    @MapKeyColumn(name = "tag_key", length = 64)
+    @Column(name = "tag_value", length = 256)
+    var tags: MutableMap<String, String> = mutableMapOf()
+}

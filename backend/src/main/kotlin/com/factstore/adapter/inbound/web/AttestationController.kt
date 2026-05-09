@@ -56,7 +56,13 @@ class AttestationController(
                 evidenceUrl = request.evidenceUrl,
                 compliant = request.status == AttestationStatus.PASSED,
                 orgSlug = request.orgSlug,
-                createdAt = Instant.now()
+                createdAt = Instant.now(),
+                attestationData = request.attestationData,
+                externalUrls = request.externalUrls,
+                annotations = request.annotations,
+                gitCommitSha = request.gitCommitSha,
+                gitBranch = request.gitBranch,
+                gitRepoUrl = request.gitRepoUrl
             )
             return ResponseEntity.ok(DryRunResponse(wouldCreate = wouldBe))
         }

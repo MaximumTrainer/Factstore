@@ -62,6 +62,11 @@ class ArtifactController(
     fun findBySha256(@RequestParam sha256: String): ResponseEntity<List<ArtifactResponse>> =
         ResponseEntity.ok(artifactService.findBySha256(sha256))
 
+    @GetMapping("/api/v1/artifacts/search")
+    @Operation(summary = "Search artifacts by git commit SHA")
+    fun searchByCommitSha(@RequestParam commitSha: String): ResponseEntity<List<ArtifactResponse>> =
+        ResponseEntity.ok(artifactService.searchByCommitSha(commitSha))
+
     @PostMapping("/api/v1/trails/{trailId}/artifacts/{artifactId}/provenance")
     @Operation(summary = "Record build provenance for an artifact")
     fun recordProvenance(

@@ -129,4 +129,28 @@ class EnvironmentServiceTest {
         )
         assertThrows<NotFoundException> { environmentService.getSnapshot(env.id, 99L) }
     }
+
+    @Test
+    fun `should store and retrieve tags on environment`() {
+        val tags = mapOf("env" to "prod", "team" to "platform")
+        val resp = environmentService.createEnvironment(
+            CreateEnvironmentRequest("tagged-env", EnvironmentType.K8S, tags = tags)
+        )
+        assertEquals(tags, resp.tags)
+
+        val fetched = environmentService.getEnvironment(resp.id)
+        assertEquals(tags, fetched.tags)
+    }
+
+    @Test
+    fun `should update tags on environment`() {
+        val resp = environmentService.createEnvironment(
+            CreateEnvironmentRequest("updatable-env", EnvironmentType.K8S, tags = mapOf("k" to "v1"))
+        )
+        val updated = environmentService.updateEnvironment(
+            resp.id,
+            com.factstore.dto.UpdateEnvironmentRequest(tags = mapOf("k" to "v2", "new" to "tag"))
+        )
+        assertEquals(mapOf("k" to "v2", "new" to "tag"), updated.tags)
+    }
 }

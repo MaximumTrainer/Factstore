@@ -68,4 +68,7 @@ class InMemoryTrailRepository : ITrailRepository {
 
     override fun findByFlowIdAndName(flowId: UUID, name: String): Trail? =
         store.values.firstOrNull { it.flowId == flowId && it.name == name }
+
+    override fun findByGitCommitSha(sha: String): List<Trail> =
+        store.values.filter { it.gitCommitSha == sha }
 }

@@ -57,4 +57,14 @@ class Trail(
 
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now()
-)
+) {
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "trail_tags",
+        joinColumns = [JoinColumn(name = "trail_id")],
+        uniqueConstraints = [UniqueConstraint(columnNames = ["trail_id", "tag_key"])]
+    )
+    @MapKeyColumn(name = "tag_key", length = 64)
+    @Column(name = "tag_value", length = 256)
+    var tags: MutableMap<String, String> = mutableMapOf()
+}

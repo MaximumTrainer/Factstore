@@ -10,7 +10,7 @@ import java.util.UUID
 
 interface IFlowService {
     fun createFlow(request: CreateFlowRequest): FlowResponse
-    fun listFlows(): List<FlowResponse>
+    fun listFlows(includeArchived: Boolean = false): List<FlowResponse>
     fun listFlows(page: Int, size: Int): PageResponse<FlowResponse>
     fun getFlow(id: UUID): FlowResponse
     fun updateFlow(id: UUID, request: UpdateFlowRequest): FlowResponse
@@ -18,4 +18,7 @@ interface IFlowService {
     fun getFlowEntity(id: UUID): Flow
     fun listFlowsByOrg(orgSlug: String): List<FlowResponse>
     fun getFlowTemplate(id: UUID): FlowTemplateResponse
+    fun archiveFlow(id: UUID): FlowResponse
+    fun unarchiveFlow(id: UUID): FlowResponse
+    fun renameFlow(id: UUID, newName: String): FlowResponse
 }

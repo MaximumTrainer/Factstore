@@ -77,4 +77,76 @@ class AttestationServiceTest {
             attestationService.recordAttestation(UUID.randomUUID(), CreateAttestationRequest("junit", AttestationStatus.PASSED))
         }
     }
+
+    @Test
+    fun `should store and retrieve attestation data JSON`() {
+        val trailId = setupTrail()
+        val json = """{"tests": 42, "passed": 42}"""
+        val resp = attestationService.recordAttestation(
+            trailId,
+            CreateAttestationRequest("junit", AttestationStatus.PASSED, attestationData = json)
+        )
+        assertEquals(json, resp.attestationData)
+
+        val list = attestationService.listAttestations(trailId)
+        assertEquals(json, list.first().attestationData)
+
+        val respNoData = attestationService.recordAttestation(
+            trailId,
+            CreateAttestationRequest("snyk", AttestationStatus.PASSED)
+        )
+        assertNull(respNoData.attestationData)
+    }
+
+    @Test
+    fun `should store and retrieve multiple external URLs on attestation`() {
+        val trailId = setupTrail()
+        val urls = listOf("https://jira.example.com/TICKET-1", "https://github.com/pr/42")
+        val resp = attestationService.recordAttestation(
+            trailId,
+            CreateAttestationRequest("junit", AttestationStatus.PASSED, externalUrls = urls)
+        )
+        assertEquals(urls, resp.externalUrls)
+
+        val list = attestationService.listAttestations(trailId)
+        assertEquals(urls, list.first().externalUrls)
+    }
+
+    @Test
+    fun `should store and retrieve key-value annotations on attestation`() {
+        val trailId = setupTrail()
+        val annotations = mapOf("env" to "production", "team" to "backend")
+        val resp = attestationService.recordAttestation(
+            trailId,
+            CreateAttestationRequest("junit", AttestationStatus.PASSED, annotations = annotations)
+        )
+        assertEquals(annotations, resp.annotations)
+
+        val list = attestationService.listAttestations(trailId)
+        assertEquals(annotations, list.first().annotations)
+    }
+
+    @Test
+    fun `should store and retrieve git commit info on attestation`() {
+        val trailId = setupTrail()
+        val sha = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+        val branch = "feature/my-branch"
+        val repoUrl = "https://github.com/example/repo"
+        val resp = attestationService.recordAttestation(
+            trailId,
+            CreateAttestationRequest(
+                "junit", AttestationStatus.PASSED,
+                gitCommitSha = sha, gitBranch = branch, gitRepoUrl = repoUrl
+            )
+        )
+        assertEquals(sha, resp.gitCommitSha)
+        assertEquals(branch, resp.gitBranch)
+        assertEquals(repoUrl, resp.gitRepoUrl)
+
+        val list = attestationService.listAttestations(trailId)
+        val first = list.first()
+        assertEquals(sha, first.gitCommitSha)
+        assertEquals(branch, first.gitBranch)
+        assertEquals(repoUrl, first.gitRepoUrl)
+    }
 }
