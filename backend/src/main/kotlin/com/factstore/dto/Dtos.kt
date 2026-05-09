@@ -74,6 +74,12 @@ data class UpdateFlowRequest(
     val requiredApproverRoles: List<String>? = null
 )
 
+data class RenameFlowRequest(
+    @field:NotBlank(message = "newName is required")
+    @field:Size(max = 255)
+    val newName: String
+)
+
 data class FlowResponse(
     val id: UUID,
     val name: String,
@@ -85,7 +91,8 @@ data class FlowResponse(
     val createdAt: Instant,
     val updatedAt: Instant,
     val requiresApproval: Boolean = false,
-    val requiredApproverRoles: List<String> = emptyList()
+    val requiredApproverRoles: List<String> = emptyList(),
+    val archivedAt: Instant? = null
 )
 
 // Trail DTOs
@@ -105,7 +112,8 @@ data class CreateTrailRequest(
     val orgSlug: String? = null,
     val templateYaml: String? = null,
     val buildUrl: String? = null,
-    val name: String? = null
+    val name: String? = null,
+    val tags: Map<String, String> = emptyMap()
 )
 
 data class TrailResponse(
@@ -124,7 +132,8 @@ data class TrailResponse(
     val buildUrl: String? = null,
     val name: String? = null,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
+    val tags: Map<String, String> = emptyMap()
 )
 
 // Attestation DTOs
@@ -134,7 +143,13 @@ data class CreateAttestationRequest(
     val details: String? = null,
     val name: String? = null,
     val evidenceUrl: String? = null,
-    val orgSlug: String? = null
+    val orgSlug: String? = null,
+    val attestationData: String? = null,
+    val externalUrls: List<String> = emptyList(),
+    val annotations: Map<String, String> = emptyMap(),
+    val gitCommitSha: String? = null,
+    val gitBranch: String? = null,
+    val gitRepoUrl: String? = null
 )
 
 data class AttestationResponse(
@@ -151,7 +166,13 @@ data class AttestationResponse(
     val compliant: Boolean,
     val orgSlug: String? = null,
     val artifactFingerprint: String? = null,
-    val createdAt: Instant
+    val createdAt: Instant,
+    val attestationData: String? = null,
+    val externalUrls: List<String> = emptyList(),
+    val annotations: Map<String, String> = emptyMap(),
+    val gitCommitSha: String? = null,
+    val gitBranch: String? = null,
+    val gitRepoUrl: String? = null
 )
 
 // Artifact DTOs
@@ -165,7 +186,8 @@ data class CreateArtifactRequest(
     val sha256Digest: String,
     val registry: String? = null,
     val reportedBy: String,
-    val orgSlug: String? = null
+    val orgSlug: String? = null,
+    val tags: Map<String, String> = emptyMap()
 )
 
 data class ArtifactResponse(
@@ -178,7 +200,8 @@ data class ArtifactResponse(
     val reportedAt: Instant,
     val reportedBy: String,
     val orgSlug: String? = null,
-    val provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO_PROVENANCE
+    val provenanceStatus: ProvenanceStatus = ProvenanceStatus.NO_PROVENANCE,
+    val tags: Map<String, String> = emptyMap()
 )
 
 // Build Provenance DTOs
@@ -604,7 +627,8 @@ data class CreateEnvironmentRequest(
     val description: String = "",
     val orgSlug: String? = null,
     val driftPolicy: DriftPolicy = DriftPolicy.WARN,
-    val scope: SnapshotScopeDto? = null
+    val scope: SnapshotScopeDto? = null,
+    val tags: Map<String, String> = emptyMap()
 )
 
 data class UpdateEnvironmentRequest(
@@ -612,7 +636,8 @@ data class UpdateEnvironmentRequest(
     val type: EnvironmentType? = null,
     val description: String? = null,
     val driftPolicy: DriftPolicy? = null,
-    val scope: SnapshotScopeDto? = null
+    val scope: SnapshotScopeDto? = null,
+    val tags: Map<String, String>? = null
 )
 
 data class EnvironmentResponse(
@@ -624,7 +649,8 @@ data class EnvironmentResponse(
     val driftPolicy: DriftPolicy,
     val scope: SnapshotScopeDto? = null,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
+    val tags: Map<String, String> = emptyMap()
 )
 
 data class SnapshotArtifactRequest(
@@ -1359,6 +1385,32 @@ data class SecurityScanResponse(
     val breachDetails: List<String> = emptyList()
 )
 
+// Custom Attestation Type DTOs
+data class CreateCustomAttestationTypeRequest(
+    @field:NotBlank(message = "name is required")
+    @field:Size(max = 255)
+    val name: String,
+    @field:Size(max = 2048)
+    val description: String = "",
+    val orgSlug: String? = null
+)
+
+data class UpdateCustomAttestationTypeRequest(
+    val description: String? = null,
+    val orgSlug: String? = null
+)
+
+data class CustomAttestationTypeResponse(
+    val id: UUID,
+    val name: String,
+    val description: String,
+    val version: Int,
+    val orgSlug: String?,
+    val archivedAt: Instant?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
 data class SecurityScanSummaryResponse(
     val totalScans: Int,
     val totalCritical: Int,
@@ -1521,4 +1573,18 @@ data class MergedSnapshotResponse(
     val complianceStatus: ComplianceStatus,
     val memberSnapshots: List<MemberSnapshotSummary>,
     val mergedArtifacts: List<MergedSnapshotArtifact>
+)
+
+// Issue #134: Live artifacts by repo DTOs
+data class LiveArtifactDeployment(
+    val environmentId: UUID,
+    val environmentName: String,
+    val imageTag: String,
+    val sha256Digest: String?,
+    val snapshotCreatedAt: Instant
+)
+
+data class LiveArtifactByRepoResponse(
+    val imageName: String,
+    val deployments: List<LiveArtifactDeployment>
 )
