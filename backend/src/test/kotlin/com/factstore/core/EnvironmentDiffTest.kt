@@ -79,6 +79,7 @@ class EnvironmentDiffTest {
             override fun findByTrailIdIn(trailIds: Collection<UUID>) = emptyList<Attestation>()
             override fun findAll() = emptyList<Attestation>()
             override fun findByArtifactFingerprint(fingerprint: String) = emptyList<Attestation>()
+            override fun findByArtifactId(artifactId: UUID) = emptyList<Attestation>()
         }
         val noopFlowRepo = object : IFlowRepository {
             override fun save(flow: Flow) = flow

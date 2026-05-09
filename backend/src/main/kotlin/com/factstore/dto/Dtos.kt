@@ -172,7 +172,10 @@ data class AttestationResponse(
     val annotations: Map<String, String> = emptyMap(),
     val gitCommitSha: String? = null,
     val gitBranch: String? = null,
-    val gitRepoUrl: String? = null
+    val gitRepoUrl: String? = null,
+    val artifactId: UUID? = null,
+    val overridesAttestationId: UUID? = null,
+    val justification: String? = null
 )
 
 // Artifact DTOs
@@ -1067,14 +1070,17 @@ data class CreatePolicyRequest(
     val enforceProvenance: Boolean = false,
     val enforceTrailCompliance: Boolean = false,
     val requiredAttestationTypes: List<String> = emptyList(),
-    val orgSlug: String? = null
+    val orgSlug: String? = null,
+    val policyYaml: String? = null
 )
 
 data class UpdatePolicyRequest(
     val name: String? = null,
     val enforceProvenance: Boolean? = null,
     val enforceTrailCompliance: Boolean? = null,
-    val requiredAttestationTypes: List<String>? = null
+    val requiredAttestationTypes: List<String>? = null,
+    val policyYaml: String? = null,
+    val changeComment: String? = null
 )
 
 data class PolicyResponse(
@@ -1084,8 +1090,19 @@ data class PolicyResponse(
     val enforceTrailCompliance: Boolean,
     val requiredAttestationTypes: List<String>,
     val orgSlug: String? = null,
+    val policyYaml: String? = null,
+    val version: Int,
     val createdAt: Instant,
     val updatedAt: Instant
+)
+
+data class PolicyVersionResponse(
+    val id: UUID,
+    val policyId: UUID,
+    val version: Int,
+    val content: String,
+    val changeComment: String?,
+    val createdAt: Instant
 )
 
 data class SsoTestConnectionResponse(
@@ -1392,12 +1409,16 @@ data class CreateCustomAttestationTypeRequest(
     val name: String,
     @field:Size(max = 2048)
     val description: String = "",
-    val orgSlug: String? = null
+    val orgSlug: String? = null,
+    val schemaJson: String? = null,
+    val jqExpression: String? = null
 )
 
 data class UpdateCustomAttestationTypeRequest(
     val description: String? = null,
-    val orgSlug: String? = null
+    val orgSlug: String? = null,
+    val schemaJson: String? = null,
+    val jqExpression: String? = null
 )
 
 data class CustomAttestationTypeResponse(
@@ -1408,7 +1429,9 @@ data class CustomAttestationTypeResponse(
     val orgSlug: String?,
     val archivedAt: Instant?,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
+    val schemaJson: String? = null,
+    val jqExpression: String? = null
 )
 
 data class SecurityScanSummaryResponse(
@@ -1418,6 +1441,27 @@ data class SecurityScanSummaryResponse(
     val totalMedium: Int,
     val totalLow: Int,
     val scansWithCritical: Int
+)
+
+// Issue #124: artifact-level attestation request
+data class CreateArtifactAttestationRequest(
+    val type: String,
+    val status: AttestationStatus = AttestationStatus.PENDING,
+    val details: String? = null,
+    val name: String? = null,
+    val evidenceUrl: String? = null,
+    val orgSlug: String? = null,
+    val attestationData: String? = null,
+    val externalUrls: List<String> = emptyList(),
+    val annotations: Map<String, String> = emptyMap(),
+    val gitCommitSha: String? = null,
+    val gitBranch: String? = null,
+    val gitRepoUrl: String? = null
+)
+
+// Issue #125: override a failed attestation with justification
+data class OverrideAttestationRequest(
+    val justification: String
 )
 
 data class SetSecurityThresholdRequest(

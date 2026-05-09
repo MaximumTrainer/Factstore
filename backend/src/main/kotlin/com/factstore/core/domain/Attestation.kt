@@ -65,7 +65,18 @@ class Attestation(
     var gitBranch: String? = null,
 
     @Column(name = "git_repo_url", columnDefinition = "TEXT")
-    var gitRepoUrl: String? = null
+    var gitRepoUrl: String? = null,
+
+    // Issue #124: artifact-level attestation
+    @Column(name = "artifact_id", nullable = true)
+    var artifactId: UUID? = null,
+
+    // Issue #125: attestation override with justification
+    @Column(name = "overrides_attestation_id", nullable = true)
+    var overridesAttestationId: UUID? = null,
+
+    @Column(name = "justification", columnDefinition = "TEXT")
+    var justification: String? = null
 ) {
     // Issue #127: computed property for external URLs list
     var externalUrls: List<String>

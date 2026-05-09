@@ -15,6 +15,7 @@ interface AttestationRepositoryJpa : JpaRepository<Attestation, UUID> {
     fun findByTrailId(trailId: UUID, pageable: Pageable): Page<Attestation>
     fun findByTrailIdIn(trailIds: Collection<UUID>): List<Attestation>
     fun findByArtifactFingerprint(fingerprint: String): List<Attestation>
+    fun findByArtifactId(artifactId: UUID): List<Attestation>
 }
 
 @Component
@@ -26,4 +27,5 @@ class AttestationRepositoryAdapter(private val jpa: AttestationRepositoryJpa) : 
     override fun findByTrailIdIn(trailIds: Collection<UUID>): List<Attestation> = jpa.findByTrailIdIn(trailIds)
     override fun findAll(): List<Attestation> = jpa.findAll()
     override fun findByArtifactFingerprint(fingerprint: String): List<Attestation> = jpa.findByArtifactFingerprint(fingerprint)
+    override fun findByArtifactId(artifactId: UUID): List<Attestation> = jpa.findByArtifactId(artifactId)
 }

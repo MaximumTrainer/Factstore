@@ -33,4 +33,6 @@ class InMemoryAttestationRepository : IAttestationRepository {
     override fun findAll(): List<Attestation> = store.values.toList()
     override fun findByArtifactFingerprint(fingerprint: String): List<Attestation> =
         store.values.filter { it.artifactFingerprint == fingerprint }
+    override fun findByArtifactId(artifactId: UUID): List<Attestation> =
+        store.values.filter { it.artifactId == artifactId }
 }

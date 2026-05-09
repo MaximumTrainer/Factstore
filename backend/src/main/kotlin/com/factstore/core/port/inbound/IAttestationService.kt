@@ -2,7 +2,9 @@ package com.factstore.core.port.inbound
 
 import com.factstore.dto.AttestationResponse
 import com.factstore.dto.CreateAttestationRequest
+import com.factstore.dto.CreateArtifactAttestationRequest
 import com.factstore.dto.EvidenceFileResponse
+import com.factstore.dto.OverrideAttestationRequest
 import com.factstore.dto.PageResponse
 import java.util.UUID
 
@@ -23,4 +25,7 @@ interface IAttestationService {
         contentType: String,
         content: ByteArray
     ): EvidenceFileResponse
+    fun recordArtifactAttestation(artifactId: UUID, request: CreateArtifactAttestationRequest): AttestationResponse
+    fun listArtifactAttestations(artifactId: UUID): List<AttestationResponse>
+    fun overrideAttestation(id: UUID, request: OverrideAttestationRequest): AttestationResponse
 }

@@ -5,10 +5,12 @@ import com.factstore.core.domain.AttestationStatus
 import com.factstore.core.port.inbound.IAttestationService
 import com.factstore.core.port.inbound.IPullRequestAttestationService
 import com.factstore.dto.AttestationResponse
+import com.factstore.dto.CreateArtifactAttestationRequest
 import com.factstore.dto.CreateAttestationRequest
 import com.factstore.dto.CreatePrAttestationRequest
 import com.factstore.dto.DryRunResponse
 import com.factstore.dto.EvidenceFileResponse
+import com.factstore.dto.OverrideAttestationRequest
 import com.factstore.dto.PageResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -100,4 +102,32 @@ class AttestationController(
     ): ResponseEntity<AttestationResponse> =
         ResponseEntity.status(HttpStatus.CREATED)
             .body(pullRequestAttestationService.attestPullRequest(trailId, request))
+}
+
+@RestController
+@Tag(name = "Attestations", description = "Attestation management")
+class ArtifactAttestationController(private val attestationService: IAttestationService) {
+
+    @PostMapping("/api/v1/artifacts/{artifactId}/attestations")
+    @Operation(summary = "Record an artifact-level attestation")
+    fun recordArtifactAttestation(
+        @PathVariable artifactId: UUID,
+        @Valid @RequestBody request: CreateArtifactAttestationRequest
+    ): ResponseEntity<AttestationResponse> =
+        ResponseEntity.status(HttpStatus.CREATED).body(attestationService.recordArtifactAttestation(artifactId, request))
+
+    @GetMapping("/api/v1/artifacts/{artifactId}/attestations")
+    @Operation(summary = "List attestations for an artifact")
+    fun listArtifactAttestations(
+        @PathVariable artifactId: UUID
+    ): ResponseEntity<List<AttestationResponse>> =
+        ResponseEntity.ok(attestationService.listArtifactAttestations(artifactId))
+
+    @PostMapping("/api/v1/attestations/{id}/override")
+    @Operation(summary = "Override a failed attestation with a justification")
+    fun overrideAttestation(
+        @PathVariable id: UUID,
+        @RequestBody request: OverrideAttestationRequest
+    ): ResponseEntity<AttestationResponse> =
+        ResponseEntity.status(HttpStatus.CREATED).body(attestationService.overrideAttestation(id, request))
 }
