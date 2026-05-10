@@ -27,6 +27,9 @@
 19. [Infrastructure as Code — Terraform](#19-infrastructure-as-code--terraform)
 20. [CLI Reference](#20-cli-reference)
 21. [Troubleshooting](#21-troubleshooting)
+22. [Flow Setup Patterns](#22-flow-setup-patterns)
+23. [The Fact Lifecycle](#23-the-fact-lifecycle)
+24. [Compliance Reporting](#24-compliance-reporting)
 
 ---
 
@@ -820,6 +823,316 @@ npm run test:e2e
 ```
 
 > **Note:** The dev server (`npm run dev`) must be running before executing E2E tests.
+
+---
+
+## 22. Flow Setup Patterns
+
+A **Flow** declares exactly which evidence must be collected before an artifact may be deployed.
+This section covers the most common real-world configurations.
+
+### Designing a flow: key decisions
+
+| Question | Guidance |
+|---|---|
+| What evidence do regulators or your team require? | Start with a fixed list (unit tests, CVE scans, SBOM) then grow. |
+| Does the release need human sign-off? | Enable **Requires Approval** — the assertion gate blocks until an approval record is granted. |
+| Is this pipeline internal-only? | Set **Visibility: private** to hide it from public listings. |
+| Which regulatory framework applies? | Use **Compliance Frameworks → Import as Flow** to bootstrap required attestation types. |
+
+### Pattern 1 — Basic CI/CD quality gate
+
+Suitable for any service without a formal regulatory obligation.
+
+| Field | Value |
+|---|---|
+| Name | `payment-service-ci` |
+| Required Attestation Types | `unit-tests, vulnerability-scan` |
+| Requires Approval | No |
+| Tags | `team=payments`, `tier=standard` |
+
+In CI: record a `unit-tests` attestation after the test step, and a `vulnerability-scan` attestation after running Snyk/Trivy. Use `FAILED` status when the tool reports issues — this immediately marks the trail `NON_COMPLIANT`.
+
+### Pattern 2 — Security-focused pipeline
+
+For services that handle sensitive data or are internet-facing.
+
+| Field | Value |
+|---|---|
+| Name | `api-gateway-security` |
+| Required Attestation Types | `unit-tests, sast, sbom, vulnerability-scan, dast` |
+| Requires Approval | No |
+| Tags | `team=platform`, `tier=critical` |
+
+Map each step to a tool: SAST → Semgrep/SonarQube, SBOM → Syft/Grype, vulnerability-scan → Snyk, DAST → OWASP ZAP.
+
+### Pattern 3 — Regulatory / SOX-compliant pipeline
+
+For services in scope for SOX, PCI-DSS, or similar frameworks.
+
+| Field | Value |
+|---|---|
+| Name | `finance-service-sox` |
+| Required Attestation Types | `unit-tests, vulnerability-scan, sbom` |
+| Requires Approval | **Yes** |
+| Tags | `sox-scope=true`, `team=finance` |
+
+With **Requires Approval** enabled, the assertion gate additionally verifies that the trail has an `APPROVED` approval record before returning `COMPLIANT`.
+
+### Pattern 4 — Bootstrapping from a compliance framework
+
+1. Navigate to **Compliance** (`/compliance`).
+2. Browse framework cards and locate the relevant standard (ISO 27001, PCI-DSS, GDPR, SOC 2).
+3. Click **Import as Flow**.
+4. Review the generated flow name and pre-populated Required Attestation Types.
+5. Adjust name and tags if needed, then click **Create**.
+
+### Attestation type naming conventions
+
+| Identifier | Meaning | Typical tool |
+|---|---|---|
+| `unit-tests` | Unit / integration test suite result | JUnit, pytest, Jest |
+| `vulnerability-scan` | Dependency / container CVE scan | Snyk, Grype, Trivy |
+| `sast` | Static application security testing | Semgrep, SonarQube, CodeQL |
+| `sbom` | Software bill of materials | Syft, CycloneDX |
+| `dast` | Dynamic application security testing | OWASP ZAP, Burp Suite |
+| `container-scan` | Container image layer scanning | Trivy, Clair |
+| `change-approval` | Human change-advisory board approval | Jira, ServiceNow, manual |
+
+Register each identifier in the **Attestation Types** registry (`/attestation-types`) with an optional JSON Schema and jq expression for payload validation and automatic status computation.
+
+---
+
+## 23. The Fact Lifecycle
+
+A **fact** (attestation) is an immutable evidence record attached to a Trail that asserts a quality gate was evaluated. Facts accumulate during a CI build and are evaluated when compliance is asserted.
+
+### Stage 1 — Create a Trail
+
+Create a trail at the very beginning of the CI build, before any tests run.
+
+```http
+POST /api/v1/trails
+{
+  "flowId":         "<flow-uuid>",
+  "gitCommitSha":   "a1b2c3d4",
+  "gitBranch":      "main",
+  "gitAuthor":      "alice",
+  "gitAuthorEmail": "alice@example.com"
+}
+```
+
+The response includes a `trailId` UUID. The trail starts in **`PENDING`** status.
+
+### Stage 2 — Record the Artifact
+
+After the container image is built, record its SHA-256 digest.
+
+```http
+POST /api/v1/trails/<trailId>/artifacts
+{
+  "imageName":    "myapp",
+  "imageTag":     "v2.4.1",
+  "sha256Digest": "sha256:abc123...",
+  "reportedBy":   "github-actions",
+  "registry":     "ghcr.io"
+}
+```
+
+### Stage 3 — Submit Attestations (Facts)
+
+For each quality gate in the flow, record an attestation on the trail.
+
+```http
+POST /api/v1/trails/<trailId>/attestations
+{
+  "type":        "unit-tests",
+  "status":      "PASSED",
+  "details":     "1 247 tests passed, 0 failures",
+  "evidenceUrl": "https://ci.example.com/runs/42"
+}
+```
+
+#### Attestation statuses
+
+| Status | Effect on compliance |
+|---|---|
+| `PASSED` | Satisfies the requirement for this attestation type |
+| `FAILED` | Immediately marks the trail `NON_COMPLIANT`; blocks the assertion gate |
+| `PENDING` | Treated as *missing* — does **not** satisfy the requirement |
+
+> ⚠️ A `FAILED` attestation permanently marks the trail `NON_COMPLIANT`. To recover, open a **new trail** for the fixed commit and re-run the pipeline.
+
+#### Uploading evidence files
+
+Binary evidence files (JUnit XML, SARIF, PDF) can be attached via multipart upload:
+
+```http
+POST /api/v1/attestations/<attestationId>/evidence
+Content-Type: multipart/form-data
+
+file=@junit-results.xml
+```
+
+### Stage 4 — Assert Compliance
+
+At deploy time, assert that the artifact digest satisfies the flow's requirements:
+
+```http
+GET /api/v1/assert?sha256=sha256:abc123...&flowId=<flow-uuid>
+```
+
+#### Evaluation algorithm
+
+1. Find all artifacts that match the provided `sha256` digest.
+2. For each matching artifact, check its trail against the flow's required attestation types — all types must have a `PASSED` attestation.
+3. If the flow has **Requires Approval** enabled, also verify that the trail has an `APPROVED` approval record.
+4. Return `COMPLIANT` if *any* artifact's trail satisfies all requirements; otherwise return `NON_COMPLIANT` with details of missing and failed types.
+
+Every assertion emits an audit event: `GATE_ALLOWED` (compliant) or `GATE_BLOCKED` (non-compliant).
+
+### Trail status state machine
+
+| Status | Trigger | Meaning |
+|---|---|---|
+| `PENDING` | Trail created | Evidence accumulating; no `FAILED` attestation yet |
+| `NON_COMPLIANT` | A `FAILED` attestation is recorded | Build has a known failure; assertion gate will block |
+
+> Trail status reflects *accumulated evidence quality*. A `PENDING` trail with all `PASSED` attestations will produce a `COMPLIANT` assertion result — the assertion is the definitive compliance check.
+
+### Audit events emitted during the lifecycle
+
+| Lifecycle stage | Audit event |
+|---|---|
+| Artifact recorded / deployed to environment | `ARTIFACT_DEPLOYED` |
+| Artifact removed from environment | `ARTIFACT_REMOVED` |
+| Attestation submitted | `ATTESTATION_RECORDED` |
+| Approval granted | `APPROVAL_GRANTED` |
+| Approval rejected | `APPROVAL_REJECTED` |
+| Compliance assertion passed | `GATE_ALLOWED` |
+| Compliance assertion failed | `GATE_BLOCKED` |
+| Environment created or deleted | `ENVIRONMENT_CREATED` / `ENVIRONMENT_DELETED` |
+
+### End-to-end example: a compliant release
+
+1. 🏗️ CI starts → **create trail** (status: `PENDING`)
+2. 🐳 Image built → **record artifact** (`sha256:abc…`)
+3. ✅ Tests pass → **record `unit-tests` attestation** (PASSED) → audit: `ATTESTATION_RECORDED`
+4. 🔍 Scan clean → **record `vulnerability-scan` attestation** (PASSED) → audit: `ATTESTATION_RECORDED`
+5. 📄 SBOM generated → **record `sbom` attestation** (PASSED) → audit: `ATTESTATION_RECORDED`
+6. 🚀 Deploy step → **assert compliance** → all PASSED → result: `COMPLIANT` → audit: `GATE_ALLOWED`
+7. 🌍 Deployment succeeds → **record environment snapshot**
+
+### End-to-end example: a blocked release
+
+1. 🏗️ CI starts → **create trail** (status: `PENDING`)
+2. 🐳 Image built → **record artifact**
+3. ✅ Tests pass → **record `unit-tests` attestation** (PASSED)
+4. 🔴 CVEs found → **record `vulnerability-scan` attestation** (FAILED) → trail set to `NON_COMPLIANT`
+5. 🚫 Deploy step → **assert compliance** → `vulnerability-scan` FAILED → result: `NON_COMPLIANT` → audit: `GATE_BLOCKED`
+6. 🛑 Deployment blocked. CI pipeline exits with a non-zero code.
+
+After fixing the issue: open a **new trail** for the fixed commit and re-run the full pipeline.
+
+---
+
+## 24. Compliance Reporting
+
+### Reporting surface overview
+
+| Surface | Audience | Key metric |
+|---|---|---|
+| **Dashboard** (`/`) | Engineers | Compliance Rate bar; recent trail statuses |
+| **Compliance Posture** (`/compliance-posture`) | Engineering leads / CISO | Per-flow breakdown: compliant %, non-compliant count |
+| **Audit Log** (`/audit`) | Compliance officers / auditors | Timestamped event history with actor attribution |
+| **Trail Audit endpoint** | Auditors / automated export | All audit events scoped to a single build trail |
+| **Compliance Report API** | Automated tooling / GRC systems | Machine-readable JSON compliance report |
+
+### Dashboard compliance rate
+
+The **Compliance Rate** card shows the percentage of non-compliant versus pending trails. Use it as a daily health signal:
+
+- 🟢 **≥ 80%** — pipeline well-controlled; few or no failures
+- 🟡 **50–79%** — investigate recent failures; review non-compliant trails
+- 🔴 **< 50%** — significant compliance issues; escalate immediately
+
+### Compliance Posture (for leadership)
+
+Navigate to **Posture** (`/compliance-posture`) for an organisation-wide view:
+
+1. Sort the per-flow table by **Non-Compliant** count (highest first) to find the worst-performing pipelines.
+2. A high **Pending** count suggests CI pipelines are not completing attestation steps.
+3. Click a flow name to navigate to its trail list for root-cause investigation.
+
+### Audit Log — regulatory evidence
+
+For regulatory audits, filter the Audit Log (`/audit`) by event type:
+
+- `ATTESTATION_RECORDED` — all evidence submissions
+- `GATE_ALLOWED` / `GATE_BLOCKED` — all deployment gate decisions
+- `APPROVAL_GRANTED` — human approval records
+
+Export filtered events via the API:
+
+```http
+GET /api/v1/audit
+```
+
+### Per-trail audit package (for auditors)
+
+To produce a complete compliance package for a single build (`<trailId>`):
+
+```http
+# 1. Trail details (commit SHA, branch, author, timestamp)
+GET /api/v1/trails/<trailId>
+
+# 2. All attestations and their statuses
+GET /api/v1/trails/<trailId>/attestations
+
+# 3. All audit events scoped to this trail
+GET /api/v1/trails/<trailId>/audit
+
+# 4. Download each evidence file
+GET /api/v1/evidence/<evidenceId>/download
+```
+
+Combine these four responses into a single JSON bundle or PDF for your GRC system.
+
+### CLI report commands
+
+```bash
+# Full compliance report for a specific artifact digest
+factstore compliance artifact sha256:abc123...
+
+# List all non-compliant trails for a flow (JSON for piping)
+factstore trails list --flow-id <flow-id> --json \
+  | jq '[.[] | select(.status == "NON_COMPLIANT")]'
+
+# Export all audit events for a trail as JSON
+curl "$FACTSTORE_HOST/api/v1/trails/<trailId>/audit" \
+  -H "Authorization: Bearer $FACTSTORE_TOKEN" \
+  | jq '.' > trail-audit.json
+
+# Compliance posture summary across all flows
+curl "$FACTSTORE_HOST/api/v1/compliance/posture" \
+  -H "Authorization: Bearer $FACTSTORE_TOKEN" | jq '.'
+```
+
+### Interpreting a NON_COMPLIANT assertion response
+
+```json
+{
+  "sha256Digest": "sha256:abc123...",
+  "flowId":       "...",
+  "status":       "NON_COMPLIANT",
+  "missingAttestationTypes": ["sbom"],
+  "failedAttestationTypes":  ["vulnerability-scan"],
+  "details":      "Missing required attestations: sbom"
+}
+```
+
+- **missingAttestationTypes** → add the attestation step to your CI pipeline for the affected type.
+- **failedAttestationTypes** → fix the underlying quality issue and open a new trail.
 
 ---
 
