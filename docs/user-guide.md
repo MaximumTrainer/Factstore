@@ -95,15 +95,21 @@ All pages are reachable from the persistent navigation bar at the top of the scr
 |----------------|-------------|
 | **OpenFactstore** (logo) | `/` — Dashboard |
 | **Flows** | `/flows` — Flow list |
+| **Environments** | `/environments` — Environment list |
+| **Drift** | `/drift` — Environment drift detection |
+| **Logical Envs** | `/logical-environments` — Logical environment groupings |
+| **Search** | `/search` — Global search |
 | **Assert** | `/assert` — Compliance assertion form |
 | **Evidence** | `/evidence` — Evidence Vault |
-| **Environments** | `/environments` — Environment list |
-| **Logical Envs** | `/logical-environments` — Logical environment groupings |
-| **Audit** | `/audit` — Audit log |
-| **Policies** | `/policies` — Deployment policies |
+| **Vault** | `/vault` — Vault backend browser |
 | **Compliance** | `/compliance` — Compliance frameworks |
-| **Drift** | `/drift` — Environment drift detection |
-| **Search** | `/search` — Global search |
+| **Posture** | `/compliance-posture` — Organisation-wide compliance dashboard |
+| **Policies** | `/policies` — Deployment policies |
+| **Integrations** | `/integrations` — External integrations (Jira, Confluence, Slack) |
+| **Audit** | `/audit` — Audit log |
+| **Ledger** | `/ledger` — Immutable event ledger |
+| **Alerts** | `/notifications/rules` — Notification alert rules |
+| **Attestation Types** | `/attestation-types` — Custom attestation type registry |
 
 ---
 

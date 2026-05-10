@@ -127,41 +127,73 @@
     <section id="navigating" style="padding:0;border:none;margin-bottom:40px;">
       <h2>3. Navigating the UI</h2>
       <p>
-        The persistent sidebar on the left gives access to all major areas. The top-level items are:
+        All pages are reachable from the persistent <strong>navigation bar</strong> at the top of the screen.
+        A notification bell in the top-right corner shows unread compliance alerts.
       </p>
-      <ul>
-        <li>🏠 <strong>Dashboard</strong> — overview stats, recent activity, and compliance bar</li>
-        <li>🔄 <strong>Flows</strong> — compliance flow definitions</li>
-        <li>🧪 <strong>Trails</strong> — per-release evidence collections</li>
-        <li>✅ <strong>Assert</strong> — check a container image digest against a flow</li>
-        <li>📁 <strong>Evidence Vault</strong> — uploaded evidence files</li>
-        <li>🌍 <strong>Environments</strong> — deployment environment snapshots</li>
-        <li>🗂 <strong>Logical Environments</strong> — groupings of physical environments</li>
-        <li>📋 <strong>Audit Log</strong> — immutable compliance event history</li>
-        <li>🚪 <strong>Policies</strong> — OPA-backed deployment gates</li>
-        <li>⚖️ <strong>Compliance</strong> — regulatory framework mapping</li>
-        <li>🔀 <strong>Drift</strong> — environment drift detection</li>
-        <li>🔍 <strong>Search</strong> — global search across all entities</li>
-      </ul>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border,#dee2e6);">
+            <th style="text-align:left;padding:8px 12px;">Nav Link</th>
+            <th style="text-align:left;padding:8px 12px;">Destination</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Dashboard</strong></td><td style="padding:8px 12px;"><code>/</code> — Compliance summary and recent activity</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Flows</strong></td><td style="padding:8px 12px;"><code>/flows</code> — Flow list and management</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Environments</strong></td><td style="padding:8px 12px;"><code>/environments</code> — Deployment environment snapshots</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Drift</strong></td><td style="padding:8px 12px;"><code>/drift</code> — Environment drift detection</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Logical Envs</strong></td><td style="padding:8px 12px;"><code>/logical-environments</code> — Logical environment groupings</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Search</strong></td><td style="padding:8px 12px;"><code>/search</code> — Global search across all entities</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Assert</strong></td><td style="padding:8px 12px;"><code>/assert</code> — Compliance assertion form</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Evidence Vault</strong></td><td style="padding:8px 12px;"><code>/evidence</code> — Uploaded evidence files</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Compliance</strong></td><td style="padding:8px 12px;"><code>/compliance</code> — Regulatory framework mapping</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Posture</strong></td><td style="padding:8px 12px;"><code>/compliance-posture</code> — Organisation-wide compliance dashboard</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Policies</strong></td><td style="padding:8px 12px;"><code>/policies</code> — OPA deployment gate rules</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Audit Log</strong></td><td style="padding:8px 12px;"><code>/audit</code> — Immutable compliance event history</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Ledger</strong></td><td style="padding:8px 12px;"><code>/ledger</code> — Immutable event ledger</td></tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);"><td style="padding:8px 12px;"><strong>Alerts</strong></td><td style="padding:8px 12px;"><code>/notifications/rules</code> — Notification alert rules</td></tr>
+          <tr><td style="padding:8px 12px;"><strong>Attestation Types</strong></td><td style="padding:8px 12px;"><code>/attestation-types</code> — Custom attestation type registry</td></tr>
+        </tbody>
+      </table>
     </section>
 
     <!-- 4. Dashboard -->
     <section id="dashboard" style="padding:0;border:none;margin-bottom:40px;">
       <h2>4. Dashboard</h2>
       <p>
-        The Dashboard (<code>/</code>) is the landing page after login. It shows:
+        The Dashboard (<code>/</code>) provides an at-a-glance summary of your delivery pipeline's compliance health.
       </p>
-      <ul>
-        <li><strong>Summary cards</strong> — total flows, trails, artifacts, and attestations</li>
-        <li><strong>Compliance bar</strong> — percentage of trails that are fully compliant</li>
-        <li><strong>Recent trails</strong> — the five most recently updated build records</li>
-        <li><strong>Active environments</strong> — environments with deployed artifacts</li>
-      </ul>
       <figure class="screenshot">
         <img src="screenshots/01-dashboard.png" alt="Dashboard overview showing summary cards and compliance bar" loading="lazy">
         <figcaption>Dashboard — compliance summary cards and recent activity</figcaption>
       </figure>
-      <p>Use the Dashboard as a daily health check before releases and after incidents.</p>
+      <h3 style="font-size:16px;margin-top:24px;">Key elements</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border,#dee2e6);">
+            <th style="text-align:left;padding:8px 12px;">Element</th>
+            <th style="text-align:left;padding:8px 12px;">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Total Flows</strong> card</td>
+            <td style="padding:8px 12px;">Count of registered delivery pipelines</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Total Trails</strong> card</td>
+            <td style="padding:8px 12px;">Count of all build records with Compliant / Non-Compliant / Pending breakdown</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Compliance Rate</strong> card</td>
+            <td style="padding:8px 12px;">Percentage of completed builds that are compliant, shown as a colour-coded bar (green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;"><strong>Recent Trails</strong> table</td>
+            <td style="padding:8px 12px;">The 5 most recent trails with commit SHA, branch, author, date, and compliance status badge. Click any row to open the trail detail view.</td>
+          </tr>
+        </tbody>
+      </table>
     </section>
 
     <!-- 5. Flows -->
@@ -170,7 +202,7 @@
       <p>
         A <strong>Flow</strong> is a named template that declares which attestation types must be
         present — and passing — before a release is approved. Navigate to <strong>Flows</strong>
-        in the sidebar.
+        in the navigation bar.
       </p>
       <figure class="screenshot">
         <img src="screenshots/02-flows-list.png" alt="Flows list page showing compliance flow templates" loading="lazy">
@@ -180,8 +212,9 @@
       <ol>
         <li>Click <strong>New Flow</strong>.</li>
         <li>Enter a <strong>name</strong> (e.g. <code>payment-service-ci</code>) and optional description.</li>
-        <li>Add one or more <strong>required attestation types</strong> (e.g. <code>unit-tests</code>, <code>security-scan</code>).</li>
-        <li>Optionally paste a <strong>YAML template</strong> for conditional rules.</li>
+        <li>Add one or more <strong>required attestation types</strong> as a comma-separated list
+            (e.g. <code>unit-tests, security-scan</code>).</li>
+        <li>Set the <strong>visibility</strong> (public or private).</li>
         <li>Click <strong>Create</strong>.</li>
       </ol>
       <h3 style="font-size:16px;margin-top:24px;">Viewing flow details</h3>
@@ -199,10 +232,10 @@
         with a given flow.
       </p>
       <ol>
-        <li>Select the <strong>flow</strong> from the dropdown.</li>
         <li>Enter the full <strong>SHA-256 digest</strong> of the container image
             (e.g. <code>sha256:abc123…</code>).</li>
-        <li>Click <strong>Check Compliance</strong>.</li>
+        <li>Select the <strong>flow</strong> from the dropdown.</li>
+        <li>Click <strong>Assert Compliance</strong>.</li>
       </ol>
       <figure class="screenshot">
         <img src="screenshots/03-assert-compliance.png" alt="Assert compliance page with digest input and result" loading="lazy">
@@ -266,7 +299,7 @@
         <img src="screenshots/07-logical-environments.png" alt="Logical environments grouping page" loading="lazy">
         <figcaption>Logical Environments — group physical environments for aggregate compliance checks</figcaption>
       </figure>
-      <p>Navigate to <strong>Logical Environments</strong> in the sidebar to create groups and
+      <p>Navigate to <strong>Logical Environments</strong> in the navigation bar to create groups and
          assign physical environments to them.</p>
     </section>
 
@@ -308,7 +341,9 @@
       <ol>
         <li>Navigate to <strong>Policies</strong> and click <strong>New Policy</strong>.</li>
         <li>Enter a <strong>name</strong> and optional description.</li>
-        <li>Paste your <strong>Rego rule</strong> in the code editor.</li>
+        <li>Choose the <strong>Type</strong>: <code>OPA_REGO</code> (recommended) or <code>CEL</code>.</li>
+        <li>Choose the <strong>Evaluator</strong>: <code>jq</code> to use a jq expression for status evaluation, or <code>NONE</code> for purely Rego-based evaluation.</li>
+        <li>Paste the <strong>Rego expression</strong> (e.g. <code>input.attestations[_].status == "PASSED"</code>).</li>
         <li>Click <strong>Create</strong>.</li>
       </ol>
       <p>The policy is immediately applied to all subsequent compliance assertions for the
@@ -319,17 +354,19 @@
     <section id="compliance" style="padding:0;border:none;margin-bottom:40px;">
       <h2>12. Compliance Frameworks</h2>
       <p>
-        OpenFactstore ships with built-in mappings for <strong>SOX</strong>, <strong>PCI-DSS v4.0</strong>,
-        and <strong>GDPR</strong>. Navigate to <strong>Compliance</strong> to see:
+        The <strong>Compliance</strong> page (<code>/compliance</code>) lets you browse a library of
+        pre-built compliance framework templates — including <strong>SOX</strong>,
+        <strong>PCI-DSS v4.0</strong>, <strong>GDPR</strong>, and <strong>ISO 27001</strong>.
+        Each template maps a regulatory body's controls to flow attestation types.
       </p>
       <ul>
-        <li>The list of active regulatory frameworks.</li>
-        <li>Which controls each framework requires and their current pass/fail state.</li>
-        <li>An aggregate compliance score per framework.</li>
+        <li>Click <strong>Import as Flow</strong> on any framework template to generate a pre-configured Flow with all required attestation types already defined.</li>
+        <li>Once imported, the flow appears in your Flows list and can be used immediately for trail creation.</li>
+        <li>An aggregate compliance score shows how many controls are currently passing across your trails.</li>
       </ul>
       <figure class="screenshot">
         <img src="screenshots/11-compliance.png" alt="Compliance frameworks with control scores" loading="lazy">
-        <figcaption>Compliance — regulatory framework mappings and aggregate scores</figcaption>
+        <figcaption>Compliance — regulatory framework templates with import-as-flow capability</figcaption>
       </figure>
     </section>
 
@@ -377,6 +414,36 @@
         <img src="screenshots/13-attestation-types.png" alt="Attestation Types management page" loading="lazy">
         <figcaption>Attestation Types — registry of custom quality gate categories with schema validation</figcaption>
       </figure>
+
+      <h3 style="font-size:16px;margin-top:28px;">Viewing types</h3>
+      <p>The types table shows one row per registered type with these columns:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border,#dee2e6);">
+            <th style="text-align:left;padding:8px 12px;">Column</th>
+            <th style="text-align:left;padding:8px 12px;">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Name</strong></td>
+            <td style="padding:8px 12px;">Unique identifier used in flow definitions and attestation submissions</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Description</strong></td>
+            <td style="padding:8px 12px;">Human-readable explanation of what evidence this type collects</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border,#dee2e6);">
+            <td style="padding:8px 12px;"><strong>Version</strong></td>
+            <td style="padding:8px 12px;">Schema version counter — increments on every save</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;"><strong>Status</strong></td>
+            <td style="padding:8px 12px;"><code>ACTIVE</code> or <code>ARCHIVED</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;">Toggle <strong>Show archived types</strong> to include retired types in the list.</p>
 
       <h3 style="font-size:16px;margin-top:28px;">Creating a type</h3>
       <ol>
@@ -480,6 +547,14 @@
         <figcaption>Snapshot Diff — compare two environment snapshots to see exactly what changed</figcaption>
       </figure>
 
+      <h3 style="font-size:16px;margin-top:28px;">Selecting snapshots</h3>
+      <p>
+        Two drop-down menus at the top of the page let you select <strong>Snapshot A</strong> (baseline) and
+        <strong>Snapshot B</strong> (later state). Each drop-down lists all available snapshots for the
+        environment in reverse-chronological order. After selecting both, click <strong>Compare</strong> to
+        load the diff table.
+      </p>
+
       <h3 style="font-size:16px;margin-top:28px;">Reading the diff table</h3>
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <thead>
@@ -503,6 +578,11 @@
           </tr>
         </tbody>
       </table>
+      <p style="margin-top:12px;">
+        Row background colours make changes immediately scannable: <span style="background:#d1fae5;padding:1px 6px;border-radius:3px;">green</span> = <code>ADDED</code>,
+        <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;">red</span> = <code>REMOVED</code>,
+        <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;">amber</span> = <code>CHANGED</code>.
+      </p>
       <p style="margin-top:12px;">
         Typical use-cases: incident investigation, deployment verification, and compliance audits
         demonstrating that only approved artifacts entered production between two dates.
@@ -559,6 +639,17 @@ jobs:
           type:          junit
           status:        PASSED
           details:       "All tests green on ${{ github.sha }}"
+          evidence-url:  ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          api-key:       ${{ secrets.FACTSTORE_API_KEY }}
+
+      - name: Record Snyk attestation
+        uses: ./.github/actions/factstore-attest
+        with:
+          factstore-url: ${{ secrets.FACTSTORE_URL }}
+          trail-id:      ${{ steps.trail.outputs.trail-id }}
+          type:          snyk
+          status:        PASSED
+          details:       "No critical vulnerabilities found"
           evidence-url:  ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           api-key:       ${{ secrets.FACTSTORE_API_KEY }}
 
