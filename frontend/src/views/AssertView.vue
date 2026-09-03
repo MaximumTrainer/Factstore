@@ -25,6 +25,20 @@
             <option v-for="flow in flows" :key="flow.id" :value="flow.id">{{ flow.name }}</option>
           </select>
         </div>
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Trail ID <span class="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            v-model="form.trailId"
+            type="text"
+            placeholder="Scope the assertion to one pipeline execution"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <p class="mt-1 text-xs text-gray-500">
+            Leave blank to judge the most recent trail carrying this digest.
+          </p>
+        </div>
         <button
           type="submit"
           :disabled="submitting"
@@ -39,13 +53,17 @@
           </span>
         </div>
         <p class="text-sm" :class="result.compliant ? 'text-green-700' : 'text-red-700'">{{ result.message }}</p>
-        <div v-if="result.missingAttestations.length" class="mt-3">
+        <p v-if="result.trailId" class="mt-1 text-xs" :class="result.compliant ? 'text-green-700' : 'text-red-700'">
+          Judged against trail
+          <RouterLink :to="`/trails/${result.trailId}`" class="font-mono underline">{{ result.trailId }}</RouterLink>
+        </p>
+        <div v-if="(result.missingAttestations ?? []).length" class="mt-3">
           <div class="text-sm font-medium text-red-700">Missing Attestations:</div>
           <ul class="mt-1 text-sm text-red-600 list-disc list-inside">
             <li v-for="m in result.missingAttestations" :key="m">{{ m }}</li>
           </ul>
         </div>
-        <div v-if="result.failedAttestations.length" class="mt-3">
+        <div v-if="(result.failedAttestations ?? []).length" class="mt-3">
           <div class="text-sm font-medium text-red-700">Failed Attestations:</div>
           <ul class="mt-1 text-sm text-red-600 list-disc list-inside">
             <li v-for="f in result.failedAttestations" :key="f">{{ f }}</li>
@@ -60,12 +78,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { getFlows } from '../api/flows'
 import { assertCompliance } from '../api/assert'
 import type { Flow, AssertResult } from '../types'
 
 const flows = ref<Flow[]>([])
-const form = ref({ sha256Digest: '', flowId: '' })
+const form = ref({ sha256Digest: '', flowId: '', trailId: '' })
 const result = ref<AssertResult | null>(null)
 const error = ref('')
 const submitting = ref(false)
@@ -75,8 +94,7 @@ async function submit() {
   result.value = null
   error.value = ''
   try {
-    const res = await assertCompliance(form.value.sha256Digest, form.value.flowId)
-    result.value = res.data
+    result.value = await assertCompliance(form.value.sha256Digest, form.value.flowId, form.value.trailId || undefined)
   } catch {
     error.value = 'Failed to assert compliance. Please check your inputs and try again.'
   } finally {
