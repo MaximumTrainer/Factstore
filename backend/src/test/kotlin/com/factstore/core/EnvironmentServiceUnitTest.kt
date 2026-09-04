@@ -48,6 +48,7 @@ class EnvironmentServiceUnitTest {
             override fun findByArtifactSha256(sha256: String) = emptyList<Deployment>()
             override fun findByEnvironmentId(environmentId: UUID) = emptyList<Deployment>()
             override fun existsByArtifactSha256AndEnvironmentId(sha256: String, environmentId: UUID) = false
+            override fun findByDeployedAtBetween(from: Instant, to: Instant) = emptyList<Deployment>()
         }
         val noopEventPublisher = object : IEventPublisher {
             override fun publish(event: SupplyChainEvent) {}

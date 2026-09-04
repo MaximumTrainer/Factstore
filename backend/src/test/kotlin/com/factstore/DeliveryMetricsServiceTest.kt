@@ -152,7 +152,10 @@ class DeliveryMetricsServiceTest {
 
     @Test
     fun `a deployment whose artifact has no trail contributes no lead time`() {
-        deploy("sha256:orphan${System.nanoTime()}", Instant.now())
+        // An hour inside the window rather than exactly on its upper bound: a deployment
+        // recorded in the same instant the window ends is an artificial case, and pinning
+        // the test to that boundary made it sensitive to ordering under the full suite.
+        deploy("sha256:orphan${System.nanoTime()}", Instant.now().minus(1, ChronoUnit.HOURS))
 
         val metrics = metricsService.getDeliveryMetrics(days = 7)
 
