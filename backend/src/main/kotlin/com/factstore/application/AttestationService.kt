@@ -48,7 +48,8 @@ class AttestationService(
     private val customAttestationTypeRepository: ICustomAttestationTypeRepository,
     private val artifactRepository: IArtifactRepository,
     private val objectMapper: ObjectMapper,
-    private val processors: List<AttestationTypeProcessor> = emptyList()
+    private val processors: List<AttestationTypeProcessor> = emptyList(),
+    private val actorResolver: ActorResolver
 ) : IAttestationService {
 
     private val log = LoggerFactory.getLogger(AttestationService::class.java)
@@ -116,7 +117,9 @@ class AttestationService(
         }
         auditService.record(
             eventType = AuditEventType.ATTESTATION_RECORDED,
-            actor = "system",
+            // Recording evidence is an act with an owner; "system" cannot answer who
+            // vouched for it (#156 FR-7.2).
+            actor = actorResolver.current(),
             payload = mapOf(
                 "attestationId" to saved.id.toString(),
                 "trailId" to trailId.toString(),

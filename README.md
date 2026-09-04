@@ -35,6 +35,7 @@ docker compose up --build
 | **[DEPLOY.md](./DEPLOY.md)** | Docker, JAR, and release deployment guide |
 | **[CONTRIBUTING.md](./CONTRIBUTING.md)** | Development setup, testing, and PR guidelines |
 | **[SECURITY.md](./SECURITY.md)** | Vulnerability reporting and production hardening |
+| **[docs/authentication.md](./docs/authentication.md)** | Sign-in, roles, sessions and the identity model |
 | **[docs/getting-started/](./docs/getting-started/)** | Step-by-step getting started series |
 
 ---

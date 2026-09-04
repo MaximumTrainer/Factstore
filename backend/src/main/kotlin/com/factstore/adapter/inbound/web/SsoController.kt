@@ -8,7 +8,10 @@ import com.factstore.dto.SsoLoginUrlResponse
 import com.factstore.dto.SsoTestConnectionResponse
 import com.factstore.dto.UpdateSsoConfigRequest
 import io.swagger.v3.oas.annotations.Operation
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -72,7 +75,17 @@ class SsoController(private val ssoService: ISsoConfigService) {
     fun handleSsoCallback(
         @PathVariable slug: String,
         @RequestParam code: String,
-        @RequestParam state: String
-    ): ResponseEntity<SsoCallbackResponse> =
-        ResponseEntity.ok(ssoService.handleSsoCallback(slug, code, state))
+        @RequestParam state: String,
+        httpRequest: HttpServletRequest,
+        httpResponse: HttpServletResponse
+    ): ResponseEntity<SsoCallbackResponse> {
+        val result = ssoService.handleSsoCallback(slug, code, state)
+        // Set the session as an HttpOnly cookie so the browser holds a credential JavaScript
+        // cannot read. The token is also returned in the body for non-browser clients.
+        httpResponse.addHeader(
+            HttpHeaders.SET_COOKIE,
+            AuthController.sessionCookie(result.token, httpRequest)
+        )
+        return ResponseEntity.ok(result)
+    }
 }

@@ -56,7 +56,8 @@ class AssertService(
     private val templateParser: TemplateParser,
     private val policyParser: PolicyParser,
     private val policyRepository: IPolicyRepository,
-    private val policyExpressionEvaluator: PolicyExpressionEvaluator
+    private val policyExpressionEvaluator: PolicyExpressionEvaluator,
+    private val actorResolver: ActorResolver
 ) : IAssertService {
 
     private val log = LoggerFactory.getLogger(AssertService::class.java)
@@ -289,7 +290,9 @@ class AssertService(
             AuditEventType.GATE_ALLOWED else AuditEventType.GATE_BLOCKED
         auditService.record(
             eventType = eventType,
-            actor = "system",
+            // Whoever asked for this decision owns it. A gate event attributed to "system"
+            // cannot answer "who released this" (#156 FR-7.1).
+            actor = actorResolver.current(),
             payload = mapOf(
                 "sha256Digest" to response.sha256Digest,
                 "flowId" to response.flowId.toString(),

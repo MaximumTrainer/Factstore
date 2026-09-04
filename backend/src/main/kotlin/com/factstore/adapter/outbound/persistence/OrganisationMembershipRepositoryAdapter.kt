@@ -14,6 +14,7 @@ interface OrganisationMembershipRepositoryJpa : JpaRepository<OrganisationMember
     fun findByOrgSlug(orgSlug: String): List<OrganisationMembership>
     fun findByOrgSlugAndUserId(orgSlug: String, userId: UUID): OrganisationMembership?
     fun existsByOrgSlugAndUserId(orgSlug: String, userId: UUID): Boolean
+    fun findByUserId(userId: UUID): List<OrganisationMembership>
 }
 
 @Component
@@ -25,6 +26,7 @@ class OrganisationMembershipRepositoryAdapter(
         jpa.findByOrgSlugAndUserId(orgSlug, userId)
     override fun existsByOrgSlugAndUserId(orgSlug: String, userId: UUID): Boolean =
         jpa.existsByOrgSlugAndUserId(orgSlug, userId)
+    override fun findByUserId(userId: UUID): List<OrganisationMembership> = jpa.findByUserId(userId)
     override fun save(membership: OrganisationMembership): OrganisationMembership = try {
         jpa.saveAndFlush(membership)
     } catch (ex: DataIntegrityViolationException) {

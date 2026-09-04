@@ -26,6 +26,7 @@
             >Monitoring ↗</a>
           </div>
         </div>
+        <div class="flex items-center gap-2">
         <!-- Notification bell -->
         <div class="relative">
           <button
@@ -85,6 +86,8 @@
             </div>
           </div>
         </div>
+        <UserMenu />
+        </div>
       </div>
     </div>
   </nav>
@@ -93,14 +96,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import UserMenu from './UserMenu.vue'
+import { useAuth } from '../composables/useAuth'
 import { notificationsApi } from '../api/notifications'
 import type { Notification } from '../types'
 
 const route = useRoute()
 
-const links = [
+const { can } = useAuth()
+
+/**
+ * `permission` hides a link the current role cannot use. The server still enforces it — a
+ * hidden link is a courtesy, never the check.
+ */
+const allLinks = [
   { to: '/', label: 'Dashboard' },
   { to: '/metrics', label: 'Metrics' },
   { to: '/flows', label: 'Flows' },
@@ -113,13 +124,18 @@ const links = [
   { to: '/vault', label: 'Secure Vault' },
   { to: '/compliance', label: 'Compliance' },
   { to: '/compliance-posture', label: 'Posture' },
-  { to: '/policies', label: 'Policies' },
-  { to: '/integrations', label: 'Integrations' },
+  { permission: 'policies:write', to: '/policies', label: 'Policies' },
+  { permission: 'admin', to: '/integrations', label: 'Integrations' },
   { to: '/audit', label: 'Audit Log' },
   { to: '/ledger', label: 'Ledger' },
   { to: '/notifications/rules', label: 'Alerts' },
-  { to: '/attestation-types', label: 'Attestation Types' }
+  { to: '/attestation-types', label: 'Attestation Types', permission: 'flows:write' },
+  { to: '/integrations/sso', label: 'SSO', permission: 'admin' }
 ]
+
+const links = computed(() =>
+  allLinks.filter(link => !('permission' in link) || can(link.permission as string))
+)
 
 function isActive(path: string): boolean {
   if (path === '/') return route.path === '/'

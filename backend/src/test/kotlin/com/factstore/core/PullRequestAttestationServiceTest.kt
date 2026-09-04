@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.factstore.adapter.mock.InMemoryAttestationRepository
 import com.factstore.adapter.mock.InMemoryScmIntegrationRepository
 import com.factstore.adapter.mock.InMemoryTrailRepository
+import com.factstore.application.ActorResolver
 import com.factstore.application.PullRequestAttestationService
 import com.factstore.application.ScmTokenEncryptionService
 import com.factstore.core.domain.AttestationStatus
@@ -55,7 +56,8 @@ class PullRequestAttestationServiceTest {
             scmIntegrationRepository = scmIntegrationRepository,
             auditService = NoOpAuditService(),
             objectMapper = objectMapper,
-            encryptionService = ScmTokenEncryptionService("default-dev-key-32chars!!!!!!")
+            encryptionService = ScmTokenEncryptionService("default-dev-key-32chars!!!!!!"),
+            actorResolver = ActorResolver()
         )
     }
 

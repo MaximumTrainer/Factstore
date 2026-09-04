@@ -1,6 +1,10 @@
 package com.factstore.application
 
 import com.factstore.adapter.outbound.UrlValidator
+import com.factstore.application.auth.OidcTokenVerifier
+import com.factstore.application.auth.SessionService
+import com.factstore.core.domain.AuthProvider
+import com.factstore.core.domain.security.RoleModel
 import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.OrganisationMembership
 import com.factstore.core.domain.SsoConfig
@@ -20,7 +24,6 @@ import com.factstore.exception.ConflictException
 import com.factstore.exception.NotFoundException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -48,10 +51,8 @@ class SsoConfigService(
     private val membershipRepository: IOrganisationMembershipRepository,
     @Qualifier("ssoRestTemplate") private val restTemplate: RestTemplate,
     private val objectMapper: ObjectMapper,
-    @Value("\${sso.jwt.secret:changeme-in-production}")
-    private val jwtSecret: String,
-    @Value("\${sso.jwt.expiry-hours:8}")
-    private val jwtExpiryHours: Long
+    private val oidcTokenVerifier: OidcTokenVerifier,
+    private val sessionService: SessionService
 ) : ISsoConfigService {
 
     companion object {
@@ -81,18 +82,20 @@ class SsoConfigService(
         val orgSlug: String,
         /** The redirect URI sent to the IdP; reused verbatim in the token exchange. */
         val redirectUri: String,
-        val expiresAt: Instant
+        val expiresAt: Instant,
+        /**
+         * Bound to this login attempt and required to appear in the ID token, so a token
+         * obtained from a different flow cannot be replayed into ours (#156 FR-2.2).
+         */
+        val nonce: String = "",
+        /**
+         * PKCE verifier (#156 FR-1.3). Proves the party redeeming the authorization code is
+         * the one that started the flow, so an intercepted code is useless on its own.
+         */
+        val codeVerifier: String = ""
     )
 
-    @PostConstruct
-    fun warnIfDefaultJwtSecret() {
-        if (jwtSecret == "changeme-in-production") {
-            log.warn(
-                "SSO JWT secret is using the default insecure value. " +
-                    "Set the SSO_JWT_SECRET environment variable to a strong random secret before deploying to production."
-            )
-        }
-    }
+    private val secureRandom = java.security.SecureRandom()
 
     // -------------------------------------------------------------------------
     // CRUD
@@ -195,12 +198,16 @@ class SsoConfigService(
         val now = Instant.now()
         pendingStates.entries.removeIf { (_, v) -> now.isAfter(v.expiresAt) }
 
-        val state = UUID.randomUUID().toString().replace("-", "")
+        val state = randomUrlSafe(32)
+        val nonce = randomUrlSafe(32)
+        val codeVerifier = randomUrlSafe(48)
         // Store the redirect URI alongside the state so the callback can reuse it verbatim.
         pendingStates[state] = PendingOidcState(
             orgSlug = orgSlug,
             redirectUri = redirectUri,
-            expiresAt = now.plusSeconds(600)
+            expiresAt = now.plusSeconds(600),
+            nonce = nonce,
+            codeVerifier = codeVerifier
         )
 
         val params = mapOf(
@@ -208,7 +215,10 @@ class SsoConfigService(
             "client_id" to config.clientId,
             "redirect_uri" to redirectUri,
             "scope" to "openid profile email",
-            "state" to state
+            "state" to state,
+            "nonce" to nonce,
+            "code_challenge" to codeChallengeFor(codeVerifier),
+            "code_challenge_method" to "S256"
         )
         val query = params.entries.joinToString("&") { (k, v) ->
             "${encode(k)}=${encode(v)}"
@@ -239,26 +249,35 @@ class SsoConfigService(
         val discovery = fetchOidcDiscovery(config.issuerUrl)
         val tokenEndpoint = discovery["token_endpoint"] as? String
             ?: throw BadRequestException("OIDC discovery missing token_endpoint")
+        val jwksUri = discovery["jwks_uri"] as? String
+            ?: throw BadRequestException("OIDC discovery missing jwks_uri; the ID token cannot be verified")
+        val discoveredIssuer = discovery["issuer"] as? String ?: config.issuerUrl
 
         // Exchange authorization code for tokens using the same redirect URI as the
-        // initial authorization request — OIDC requires an exact match.
+        // initial authorization request — OIDC requires an exact match — and the PKCE
+        // verifier bound to this attempt.
         val tokenResponse = exchangeCodeForTokens(
             tokenEndpoint = tokenEndpoint,
             clientId = config.clientId,
             clientSecret = config.clientSecret,
             code = code,
-            redirectUri = pendingState.redirectUri
+            redirectUri = pendingState.redirectUri,
+            codeVerifier = pendingState.codeVerifier
         )
 
         val idToken = tokenResponse["id_token"] as? String
             ?: throw BadRequestException("OIDC token response missing id_token")
 
-        // Parse claims from the ID token payload.
-        // NOTE: This decodes the payload without verifying the JWT signature.
-        // Full OIDC compliance requires validating the signature against the IdP's JWKS,
-        // checking the `iss`, `aud`, and `nonce` claims, and enforcing expiry.
-        // TLS protects the transport but does not replace cryptographic token validation.
-        val claims = parseJwtClaims(idToken)
+        // Verify the token cryptographically before believing a single claim in it: signature
+        // against the provider's JWKS, plus iss, aud, exp, nbf and the nonce bound to this
+        // login attempt (#156 FR-2). This is the authentication decision.
+        val claims = oidcTokenVerifier.verify(
+            idToken = idToken,
+            issuer = discoveredIssuer,
+            jwksUri = jwksUri,
+            clientId = config.clientId,
+            expectedNonce = pendingState.nonce
+        )
 
         val attrMappings: Map<String, String> = try {
             objectMapper.readValue(config.attributeMappings)
@@ -293,8 +312,20 @@ class SsoConfigService(
 
         log.info("SSO callback: JIT provisioned/found user=${user.id} email=$email org=$orgSlug role=$role")
 
-        val jwt = generateJwt(user.id, email, orgSlug)
-        return SsoCallbackResponse(token = jwt, userId = user.id, email = email, name = name)
+        val issued = sessionService.issue(
+            userId = user.id,
+            orgSlug = orgSlug,
+            provider = AuthProvider.OIDC
+        )
+        return SsoCallbackResponse(
+            token = issued.token,
+            userId = user.id,
+            email = email,
+            name = name,
+            orgSlug = orgSlug,
+            role = role,
+            expiresAt = issued.expiresAt
+        )
     }
 
     // -------------------------------------------------------------------------
@@ -337,7 +368,8 @@ class SsoConfigService(
         clientId: String,
         clientSecret: String?,
         code: String,
-        redirectUri: String
+        redirectUri: String,
+        codeVerifier: String
     ): Map<String, Any> {
         // Validate the token endpoint from the discovery doc before calling it.
         try {
@@ -352,6 +384,7 @@ class SsoConfigService(
             clientSecret?.let { add("client_secret", it) }
             add("code", code)
             add("redirect_uri", redirectUri)
+            if (codeVerifier.isNotBlank()) add("code_verifier", codeVerifier)
         }
         @Suppress("UNCHECKED_CAST")
         return restTemplate.postForObject(
@@ -362,24 +395,17 @@ class SsoConfigService(
             ?: throw BadRequestException("Empty or invalid token endpoint response")
     }
 
-    /**
-     * Decodes the payload of a JWT without verifying the signature.
-     *
-     * WARNING: This does **not** perform full OIDC token validation.  A production-grade
-     * implementation must also verify the JWT signature against the IdP's published JWKS,
-     * validate the `iss` and `aud` claims, and enforce token expiry.
-     */
-    private fun parseJwtClaims(idToken: String): Map<String, Any> {
-        val parts = idToken.split(".")
-        if (parts.size < 2) throw BadRequestException("Malformed ID token")
-        val payloadJson = String(Base64.getUrlDecoder().decode(padBase64(parts[1])), StandardCharsets.UTF_8)
-        @Suppress("UNCHECKED_CAST")
-        return objectMapper.readValue(payloadJson, Map::class.java) as Map<String, Any>
+    private fun randomUrlSafe(bytes: Int): String {
+        val buffer = ByteArray(bytes)
+        secureRandom.nextBytes(buffer)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(buffer)
     }
 
-    private fun padBase64(s: String): String {
-        val mod = s.length % 4
-        return if (mod == 0) s else s + "=".repeat(4 - mod)
+    /** S256 PKCE challenge: BASE64URL(SHA256(verifier)). */
+    private fun codeChallengeFor(verifier: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(verifier.toByteArray(StandardCharsets.US_ASCII))
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
     }
 
     /**
@@ -389,61 +415,24 @@ class SsoConfigService(
      * When the user belongs to multiple mapped groups, the **highest-privilege** role wins
      * (ADMIN > MEMBER > VIEWER > SERVICE_ACCOUNT), giving deterministic results regardless of
      * the order in which the IdP returns group claims.  Falls back to [MemberRole.MEMBER] when
-     * no groups match or the mappings JSON is invalid.
+     * no groups match or the mappings JSON is invalid, this falls back to the **safe** default
+     * (`VIEWER`), not to `MEMBER`: a federated user in no mapped group must not receive write
+     * access just for having signed in (#156 FR-5.3).
      */
     internal fun resolveRole(groups: List<String>, groupRoleMappingsJson: String): MemberRole {
-        if (groups.isEmpty()) return MemberRole.MEMBER
+        if (groups.isEmpty()) return RoleModel.DEFAULT_ROLE_FOR_NEW_MEMBER
         val mappings: Map<String, String> = try {
             objectMapper.readValue(groupRoleMappingsJson)
         } catch (ex: Exception) {
             log.warn("Failed to parse group_role_mappings, falling back to MEMBER role: ${ex.message}")
-            return MemberRole.MEMBER
+            return RoleModel.DEFAULT_ROLE_FOR_NEW_MEMBER
         }
         val resolvedRoles = groups.mapNotNull { group ->
             val roleName = mappings[group] ?: return@mapNotNull null
             try { MemberRole.valueOf(roleName) } catch (_: IllegalArgumentException) { null }
         }.toSet()
-        if (resolvedRoles.isEmpty()) return MemberRole.MEMBER
+        if (resolvedRoles.isEmpty()) return RoleModel.DEFAULT_ROLE_FOR_NEW_MEMBER
         return ROLE_PRIVILEGE_ORDER.first { it in resolvedRoles }
-    }
-
-    /**
-     * Generates a compact HS256-signed JWT for the authenticated Factstore user.
-     *
-     * Payload claims: `sub` (userId), `email`, `org` (orgSlug), `iat`, `exp`.
-     * The payload is serialised with [ObjectMapper] to correctly escape any special
-     * characters in the email or orgSlug values.
-     */
-    internal fun generateJwt(userId: UUID, email: String, orgSlug: String): String {
-        val now = Instant.now()
-        val exp = now.plusSeconds(jwtExpiryHours * 3_600)
-
-        val headerJson = objectMapper.writeValueAsString(mapOf("alg" to "HS256", "typ" to "JWT"))
-        val payloadJson = objectMapper.writeValueAsString(
-            mapOf(
-                "sub" to userId.toString(),
-                "email" to email,
-                "org" to orgSlug,
-                "iat" to now.epochSecond,
-                "exp" to exp.epochSecond
-            )
-        )
-        val header = base64Url(headerJson)
-        val payload = base64Url(payloadJson)
-        val signingInput = "$header.$payload"
-        val signature = hmacSha256(signingInput, jwtSecret)
-        return "$signingInput.$signature"
-    }
-
-    private fun base64Url(value: String): String =
-        Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(value.toByteArray(StandardCharsets.UTF_8))
-
-    private fun hmacSha256(data: String, secret: String): String {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
-        return Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(mac.doFinal(data.toByteArray(StandardCharsets.UTF_8)))
     }
 
     private fun encode(value: String): String =

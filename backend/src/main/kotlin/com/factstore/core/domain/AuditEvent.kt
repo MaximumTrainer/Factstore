@@ -23,6 +23,16 @@ enum class AuditEventType {
     FLOW_UNARCHIVED,
     FLOW_RENAMED,
     FLOW_DELETED,
+    // Authentication and session events (#156 FR-1.5, FR-7.4). Sign-in is an event in its
+    // own right: "who was in the system, when" is a question a compliance product must answer.
+    USER_SIGNED_IN,
+    USER_SIGNED_OUT,
+    USER_SIGN_IN_FAILED,
+    USER_SESSIONS_REVOKED,
+    USER_ROLE_CHANGED,
+    // Authorisation outcomes (#155 FR-8.1).
+    AUTH_FAILED,
+    AUTH_DENIED,
     // Removing evidence is itself compliance-relevant, so the removal goes on the record (#161).
     TRAIL_ARCHIVED,
     TRAIL_UNARCHIVED,

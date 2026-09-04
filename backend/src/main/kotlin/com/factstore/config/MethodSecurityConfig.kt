@@ -1,16 +1,21 @@
 package com.factstore.config
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 
 /**
- * Enables Spring Method Security (@PreAuthorize, @PostAuthorize) only when
- * authentication enforcement is active. This prevents @PreAuthorize annotations
- * from blocking requests in environments where security.enforce-auth=false
- * (e.g., local development, tests).
+ * Method security is **always** enabled (#155 FR-1.5).
+ *
+ * It used to be conditional on `security.enforce-auth=true`, which meant every
+ * `@PreAuthorize` in the codebase was inert in the default configuration — an authorisation
+ * rule that does nothing unless a flag is set is not an authorisation rule, and its presence
+ * in the source makes the system look protected when it is not.
+ *
+ * With enforcement off, requests still arrive unauthenticated and route rules still permit
+ * them; what changes is that a `@PreAuthorize` on a method is now actually evaluated, so an
+ * annotated endpoint refuses an unauthenticated caller even in a permissive deployment. That
+ * is the intended behaviour: the annotations mark operations that need a real principal.
  */
 @Configuration
-@ConditionalOnProperty(name = ["security.enforce-auth"], havingValue = "true")
 @EnableMethodSecurity(prePostEnabled = true)
 class MethodSecurityConfig
