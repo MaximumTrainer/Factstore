@@ -68,11 +68,13 @@ Interactive documentation is also available at **[http://localhost:8080/swagger-
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/v1/trails` | Create a trail (supports `X-Factstore-CI-Context` header) |
+| `POST` | `/api/v1/trails` | Create (or join) a trail — supports `X-Factstore-CI-Context` header |
 | `GET` | `/api/v1/trails` | List trails (optional query param: `flowId`) |
 | `GET` | `/api/v1/trails/{id}` | Get trail by ID |
+| `GET` | `/api/v1/trails/lookup` | Resolve a trail without its UUID |
 | `GET` | `/api/v1/flows/{flowId}/trails` | List trails for a specific flow |
 | `GET` | `/api/v1/trails/{id}/audit` | Get audit events for a trail |
+| `POST` | `/api/v1/trails/{id}/assert` | Assert this pipeline execution — see [Compliance Assertion](#compliance-assertion) |
 
 **Create trail — request body:**
 ```json
@@ -83,9 +85,41 @@ Interactive documentation is also available at **[http://localhost:8080/swagger-
   "gitAuthor": "alice",
   "gitAuthorEmail": "alice@example.com",
   "pullRequestNumber": 42,
-  "buildUrl": "https://ci.example.com/builds/123"
+  "buildUrl": "https://ci.example.com/builds/123",
+  "name": "nightly-release",
+  "externalId": "my-org/my-repo@4711"
 }
 ```
+
+`externalId` is a stable release identifier (build number, run id, release tag), **unique per
+flow**. Supplying it makes creation a get-or-create:
+
+| Outcome | Status | Meaning |
+|---|---|---|
+| A new trail was created | `201 Created` | This call started the release |
+| An existing trail was returned | `200 OK` | A trail for this release identifier already exists |
+
+A re-run of the pipeline that owns the release therefore cannot fork the evidence, and other
+pipelines can address the same trail by that identifier. Trails created without an `externalId`
+are never deduplicated. The CQRS path `POST /api/v2/trails` behaves the same way and reports
+`status: "created"` or `status: "exists"`.
+
+**Look up a trail — `GET /api/v1/trails/lookup`:**
+
+| Query param | Description |
+|---|---|
+| `flowId` | **Required.** The flow to search within |
+| `externalId` | Resolve by release identifier |
+| `name` | Resolve by trail name |
+| `gitCommitSha` | Resolve the **most recent** trail for that commit |
+
+Exactly one of `externalId`, `name` or `gitCommitSha` is used, in that order of precedence.
+Returns a single `TrailResponse`, `404` when nothing matches, or `400` when no selector was given.
+
+This is how a secondary pipeline — integration tests, API tests, environment testing — attaches
+its attestations to the trail the primary pipeline created without any UUID plumbing. See
+[ci-integration.md](./ci-integration.md#evidence-from-several-pipelines-on-one-trail) for a worked
+multi-pipeline example.
 
 ---
 

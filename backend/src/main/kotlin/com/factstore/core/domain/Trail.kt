@@ -52,6 +52,14 @@ class Trail(
     @Column(name = "name", nullable = true, length = 255)
     var name: String? = null,
 
+    /**
+     * Stable, pipeline-supplied release identifier (build number, run id, release tag).
+     * Unique per flow: addressing a trail by it lets a secondary pipeline attach its
+     * attestations to the execution the primary pipeline created (#164).
+     */
+    @Column(name = "external_id", nullable = true, length = 255)
+    var externalId: String? = null,
+
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 

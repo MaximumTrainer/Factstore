@@ -27,6 +27,14 @@ class TrailCommandHandler(
         if (!flowRepository.existsById(command.flowId)) {
             throw NotFoundException("Flow not found: ${command.flowId}")
         }
+        // Get-or-create on (flowId, externalId): a re-run of the pipeline that owns the release
+        // must not fork the evidence, and no second TrailCreated event is appended (#164).
+        command.externalId?.takeIf { it.isNotBlank() }?.let { externalId ->
+            trailRepository.findByFlowIdAndExternalId(command.flowId, externalId)?.let { existing ->
+                log.info("Reusing trail ${existing.id} for flow ${command.flowId} externalId '$externalId'")
+                return CommandResult(id = existing.id, status = "exists")
+            }
+        }
         val trail = Trail(
             flowId = command.flowId,
             gitCommitSha = command.gitCommitSha
@@ -40,7 +48,9 @@ class TrailCommandHandler(
             deploymentActor = command.deploymentActor,
             orgSlug = command.orgSlug,
             templateYaml = command.templateYaml,
-            buildUrl = command.buildUrl
+            buildUrl = command.buildUrl,
+            name = command.name,
+            externalId = command.externalId?.takeIf { it.isNotBlank() }
         )
         val saved = trailRepository.save(trail)
         eventAppender.append(DomainEvent.TrailCreated(
@@ -55,7 +65,9 @@ class TrailCommandHandler(
             deploymentActor = saved.deploymentActor,
             orgSlug = saved.orgSlug,
             templateYaml = saved.templateYaml,
-            buildUrl = saved.buildUrl
+            buildUrl = saved.buildUrl,
+            name = saved.name,
+            externalId = saved.externalId
         ))
         log.info("Created trail: ${saved.id} for flow: ${saved.flowId}")
         return CommandResult(id = saved.id, status = "created")
