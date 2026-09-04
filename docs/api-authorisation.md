@@ -204,6 +204,28 @@ well-known default. Use it to create your real admin identity, revoke it, and se
 With bootstrapping disabled, enforcement on, and no admin credential, the application **fails
 to start** with an actionable message rather than starting an unusable service.
 
+### Supplying the credential by configuration
+
+An unattended environment cannot scrape a value out of a log, so the credential can also be
+given directly:
+
+```bash
+SECURITY_BOOTSTRAP_API_KEY=fsp_<64 hex>
+```
+
+On start, an active admin key with exactly that value is ensured — idempotently, so a restart
+does not accumulate keys. A value that is not shaped like a key (wrong prefix, too short to
+produce a usable lookup prefix) **fails startup** rather than creating a credential that can
+never authenticate.
+
+This applies **whatever `enforce-auth` is set to**, and that matters more than it first appears:
+authorisation rules are always live, so creating a flow or uploading a policy needs a credential
+even in a permissive deployment. It is why `dogfood.yml` and `verify-factstore.yml` seed a key
+into their transient instances.
+
+A credential supplied this way is known to anyone who can read that configuration. Use it for
+development and CI; for production, prefer the generated credential and rotate it.
+
 ---
 
 ## Rolling out enforcement
@@ -273,6 +295,7 @@ asserting a created key's secret appears in no audit payload.
 | `security.api-key.rate-limit.max-backoff-seconds` | `300` | Backoff ceiling |
 | `security.bootstrap.enabled` | `true` | Create a first-run admin credential |
 | `security.bootstrap.admin-email` | `admin@localhost` | Owner of the bootstrap credential |
+| `security.bootstrap.api-key` | *(none)* | Admin credential supplied by configuration, for CI and development |
 | `security.bootstrap.ttl-days` | `7` | Bootstrap credential lifetime |
 | `security.cors.allowed-origins` | *(none)* | Comma-separated allowlist. Deny by default |
 

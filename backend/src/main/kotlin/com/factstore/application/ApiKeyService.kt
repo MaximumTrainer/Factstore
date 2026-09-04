@@ -138,6 +138,61 @@ class ApiKeyService(
         return saved.toCreatedResponse(plainTextKey, expiryWarningDays)
     }
 
+    /**
+     * Ensures a key with a **caller-supplied** plaintext value exists (#155 FR-7.1).
+     *
+     * FR-7.1 allows the bootstrap admin credential to be "supplied by configuration" as well as
+     * generated on first start. That is what makes an unattended environment — CI, local
+     * development, a container image — able to authenticate without scraping a value out of a
+     * startup log.
+     *
+     * Idempotent: called again with the same value, it returns the existing key rather than
+     * minting a duplicate. Never reachable over HTTP.
+     */
+    fun seedApiKey(
+        ownerId: UUID,
+        ownerType: OwnerType,
+        label: String,
+        scopes: Set<Permission>,
+        plainTextKey: String,
+        ttlDays: Int?
+    ): ApiKeyResponse {
+        require(plainTextKey.length >= PREFIX_LENGTH) { "A seeded API key must be at least $PREFIX_LENGTH characters" }
+        require(plainTextKey.startsWith("fsp_") || plainTextKey.startsWith("fss_")) {
+            "A seeded API key must start with fsp_ or fss_ so the prefix lookup can find it"
+        }
+
+        val prefix = plainTextKey.take(PREFIX_LENGTH)
+        apiKeyRepository.findByKeyPrefix(prefix)
+            .firstOrNull { it.isActive && passwordEncoder.matches(plainTextKey, it.hashedKey) }
+            ?.let { existing ->
+                log.info("Seeded API key ${existing.keyPrefix} already present")
+                return existing.toResponse(expiryWarningDays)
+            }
+
+        val apiKey = ApiKey(
+            ownerId = ownerId,
+            ownerType = ownerType,
+            label = label,
+            keyPrefix = prefix,
+            hashedKey = passwordEncoder.encode(plainTextKey),
+            ttlDays = ttlDays,
+            expiresAt = ttlDays?.let { Instant.now().plusSeconds(it.toLong() * SECONDS_PER_DAY) }
+        )
+        apiKey.scopes = scopes
+        val saved = apiKeyRepository.save(apiKey)
+        audit(
+            AuditEventType.API_KEY_CREATED, saved,
+            mapOf("scopes" to scopes.map { it.scope }, "seeded" to true)
+        )
+        log.warn(
+            "Seeded API key ${saved.keyPrefix} with scopes ${scopes.map { it.scope }} from " +
+                "configuration. A credential supplied this way is known to whoever can read that " +
+                "configuration; use it for development and CI, not production."
+        )
+        return saved.toResponse(expiryWarningDays)
+    }
+
     @Transactional(readOnly = true)
     override fun listApiKeysForOwner(ownerId: UUID): List<ApiKeyResponse> =
         apiKeyRepository.findByOwnerId(ownerId).map { it.toResponse(expiryWarningDays) }

@@ -156,6 +156,9 @@ security:
     # A fresh deployment with enforcement on must be administrable; see docs/api-authorisation.md.
     enabled: ${SECURITY_BOOTSTRAP_ENABLED:true}
     admin-email: ${SECURITY_BOOTSTRAP_ADMIN_EMAIL:admin@localhost}
+    # An admin credential supplied by configuration, for CI and local development. Empty means
+    # generate one on first start instead (only when enforcement is on).
+    api-key: ${SECURITY_BOOTSTRAP_API_KEY:}
     ttl-days: ${SECURITY_BOOTSTRAP_TTL_DAYS:7}
 
   cors:

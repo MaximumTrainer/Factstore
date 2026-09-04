@@ -38,7 +38,17 @@ class BootstrapCredential(
     @Value("\${security.enforce-auth:false}") private val enforceAuth: Boolean,
     @Value("\${security.bootstrap.enabled:true}") private val bootstrapEnabled: Boolean,
     @Value("\${security.bootstrap.admin-email:admin@localhost}") private val adminEmail: String,
-    @Value("\${security.bootstrap.ttl-days:7}") private val ttlDays: Int
+    @Value("\${security.bootstrap.ttl-days:7}") private val ttlDays: Int,
+    /**
+     * A bootstrap admin credential supplied by configuration (#155 FR-7.1), as an alternative
+     * to the generated one.
+     *
+     * This is what lets an unattended environment authenticate without scraping a value out of
+     * a startup log: CI, local development, a container image. It is applied whatever
+     * `enforce-auth` is set to, because method security is always live — so even a permissive
+     * deployment needs a credential to create a flow or upload a policy.
+     */
+    @Value("\${security.bootstrap.api-key:}") private val seededApiKey: String
 ) {
 
     private val log = LoggerFactory.getLogger(BootstrapCredential::class.java)
@@ -46,6 +56,14 @@ class BootstrapCredential(
     @EventListener(ApplicationReadyEvent::class)
     @Transactional
     fun bootstrapIfNeeded() {
+        // A configuration-supplied credential is honoured regardless of enforcement, because
+        // @PreAuthorize is always live: without a credential, an unauthenticated caller cannot
+        // create a flow even when authentication is not enforced.
+        if (seededApiKey.isNotBlank()) {
+            seedConfiguredCredential()
+            return
+        }
+
         if (!enforceAuth) {
             log.warn(
                 "SECURITY_ENFORCE_AUTH is false: every endpoint is reachable without a " +
@@ -109,6 +127,35 @@ class BootstrapCredential(
             |====================================================================
             """.trimMargin()
         )
+    }
+
+    private fun seedConfiguredCredential() {
+        val user = bootstrapUser()
+        try {
+            withAdminAuthority {
+                apiKeyService.seedApiKey(
+                    ownerId = user.id,
+                    ownerType = OwnerType.USER,
+                    label = "bootstrap admin (from configuration)",
+                    scopes = setOf(Permission.ADMIN),
+                    plainTextKey = seededApiKey,
+                    ttlDays = ttlDays
+                )
+            }
+        } catch (ex: IllegalArgumentException) {
+            // A malformed seed is a configuration mistake worth failing on: the operator
+            // believes they have a working credential and they do not.
+            throw IllegalStateException(
+                "security.bootstrap.api-key is not a usable API key: ${ex.message}", ex
+            )
+        }
+        if (!enforceAuth) {
+            log.warn(
+                "SECURITY_ENFORCE_AUTH is false: every endpoint is reachable without a " +
+                    "credential, though operations carrying an authorisation rule still need one. " +
+                    "This is for local development only — see docs/authentication.md."
+            )
+        }
     }
 
     private fun bootstrapUser(): User =
