@@ -64,6 +64,14 @@
         <p v-if="archiveError" class="mt-3 text-sm text-red-600">{{ archiveError }}</p>
       </div>
 
+      <DeleteTrailDialog
+        v-if="removingTrail"
+        :trail="removingTrail"
+        @deleted="onTrailRemoved"
+        @archived="onTrailRemoved"
+        @cancel="removingTrail = null"
+      />
+
       <!-- Edit Flow -->
       <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-full overflow-y-auto">
@@ -86,6 +94,7 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -100,6 +109,14 @@
               <td class="px-6 py-4 text-sm text-gray-500">{{ trail.gitAuthor }}</td>
               <td class="px-6 py-4"><StatusBadge :status="trail.status" /></td>
               <td class="px-6 py-4 text-sm text-gray-500">{{ formatDate(trail.createdAt) }}</td>
+              <td class="px-6 py-4 text-sm" @click.stop>
+                <button
+                  data-test="remove-trail-row"
+                  type="button"
+                  class="text-gray-600 hover:text-gray-900 font-medium"
+                  @click="removingTrail = trail"
+                >Archive or delete…</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -113,6 +130,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import StatusBadge from '../components/StatusBadge.vue'
 import FlowEditForm from '../components/FlowEditForm.vue'
+import DeleteTrailDialog from '../components/DeleteTrailDialog.vue'
 import { getFlow, archiveFlow, unarchiveFlow } from '../api/flows'
 import { getTrails } from '../api/trails'
 import { getComplianceReport } from '../api/reports'
@@ -121,6 +139,14 @@ import type { Flow, Trail } from '../types'
 const route = useRoute()
 
 const showEditModal = ref(false)
+const removingTrail = ref<Trail | null>(null)
+
+function onTrailRemoved() {
+  // Archived trails leave the default listing too, so drop the row either way.
+  const removed = removingTrail.value
+  if (removed) trails.value = trails.value.filter(t => t.id !== removed.id)
+  removingTrail.value = null
+}
 const archiving = ref(false)
 const archiveError = ref('')
 

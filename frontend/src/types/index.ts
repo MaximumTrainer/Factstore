@@ -35,8 +35,51 @@ export interface Trail {
   pullRequestReviewer?: string
   deploymentActor?: string
   status: 'PENDING' | 'COMPLIANT' | 'NON_COMPLIANT'
+  name?: string
+  /** Stable release identifier a downstream pipeline can address this trail by. */
+  externalId?: string
+  /** Set when the trail has been archived (soft-deleted); the evidence is retained. */
+  archivedAt?: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** What removing a trail would take with it (#161). */
+export interface TrailCascadeCounts {
+  attestations: number
+  artifacts: number
+  evidenceFiles: number
+  approvals: number
+  coverageReports: number
+  securityScans: number
+  complianceAssessments: number
+  jiraTickets: number
+  total: number
+}
+
+export interface TrailDeletion {
+  trailId: string
+  cascade: TrailCascadeCounts
+}
+
+export type CleanupMode = 'ARCHIVE' | 'DELETE'
+
+export interface TrailCleanupRequest {
+  flowId?: string
+  tagKey?: string
+  tagValue?: string
+  /** ISO instant; trails created strictly before it are selected. */
+  olderThan?: string
+  mode?: CleanupMode
+  dryRun: boolean
+}
+
+export interface TrailCleanupResult {
+  dryRun: boolean
+  mode: CleanupMode
+  trailCount: number
+  trailIds: string[]
+  cascade: TrailCascadeCounts
 }
 
 export interface Attestation {

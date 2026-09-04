@@ -16,7 +16,11 @@ interface IFlowService {
     fun getFlow(id: UUID): FlowResponse
     fun updateFlow(id: UUID, request: UpdateFlowRequest): FlowResponse
     fun getFlowImpact(id: UUID): FlowImpactResponse
-    fun deleteFlow(id: UUID)
+    /**
+     * Deletes a flow. Refused when trails are still attached unless [force], since deleting a
+     * flow orphans the evidence recorded against it; archiving is the reversible alternative.
+     */
+    fun deleteFlow(id: UUID, force: Boolean = false)
     fun getFlowEntity(id: UUID): Flow
     fun listFlowsByOrg(orgSlug: String): List<FlowResponse>
     fun getFlowTemplate(id: UUID): FlowTemplateResponse

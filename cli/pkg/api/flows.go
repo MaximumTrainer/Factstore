@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/MaximumTrainer/Factstore/cli/internal/client"
 )
@@ -104,8 +105,15 @@ func UpdateFlow(c *client.Client, id string, req UpdateFlowRequest) (*CommandRes
 }
 
 // DeleteFlow deletes a flow by ID (command path).
-func DeleteFlow(c *client.Client, id string) error {
-	body, status, err := c.Delete("/api/v2/flows/" + id)
+//
+// The server refuses with 409 when trails are still attached; force deletes the flow and its
+// trails deliberately. Archiving retires a flow without losing its history.
+func DeleteFlow(c *client.Client, id string, force bool) error {
+	path := "/api/v2/flows/" + url.PathEscape(id)
+	if force {
+		path += "?force=true"
+	}
+	body, status, err := c.Delete(path)
 	if err != nil {
 		return err
 	}

@@ -64,9 +64,15 @@ class FlowCommandController(private val commandHandler: IFlowCommandHandler) {
         )))
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a flow")
-    fun deleteFlow(@PathVariable id: UUID): ResponseEntity<Void> {
-        commandHandler.deleteFlow(DeleteFlowCommand(id))
+    @Operation(
+        summary = "Delete a flow",
+        description = "Refused with 409 when trails are still attached, unless force=true."
+    )
+    fun deleteFlow(
+        @PathVariable id: UUID,
+        @RequestParam(defaultValue = "false") force: Boolean
+    ): ResponseEntity<Void> {
+        commandHandler.deleteFlow(DeleteFlowCommand(id, force))
         return ResponseEntity.noContent().build()
     }
 }

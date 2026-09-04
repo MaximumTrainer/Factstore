@@ -46,7 +46,11 @@ data class UpdateFlowCommand(
     val requiredApproverRoles: List<String>? = null
 )
 
-data class DeleteFlowCommand(val id: UUID)
+data class DeleteFlowCommand(
+    val id: UUID,
+    /** Deleting a flow orphans the evidence recorded against it, so trails block it unless forced (#161). */
+    val force: Boolean = false
+)
 
 // ── Trail Commands ─────────────────────────────────────────────────────────────
 

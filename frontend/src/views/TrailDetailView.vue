@@ -11,7 +11,13 @@
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
           <h1 class="text-2xl font-bold text-gray-900">Trail Detail</h1>
-          <StatusBadge :status="trail.status" />
+          <div class="flex items-center gap-2">
+            <span
+              v-if="trail.archivedAt"
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700"
+            >Archived</span>
+            <StatusBadge :status="trail.status" />
+          </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div><span class="font-medium text-gray-500">Git Commit SHA:</span> <span class="font-mono text-gray-900">{{ trail.gitCommitSha }}</span></div>
@@ -22,11 +28,22 @@
           <div v-if="trail.deploymentActor"><span class="font-medium text-gray-500">Deployment Actor:</span> {{ trail.deploymentActor }}</div>
           <div><span class="font-medium text-gray-500">Created:</span> {{ formatDate(trail.createdAt) }}</div>
         </div>
-        <div class="mt-4">
+        <div class="mt-4 flex items-center gap-2">
           <button
             class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
             @click="openAssertModal"
           >Assert Compliance</button>
+          <button
+            v-if="trail.archivedAt"
+            data-test="restore-trail"
+            class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50"
+            @click="restoreTrail"
+          >Unarchive</button>
+          <button
+            data-test="remove-trail"
+            class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50"
+            @click="showDeleteDialog = true"
+          >Archive or delete…</button>
         </div>
       </div>
 
@@ -211,6 +228,15 @@
 
     </div>
 
+    <!-- Remove trail -->
+    <DeleteTrailDialog
+      v-if="showDeleteDialog && trail"
+      :trail="trail"
+      @deleted="onTrailDeleted"
+      @archived="onTrailArchived"
+      @cancel="showDeleteDialog = false"
+    />
+
     <!-- Assert Compliance Modal -->
     <div v-if="showAssertModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
@@ -264,10 +290,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import StatusBadge from '../components/StatusBadge.vue'
 import EvidenceCell from '../components/EvidenceCell.vue'
-import { getTrail } from '../api/trails'
+import DeleteTrailDialog from '../components/DeleteTrailDialog.vue'
+import { getTrail, unarchiveTrail } from '../api/trails'
 import { getAttestations } from '../api/attestations'
 import { getArtifacts, getProvenance } from '../api/artifacts'
 import { assertTrail } from '../api/assert'
@@ -275,6 +302,7 @@ import { getEvidenceSummary } from '../api/evidence'
 import type { Trail, Attestation, Artifact, AssertResult, EvidenceSummary, BuildProvenance, ProvenanceStatus } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const trail = ref<Trail | null>(null)
 const attestations = ref<Attestation[]>([])
 const artifacts = ref<Artifact[]>([])
@@ -286,6 +314,24 @@ const evidenceSummaryLoading = ref(true)
 
 const expandedProvenance = ref<string | null>(null)
 const provenanceMap = ref<Record<string, BuildProvenance | null>>({})
+
+const showDeleteDialog = ref(false)
+
+function onTrailDeleted() {
+  // The trail no longer exists; there is nothing left on this page to show.
+  router.push('/trails')
+}
+
+function onTrailArchived(updated: Trail) {
+  trail.value = updated
+  showDeleteDialog.value = false
+}
+
+async function restoreTrail() {
+  if (!trail.value) return
+  const { data } = await unarchiveTrail(trail.value.id)
+  trail.value = data
+}
 
 const showAssertModal = ref(false)
 const assertSha256 = ref('')
