@@ -1,0 +1,320 @@
+name: Dogfood — OpenFactstore gates its own release
+
+# OpenFactstore records the compliance facts for its own build and gates its own release
+# on them (#150).
+#
+# The instance is transient: it is built from this very commit, run against a Postgres
+# service container, and torn down with the job. That is deliberate — dogfooding needs no
+# hosted deployment, no credentials and no network egress, so it works on a fork and on a
+# pull request. Pointing this workflow at a persistent instance instead is a one-line change
+# to FACTSTORE_URL; see docs/dogfooding.md.
+#
+# The gates below are the real ones from ci.yml, not stand-ins: whatever this workflow
+# reports is what actually ran.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dogfood:
+    name: Self-gated release
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: factstore
+          POSTGRES_USER: factstore
+          POSTGRES_PASSWORD: factstore
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U factstore"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      FACTSTORE_URL: http://localhost:8080
+      # The release identifier every gate in this run attests against. Stable for the run and
+      # derivable by any other workflow, which is what makes cross-pipeline evidence possible.
+      RELEASE_ID: ${{ github.repository }}@${{ github.run_id }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: cli/go.sum
+
+      # ── Bring up the instance this release will be judged by ──────────────
+
+      - name: Build backend JAR
+        working-directory: backend
+        run: ./gradlew bootJar -x test --no-daemon -q
+        env:
+          DB_USERNAME: factstore
+          DB_PASSWORD: factstore
+
+      - name: Start Factstore
+        working-directory: backend
+        run: |
+          BOOT_JAR=$(find build/libs -maxdepth 1 -name "*.jar" ! -name "*-plain.jar" | head -1)
+          java -jar "$BOOT_JAR" \
+            --spring.datasource.url="jdbc:postgresql://localhost:5432/factstore" \
+            --spring.datasource.username=factstore \
+            --spring.datasource.password=factstore \
+            --security.enforce-auth=false \
+            --vault.enabled=false \
+            > /tmp/factstore.log 2>&1 &
+
+      - name: Wait for Factstore
+        run: |
+          for i in $(seq 1 36); do
+            if curl -sf "${FACTSTORE_URL}/actuator/health" > /dev/null 2>&1 \
+              || curl -sf "${FACTSTORE_URL}/api/v1/flows" > /dev/null 2>&1; then
+              echo "Factstore ready after $((i * 5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Factstore did not start within 3 minutes"
+          cat /tmp/factstore.log
+          exit 1
+
+      # ── Define the flow and open the trail for this release ───────────────
+
+      - name: Create the release flow
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          # The flow requires exactly the gates this workflow runs, and nothing else.
+          #
+          # It would look better to apply the shipped `service-public-api` template here, but
+          # that baseline also requires dependency-scan, image-scan, api-tests,
+          # integration-tests and peer-review, which this repository does not run as gates,
+          # plus sast, which it does run — CodeQL, via GitHub's default setup — but which has
+          # no workflow file to take a step outcome from, so attesting it means reading the
+          # code-scanning API.
+          #
+          # Asserting against the template today would either fail every run or invite
+          # attesting gates that never executed, and a fact store recording facts nobody
+          # produced is worthless. Closing the gap is sequenced in docs/dogfooding.md.
+          FLOW=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/flows" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n \
+              --arg name "openfactstore-release-${RUN_ID}" \
+              '{
+                name: $name,
+                description: "OpenFactstore gating its own release",
+                requiredAttestationTypes: [
+                  "backend-tests", "contract-tests", "frontend-tests", "cli-tests", "build"
+                ]
+              }')")
+
+          FLOW_ID=$(echo "$FLOW" | jq -r '.id')
+          echo "FLOW_ID=$FLOW_ID" >> "$GITHUB_ENV"
+          echo "Flow $FLOW_ID created"
+
+      - name: Open the release trail
+        env:
+          GIT_ACTOR: ${{ github.actor }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+        run: |
+          # Idempotent on (flowId, externalId): a re-run of this workflow joins the same trail
+          # rather than forking the evidence for one release.
+          TRAIL=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails" \
+            -H 'Content-Type: application/json' \
+            -H 'X-Factstore-CI-Context: github-actions' \
+            -d "$(jq -n \
+              --arg flowId "$FLOW_ID" \
+              --arg externalId "$RELEASE_ID" \
+              --arg author "$GIT_ACTOR" \
+              --arg email "${GIT_ACTOR}@users.noreply.github.com" \
+              --arg sha "$GIT_SHA" \
+              --arg branch "$GIT_BRANCH" \
+              '{
+                flowId: $flowId,
+                externalId: $externalId,
+                gitCommitSha: $sha,
+                gitBranch: $branch,
+                gitAuthor: $author,
+                gitAuthorEmail: $email
+              }')")
+
+          TRAIL_ID=$(echo "$TRAIL" | jq -r '.id')
+          echo "TRAIL_ID=$TRAIL_ID" >> "$GITHUB_ENV"
+          echo "Trail $TRAIL_ID open for release $RELEASE_ID"
+
+      # ── Run the real gates, attesting each outcome, pass or fail ──────────
+      #
+      # Every gate uses `continue-on-error` and records its own outcome, so a failing gate
+      # produces a FAILED attestation rather than aborting the run before the evidence is
+      # written. The assert step at the end is what fails the workflow.
+
+      - name: Gate — backend tests
+        id: backend_tests
+        continue-on-error: true
+        working-directory: backend
+        run: ./gradlew test --no-daemon
+
+      - name: Attest backend tests
+        if: always()
+        env:
+          OUTCOME: ${{ steps.backend_tests.outcome }}
+        run: .github/scripts/attest.sh backend-tests "$OUTCOME" "Gradle test task"
+
+      - name: Gate — contract tests
+        id: contract_tests
+        continue-on-error: true
+        working-directory: backend
+        run: ./gradlew contractTest --no-daemon
+
+      - name: Attest contract tests
+        if: always()
+        env:
+          OUTCOME: ${{ steps.contract_tests.outcome }}
+        run: .github/scripts/attest.sh contract-tests "$OUTCOME" "Pact provider verification"
+
+      - name: Gate — frontend tests
+        id: frontend_tests
+        continue-on-error: true
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run test:unit
+
+      - name: Attest frontend tests
+        if: always()
+        env:
+          OUTCOME: ${{ steps.frontend_tests.outcome }}
+        run: .github/scripts/attest.sh frontend-tests "$OUTCOME" "vitest unit and component tests"
+
+      - name: Gate — CLI tests
+        id: cli_tests
+        continue-on-error: true
+        working-directory: cli
+        run: go test ./...
+
+      - name: Attest CLI tests
+        if: always()
+        env:
+          OUTCOME: ${{ steps.cli_tests.outcome }}
+        run: .github/scripts/attest.sh cli-tests "$OUTCOME" "go test ./..."
+
+      - name: Gate — frontend build
+        id: build
+        continue-on-error: true
+        working-directory: frontend
+        run: npm run build
+
+      - name: Attest build
+        if: always()
+        env:
+          OUTCOME: ${{ steps.build.outcome }}
+        run: .github/scripts/attest.sh build "$OUTCOME" "vue-tsc and vite production build"
+
+      # ── Register what was actually built ──────────────────────────────────
+
+      - name: Register the release artifact
+        if: always()
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          BOOT_JAR=$(find backend/build/libs -maxdepth 1 -name "*.jar" ! -name "*-plain.jar" | head -1)
+          DIGEST="sha256:$(sha256sum "$BOOT_JAR" | cut -d" " -f1)"
+          echo "ARTIFACT_DIGEST=$DIGEST" >> "$GITHUB_ENV"
+
+          curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/artifacts" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n \
+              --arg name "openfactstore-backend" \
+              --arg tag "$GIT_SHA" \
+              --arg digest "$DIGEST" \
+              '{imageName: $name, imageTag: $tag, sha256Digest: $digest, reportedBy: "github-actions"}')" \
+            > /dev/null
+          echo "Artifact registered: $DIGEST"
+
+      # ── The gate: assert this trail, not a bare digest ────────────────────
+
+      - name: Release gate — assert the trail
+        id: assert
+        if: always()
+        run: |
+          # Scoped to this execution's trail, so the verdict is about this run's evidence and
+          # cannot be satisfied by a previous run that happened to build the same bytes.
+          RESULT=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/assert" \
+            -H 'Content-Type: application/json' -d '{}')
+
+          STATUS=$(echo "$RESULT" | jq -r '.status')
+          DETAILS=$(echo "$RESULT" | jq -r '.details')
+          MISSING=$(echo "$RESULT" | jq -r '[.missingAttestationTypes[]?, .missingAttestationNames[]?] | join(", ")')
+          FAILED=$(echo "$RESULT" | jq -r '[.failedAttestationTypes[]?, .failedAttestationNames[]?] | join(", ")')
+
+          {
+            echo "## OpenFactstore release gate"
+            echo
+            if [ "$STATUS" = "COMPLIANT" ]; then
+              echo "**COMPLIANT** — every required gate reported PASSED."
+            else
+              echo "**NON_COMPLIANT** — this release is not cleared to ship."
+            fi
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Release | \`$RELEASE_ID\` |"
+            echo "| Trail | \`$TRAIL_ID\` |"
+            echo "| Artifact | \`${ARTIFACT_DIGEST:-not registered}\` |"
+            echo "| Verdict | $STATUS |"
+            echo "| Details | $DETAILS |"
+            [ -n "$MISSING" ] && echo "| Missing | $MISSING |"
+            [ -n "$FAILED" ] && echo "| Failed | $FAILED |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "$RESULT" | jq .
+
+          if [ "$STATUS" != "COMPLIANT" ]; then
+            echo "::error::Release gate blocked: $DETAILS"
+            exit 1
+          fi
+
+      - name: Compliance report
+        if: always()
+        run: |
+          echo "── Trail ──"
+          curl -sf "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}" | jq '{id, externalId, status, gitCommitSha}'
+          echo "── Attestations ──"
+          curl -sf "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/attestations" | jq '[.[] | {type, name, status, details}]'
+          echo "── Audit log ──"
+          curl -sf "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/audit" | jq '[.[] | {eventType, actor, occurredAt}]'
+
+      - name: Dump Factstore logs (on failure)
+        if: failure()
+        run: tail -200 /tmp/factstore.log

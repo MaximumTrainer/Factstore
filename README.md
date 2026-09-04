@@ -31,6 +31,7 @@ docker compose up --build
 | **[docs/API_REFERENCE.md](./docs/API_REFERENCE.md)** | Full REST API reference (200+ endpoints) |
 | **[docs/ci-integration.md](./docs/ci-integration.md)** | CI/CD integration: GitHub Actions, GitLab, Jenkins, CircleCI, Azure DevOps |
 | **[docs/flow-templates.md](./docs/flow-templates.md)** | Flow templates: the service-type catalogue, combining templates, drift, publishing your own |
+| **[docs/dogfooding.md](./docs/dogfooding.md)** | How OpenFactstore gates its own release, and how to point it at a persistent instance |
 | **[DEPLOY.md](./DEPLOY.md)** | Docker, JAR, and release deployment guide |
 | **[CONTRIBUTING.md](./CONTRIBUTING.md)** | Development setup, testing, and PR guidelines |
 | **[SECURITY.md](./SECURITY.md)** | Vulnerability reporting and production hardening |
