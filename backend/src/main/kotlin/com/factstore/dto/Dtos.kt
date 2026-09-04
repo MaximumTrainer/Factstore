@@ -281,6 +281,61 @@ data class EvidenceFileResponse(
     val externalUrl: String? = null
 )
 
+// Delivery metrics DTOs (#151)
+
+/**
+ * One headline metric.
+ *
+ * [available] is false, with [basis] explaining why, when the metric cannot honestly be derived
+ * from what Factstore records - a zero on a dashboard reads as "we are doing well", an absent
+ * metric reads as "we do not know".
+ */
+data class DoraMetric(
+    val value: Double?,
+    val unit: String,
+    /** Exactly what was measured, so the number cannot be read as something it is not. */
+    val basis: String,
+    val sampleSize: Int,
+    val available: Boolean
+)
+
+data class CountedValue(val value: String, val count: Int)
+
+data class GateDayBucket(val date: String, val allowed: Int, val blocked: Int)
+
+/** Deployment gate activity. */
+data class GateMetrics(
+    val evaluations: Int,
+    val allowed: Int,
+    val blocked: Int,
+    val blockRate: Double,
+    val topBlockReasons: List<CountedValue> = emptyList(),
+    /** One bucket per day in the window, empty days included. */
+    val perDay: List<GateDayBucket> = emptyList()
+)
+
+/** Compliance assertion activity, read from the GATE_ALLOWED / GATE_BLOCKED audit events. */
+data class AssertionMetrics(
+    val evaluations: Int,
+    val compliant: Int,
+    val blocked: Int,
+    val blockRate: Double,
+    /** The gates most often standing between a release and compliance. */
+    val topMissingAttestations: List<CountedValue> = emptyList()
+)
+
+data class DeliveryMetricsResponse(
+    val windowDays: Int,
+    val from: Instant,
+    val to: Instant,
+    val deploymentFrequency: DoraMetric,
+    val leadTimeForChanges: DoraMetric,
+    val changeFailureRate: DoraMetric,
+    val timeToRestoreService: DoraMetric,
+    val gates: GateMetrics,
+    val assertions: AssertionMetrics
+)
+
 // Flow template DTOs (#162)
 
 data class ComposeTemplateRequest(

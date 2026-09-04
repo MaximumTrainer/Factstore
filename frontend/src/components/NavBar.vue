@@ -102,6 +102,7 @@ const route = useRoute()
 
 const links = [
   { to: '/', label: 'Dashboard' },
+  { to: '/metrics', label: 'Metrics' },
   { to: '/flows', label: 'Flows' },
   { to: '/environments', label: 'Environments' },
   { to: '/drift', label: 'Drift' },
