@@ -13,6 +13,17 @@ import (
 type AssertRequest struct {
 	Sha256Digest string `json:"sha256Digest"`
 	FlowID       string `json:"flowId"`
+	// TrailID scopes the verdict to one pipeline execution. When empty, the most
+	// recent trail carrying the digest decides.
+	TrailID string `json:"trailId,omitempty"`
+}
+
+// TrailAssertRequest is the body for POST /api/v1/trails/{id}/assert. Both fields are optional:
+// the flow defaults to the trail's own flow, and no digest is needed for gates that run
+// before the image is pushed.
+type TrailAssertRequest struct {
+	FlowID       string `json:"flowId,omitempty"`
+	Sha256Digest string `json:"sha256Digest,omitempty"`
 }
 
 // AssertResponse mirrors the backend AssertResponse DTO.
@@ -23,6 +34,10 @@ type AssertResponse struct {
 	MissingAttestationTypes []string `json:"missingAttestationTypes"`
 	FailedAttestationTypes  []string `json:"failedAttestationTypes"`
 	Details                 string   `json:"details"`
+	MissingAttestationNames []string `json:"missingAttestationNames"`
+	FailedAttestationNames  []string `json:"failedAttestationNames"`
+	// TrailID is the execution the verdict was computed from.
+	TrailID string `json:"trailId"`
 }
 
 // ChainOfCustodyResponse mirrors the backend chain-of-custody response.
@@ -37,6 +52,22 @@ type ChainOfCustodyResponse struct {
 // Assert checks compliance for an artifact against a flow.
 func Assert(c *client.Client, req AssertRequest) (*AssertResponse, error) {
 	body, status, err := c.Post("/api/v1/assert", req)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, client.ParseError(status, body)
+	}
+	var result AssertResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+	return &result, nil
+}
+
+// AssertTrail asserts a specific pipeline execution via POST /api/v1/trails/{id}/assert.
+func AssertTrail(c *client.Client, trailID string, req TrailAssertRequest) (*AssertResponse, error) {
+	body, status, err := c.Post("/api/v1/trails/"+url.PathEscape(trailID)+"/assert", req)
 	if err != nil {
 		return nil, err
 	}

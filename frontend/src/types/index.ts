@@ -29,9 +29,16 @@ export interface Attestation {
   id: string
   trailId: string
   type: string
+  /** Template-driven flows name each attestation; legacy flows key on `type` alone. */
+  name?: string
   status: 'PASSED' | 'FAILED' | 'PENDING'
   evidenceFileName?: string
   evidenceFileHash?: string
+  evidenceFileSizeBytes?: number
+  /** A hyperlink to evidence held elsewhere (build log, scan report). */
+  evidenceUrl?: string
+  /** Additional evidence links recorded against the attestation. */
+  externalUrls?: string[]
   details?: string
   createdAt: string
 }
@@ -91,11 +98,31 @@ export interface EvidenceFile {
   externalUrl?: string | null
 }
 
-export interface AssertResult {
-  compliant: boolean
+export type ComplianceStatus = 'COMPLIANT' | 'NON_COMPLIANT'
+
+/** The wire shape of POST /api/v1/assert - mirrors the backend AssertResponse DTO. */
+export interface AssertResponse {
   sha256Digest: string
   flowId: string
-  flowName: string
+  status: ComplianceStatus
+  /** Populated by flows defined with requiredAttestationTypes. */
+  missingAttestationTypes: string[]
+  failedAttestationTypes: string[]
+  /** Populated by template-driven flows. */
+  missingAttestationNames: string[]
+  failedAttestationNames: string[]
+  details: string
+  /** The trail the verdict was computed from. */
+  trailId?: string
+}
+
+/** View model the assert screens render; produced by `toAssertResult`. */
+export interface AssertResult {
+  compliant: boolean
+  status: ComplianceStatus
+  sha256Digest: string
+  flowId: string
+  trailId?: string
   message: string
   missingAttestations: string[]
   failedAttestations: string[]

@@ -125,7 +125,7 @@
             <tr v-for="att in attestations" :key="att.id">
               <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ att.type }}</td>
               <td class="px-6 py-4"><StatusBadge :status="att.status" /></td>
-              <td class="px-6 py-4 text-sm text-gray-500">{{ att.evidenceFileName ?? '—' }}</td>
+              <td class="px-6 py-4"><EvidenceCell :attestation="att" /></td>
               <td class="px-6 py-4 text-sm text-gray-500">{{ formatDate(att.createdAt) }}</td>
             </tr>
           </tbody>
@@ -234,10 +234,13 @@
         <div v-if="assertResult" class="mb-4 p-3 rounded-md" :class="assertResult.compliant ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'">
           <div class="font-medium">{{ assertResult.compliant ? '✓ COMPLIANT' : '✗ NON_COMPLIANT' }}</div>
           <div class="text-sm mt-1">{{ assertResult.message }}</div>
-          <ul v-if="assertResult.missingAttestations.length" class="mt-2 text-xs list-disc list-inside">
+          <div v-if="assertResult.trailId" class="text-xs mt-1">
+            Judged against trail <span class="font-mono">{{ assertResult.trailId }}</span>
+          </div>
+          <ul v-if="(assertResult.missingAttestations ?? []).length" class="mt-2 text-xs list-disc list-inside">
             <li v-for="m in assertResult.missingAttestations" :key="m">Missing: {{ m }}</li>
           </ul>
-          <ul v-if="assertResult.failedAttestations.length" class="mt-2 text-xs list-disc list-inside">
+          <ul v-if="(assertResult.failedAttestations ?? []).length" class="mt-2 text-xs list-disc list-inside">
             <li v-for="f in assertResult.failedAttestations" :key="f">Failed: {{ f }}</li>
           </ul>
         </div>
@@ -263,10 +266,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import StatusBadge from '../components/StatusBadge.vue'
+import EvidenceCell from '../components/EvidenceCell.vue'
 import { getTrail } from '../api/trails'
 import { getAttestations } from '../api/attestations'
 import { getArtifacts, getProvenance } from '../api/artifacts'
-import { assertCompliance } from '../api/assert'
+import { assertTrail } from '../api/assert'
 import { getEvidenceSummary } from '../api/evidence'
 import type { Trail, Attestation, Artifact, AssertResult, EvidenceSummary, BuildProvenance, ProvenanceStatus } from '../types'
 
@@ -352,8 +356,15 @@ async function runAssert() {
   assertError.value = ''
   assertResult.value = null
   try {
-    const res = await assertCompliance(assertSha256.value, assertFlowId.value)
-    assertResult.value = res.data
+    // Always scope to the trail on screen: this execution is what the user is judging,
+    // and it works before any artifact has been registered.
+    assertResult.value = await assertTrail(route.params.id as string, {
+      flowId: assertFlowId.value || undefined,
+      sha256Digest: assertSha256.value || undefined,
+    })
+    // The assertion writes the verdict back onto the trail; reflect it immediately.
+    const refreshed = await getTrail(route.params.id as string)
+    trail.value = refreshed.data
   } catch {
     assertError.value = 'Assertion failed. Please check your inputs.'
   } finally {

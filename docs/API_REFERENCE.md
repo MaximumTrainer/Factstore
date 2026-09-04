@@ -150,8 +150,23 @@ Interactive documentation is also available at **[http://localhost:8080/swagger-
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/v1/assert` | Assert whether an artifact is compliant with a flow |
+| `POST` | `/api/v1/trails/{id}/assert` | Assert a specific pipeline execution (no digest required) |
 
-**Request body:**
+**Request body** (`POST /api/v1/assert`):
+```json
+{
+  "flowId": "uuid",
+  "sha256Digest": "sha256:e3b0c44...",
+  "trailId": "uuid"
+}
+```
+
+`trailId` is optional and scopes the verdict to a single pipeline execution. **CI pipelines should
+always send it.** Without it, the *most recent* trail carrying that digest decides — a re-run against
+an unchanged commit is therefore judged on its own evidence, not on the previous run's. A `trailId`
+combined with a digest that belongs to a different trail is rejected with `400`.
+
+**Request body** (`POST /api/v1/trails/{id}/assert`) — every field optional:
 ```json
 {
   "flowId": "uuid",
@@ -159,20 +174,32 @@ Interactive documentation is also available at **[http://localhost:8080/swagger-
 }
 ```
 
-**Response:**
+`flowId` defaults to the trail's own flow. Omitting `sha256Digest` judges the trail on its
+attestations alone, which is what gates that run *before* the image is pushed (unit tests, SAST)
+need. An empty body (`{}`) is valid.
+
+**Response** (both endpoints):
 ```json
 {
-  "compliant": true,
-  "flowId": "uuid",
   "sha256Digest": "sha256:e3b0c44...",
-  "checkedAt": "2025-01-01T10:00:00Z",
-  "attestations": [
-    { "type": "junit", "status": "PASSED" },
-    { "type": "snyk",  "status": "PASSED" }
-  ],
-  "missingAttestations": []
+  "flowId": "uuid",
+  "trailId": "uuid",
+  "status": "COMPLIANT",
+  "missingAttestationTypes": [],
+  "failedAttestationTypes": [],
+  "missingAttestationNames": [],
+  "failedAttestationNames": [],
+  "details": "All required attestations passed"
 }
 ```
+
+`status` is `COMPLIANT` or `NON_COMPLIANT`. `trailId` names the execution the verdict was computed
+from. Flows defined with `requiredAttestationTypes` populate the `*AttestationTypes` lists;
+template-driven flows populate the `*AttestationNames` lists.
+
+The assertion also writes its outcome back to the deciding trail's status (`COMPLIANT` /
+`NON_COMPLIANT`) in the same transaction as the `GATE_ALLOWED` / `GATE_BLOCKED` audit event, so
+trail status and audit log always agree.
 
 ---
 

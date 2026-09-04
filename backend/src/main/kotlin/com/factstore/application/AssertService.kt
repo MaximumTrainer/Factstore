@@ -10,6 +10,8 @@ import com.factstore.core.domain.ApprovalStatus
 import com.factstore.core.domain.AuditEventType
 import com.factstore.core.domain.Flow
 import com.factstore.core.domain.Policy
+import com.factstore.core.domain.Trail
+import com.factstore.core.domain.TrailStatus
 import com.factstore.core.port.inbound.IAssertService
 import com.factstore.core.port.inbound.IAuditService
 import com.factstore.core.port.outbound.IArtifactRepository
@@ -21,12 +23,27 @@ import com.factstore.core.port.outbound.ITrailRepository
 import com.factstore.dto.AssertRequest
 import com.factstore.dto.AssertResponse
 import com.factstore.dto.ComplianceStatus
+import com.factstore.exception.BadRequestException
 import com.factstore.exception.NotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 import java.util.UUID
 
+/**
+ * Evaluates an artifact/trail against a flow's requirements.
+ *
+ * An assertion is always decided against exactly one trail — the pipeline execution being judged:
+ *
+ *  - `trailId` supplied (or [assertTrail]) → that trail decides, and a digest that belongs to a
+ *    different trail is rejected.
+ *  - digest only → the **most recent** trail carrying that digest decides. A re-run of the same
+ *    commit therefore has to earn its own verdict rather than inheriting the previous run's.
+ *
+ * The deciding trail's [TrailStatus] is written in the same transaction as the
+ * `GATE_ALLOWED`/`GATE_BLOCKED` audit event, so status and audit log cannot diverge.
+ */
 @Service
 @Transactional
 class AssertService(
@@ -48,8 +65,17 @@ class AssertService(
         val flow = flowRepository.findById(request.flowId)
             ?: throw NotFoundException("Flow not found: ${request.flowId}")
 
-        val artifacts = artifactRepository.findBySha256Digest(request.sha256Digest)
-        if (artifacts.isEmpty()) {
+        request.trailId?.let { trailId ->
+            val trail = trailRepository.findById(trailId)
+                ?: throw NotFoundException("Trail not found: $trailId")
+            val artifact = artifactForTrail(trail.id, request.sha256Digest)
+            return evaluate(request.sha256Digest, flow, trail, artifact)
+        }
+
+        val candidates = artifactRepository.findBySha256Digest(request.sha256Digest)
+            .mapNotNull { artifact -> trailRepository.findById(artifact.trailId)?.let { it to artifact } }
+
+        if (candidates.isEmpty()) {
             val response = AssertResponse(
                 sha256Digest = request.sha256Digest,
                 flowId = request.flowId,
@@ -62,187 +88,172 @@ class AssertService(
             return response
         }
 
-        // Check if any artifact's trail has a template, or the flow does
-        val firstArtifact = artifacts.first()
-        val firstTrail = trailRepository.findById(firstArtifact.trailId)
-        val effectiveTemplateYaml = firstTrail?.templateYaml ?: flow.templateYaml
+        // Deterministic and honest: the newest execution carrying this digest is the one judged.
+        val (trail, artifact) = candidates.maxWith(
+            compareBy({ it.first.createdAt }, { it.second.reportedAt }, { it.second.id })
+        )
+        return evaluate(request.sha256Digest, flow, trail, artifact)
+    }
 
-        if (effectiveTemplateYaml != null) {
-            return assertWithTemplate(request, flow, artifacts, effectiveTemplateYaml)
+    override fun assertTrail(trailId: UUID, flowId: UUID?, sha256Digest: String?): AssertResponse {
+        val trail = trailRepository.findById(trailId)
+            ?: throw NotFoundException("Trail not found: $trailId")
+        val effectiveFlowId = flowId ?: trail.flowId
+        val flow = flowRepository.findById(effectiveFlowId)
+            ?: throw NotFoundException("Flow not found: $effectiveFlowId")
+
+        val artifact = if (!sha256Digest.isNullOrBlank()) {
+            artifactForTrail(trail.id, sha256Digest)
+        } else {
+            // Gates that run before the image is pushed have no digest to key on;
+            // fall back to the most recently reported artifact, or none at all.
+            artifactRepository.findByTrailId(trail.id).maxByOrNull { it.reportedAt }
         }
 
-        // Legacy: fall back to requiredAttestationTypes
+        return evaluate(artifact?.sha256Digest ?: sha256Digest.orEmpty(), flow, trail, artifact)
+    }
+
+    /**
+     * Resolves the artifact with [digest] on [trailId], rejecting a digest that belongs elsewhere.
+     * A blank digest means "no artifact yet" and is allowed.
+     */
+    private fun artifactForTrail(trailId: UUID, digest: String?): Artifact? {
+        if (digest.isNullOrBlank()) return null
+        return artifactRepository.findBySha256Digest(digest).firstOrNull { it.trailId == trailId }
+            ?: throw BadRequestException(
+                "Artifact digest $digest does not belong to trail $trailId"
+            )
+    }
+
+    private fun evaluate(digest: String, flow: Flow, trail: Trail, artifact: Artifact?): AssertResponse {
+        val effectiveTemplateYaml = trail.templateYaml ?: flow.templateYaml
+        val response = if (effectiveTemplateYaml != null) {
+            evaluateWithTemplate(digest, flow, trail, artifact, effectiveTemplateYaml)
+        } else {
+            evaluateWithRequiredTypes(digest, flow, trail)
+        }
+        applyTrailStatus(trail, response.status)
+        emitPolicyEvent(response)
+        return response
+    }
+
+    private fun evaluateWithRequiredTypes(digest: String, flow: Flow, trail: Trail): AssertResponse {
         val required = flow.requiredAttestationTypes
         if (required.isEmpty()) {
-            val response = AssertResponse(
-                sha256Digest = request.sha256Digest,
-                flowId = request.flowId,
+            return AssertResponse(
+                sha256Digest = digest,
+                flowId = flow.id,
                 status = ComplianceStatus.COMPLIANT,
                 missingAttestationTypes = emptyList(),
                 failedAttestationTypes = emptyList(),
-                details = "Flow has no required attestation types; artifact is compliant"
+                details = "Flow has no required attestation types; artifact is compliant",
+                trailId = trail.id
             )
-            emitPolicyEvent(response)
-            return response
         }
 
-        // For each artifact, check if its trail has all required attestations passed
-        for (artifact in artifacts) {
-            val attestations = attestationRepository.findByTrailId(artifact.trailId)
-            val passedTypes = attestations
-                .filter { it.status == AttestationStatus.PASSED }
-                .map { it.type }
-                .toSet()
-            val failedTypes = attestations
-                .filter { it.status == AttestationStatus.FAILED }
-                .map { it.type }
-                .toList()
-            val missing = required.filter { it !in passedTypes }
-
-            if (missing.isEmpty()) {
-                // Check approval requirement
-                if (flow.requiresApproval) {
-                    val approvals = approvalRepository.findByTrailId(artifact.trailId)
-                    val hasApproved = approvals.any { it.status == ApprovalStatus.APPROVED }
-                    if (!hasApproved) {
-                        val response = AssertResponse(
-                            sha256Digest = request.sha256Digest,
-                            flowId = request.flowId,
-                            status = ComplianceStatus.NON_COMPLIANT,
-                            missingAttestationTypes = emptyList(),
-                            failedAttestationTypes = emptyList(),
-                            details = "Approval required but not yet granted"
-                        )
-                        emitPolicyEvent(response, trailId = artifact.trailId)
-                        return response
-                    }
-                }
-                log.info("Artifact ${request.sha256Digest} is COMPLIANT for flow ${request.flowId}")
-                val response = AssertResponse(
-                    sha256Digest = request.sha256Digest,
-                    flowId = request.flowId,
-                    status = ComplianceStatus.COMPLIANT,
-                    missingAttestationTypes = emptyList(),
-                    failedAttestationTypes = failedTypes,
-                    details = "All required attestations passed"
-                )
-                emitPolicyEvent(response, trailId = artifact.trailId)
-                return response
-            }
-        }
-
-        // None of the trails are fully compliant - return the best result (least missing)
-        val bestArtifact = artifacts.minByOrNull { artifact ->
-            val attestations = attestationRepository.findByTrailId(artifact.trailId)
-            val passedTypes = attestations.filter { it.status == AttestationStatus.PASSED }.map { it.type }.toSet()
-            required.count { it !in passedTypes }
-        }!!
-
-        val attestations = attestationRepository.findByTrailId(bestArtifact.trailId)
+        val attestations = attestationRepository.findByTrailId(trail.id)
         val passedTypes = attestations.filter { it.status == AttestationStatus.PASSED }.map { it.type }.toSet()
         val failedTypes = attestations.filter { it.status == AttestationStatus.FAILED }.map { it.type }
         val missing = required.filter { it !in passedTypes }
 
-        log.info("Artifact ${request.sha256Digest} is NON_COMPLIANT for flow ${request.flowId}; missing: $missing")
-        val response = AssertResponse(
-            sha256Digest = request.sha256Digest,
-            flowId = request.flowId,
+        if (missing.isEmpty()) {
+            approvalGap(flow, trail, digest)?.let { return it }
+            log.info("Artifact $digest is COMPLIANT for flow ${flow.id} (trail ${trail.id})")
+            return AssertResponse(
+                sha256Digest = digest,
+                flowId = flow.id,
+                status = ComplianceStatus.COMPLIANT,
+                missingAttestationTypes = emptyList(),
+                failedAttestationTypes = failedTypes,
+                details = "All required attestations passed",
+                trailId = trail.id
+            )
+        }
+
+        log.info("Artifact $digest is NON_COMPLIANT for flow ${flow.id} (trail ${trail.id}); missing: $missing")
+        return AssertResponse(
+            sha256Digest = digest,
+            flowId = flow.id,
             status = ComplianceStatus.NON_COMPLIANT,
             missingAttestationTypes = missing,
             failedAttestationTypes = failedTypes,
-            details = "Missing required attestations: ${missing.joinToString(", ")}"
+            details = "Missing required attestations: ${missing.joinToString(", ")}",
+            trailId = trail.id
         )
-        emitPolicyEvent(response, trailId = bestArtifact.trailId)
-        return response
     }
 
-    private fun assertWithTemplate(
-        request: AssertRequest,
+    private fun evaluateWithTemplate(
+        digest: String,
         flow: Flow,
-        artifacts: List<Artifact>,
+        trail: Trail,
+        artifact: Artifact?,
         templateYaml: String
     ): AssertResponse {
-        val parsedTemplate = templateParser.parse(templateYaml)
+        val parsed = templateParser.parse(templateYaml)
+        val allRequired = computeRequired(flow, artifact?.imageName, parsed)
 
-        for (artifact in artifacts) {
-            val trailObj = trailRepository.findById(artifact.trailId)
-            val effectiveYaml = trailObj?.templateYaml ?: flow.templateYaml ?: templateYaml
-            val effectiveParsed = if (effectiveYaml == templateYaml) parsedTemplate else templateParser.parse(effectiveYaml)
-
-            val allRequired = computeRequired(flow, artifact.imageName, effectiveParsed)
-
-            val attestations = attestationRepository.findByTrailId(artifact.trailId)
-            val passedNames = attestations.filter { it.status == AttestationStatus.PASSED }.mapNotNull { it.name }.toSet()
-            val failedNames = attestations.filter { it.status == AttestationStatus.FAILED }.mapNotNull { it.name }.toList()
-            val missing = allRequired.filter { it !in passedNames }
-
-            if (missing.isEmpty()) {
-                // Check approval requirement
-                if (flow.requiresApproval) {
-                    val approvals = approvalRepository.findByTrailId(artifact.trailId)
-                    val hasApproved = approvals.any { it.status == ApprovalStatus.APPROVED }
-                    if (!hasApproved) {
-                        val response = AssertResponse(
-                            sha256Digest = request.sha256Digest,
-                            flowId = request.flowId,
-                            status = ComplianceStatus.NON_COMPLIANT,
-                            missingAttestationTypes = emptyList(),
-                            failedAttestationTypes = emptyList(),
-                            details = "Approval required but not yet granted"
-                        )
-                        emitPolicyEvent(response, trailId = artifact.trailId)
-                        return response
-                    }
-                }
-                log.info("Artifact ${request.sha256Digest} is COMPLIANT (template) for flow ${request.flowId}")
-                val response = AssertResponse(
-                    sha256Digest = request.sha256Digest,
-                    flowId = request.flowId,
-                    status = ComplianceStatus.COMPLIANT,
-                    missingAttestationTypes = emptyList(),
-                    failedAttestationTypes = emptyList(),
-                    missingAttestationNames = emptyList(),
-                    failedAttestationNames = failedNames,
-                    details = "All required attestations passed"
-                )
-                emitPolicyEvent(response, trailId = artifact.trailId)
-                return response
-            }
-        }
-
-        // None compliant - return best artifact result
-        val bestArtifact = artifacts.minByOrNull { artifact ->
-            val trailObj = trailRepository.findById(artifact.trailId)
-            val effectiveYaml = trailObj?.templateYaml ?: flow.templateYaml ?: templateYaml
-            val effectiveParsed = templateParser.parse(effectiveYaml)
-            val allRequired = computeRequired(flow, artifact.imageName, effectiveParsed)
-            val passedNames = attestationRepository.findByTrailId(artifact.trailId)
-                .filter { it.status == AttestationStatus.PASSED }.mapNotNull { it.name }.toSet()
-            allRequired.count { it !in passedNames }
-        }!!
-
-        val trailObj = trailRepository.findById(bestArtifact.trailId)
-        val effectiveYaml = trailObj?.templateYaml ?: flow.templateYaml ?: templateYaml
-        val effectiveParsed = templateParser.parse(effectiveYaml)
-        val allRequired = computeRequired(flow, bestArtifact.imageName, effectiveParsed)
-        val attestations = attestationRepository.findByTrailId(bestArtifact.trailId)
+        val attestations = attestationRepository.findByTrailId(trail.id)
         val passedNames = attestations.filter { it.status == AttestationStatus.PASSED }.mapNotNull { it.name }.toSet()
-        val failedNames = attestations.filter { it.status == AttestationStatus.FAILED }.mapNotNull { it.name }.toList()
+        val failedNames = attestations.filter { it.status == AttestationStatus.FAILED }.mapNotNull { it.name }
         val missing = allRequired.filter { it !in passedNames }
 
-        log.info("Artifact ${request.sha256Digest} is NON_COMPLIANT (template) for flow ${request.flowId}; missing: $missing")
-        val response = AssertResponse(
-            sha256Digest = request.sha256Digest,
-            flowId = request.flowId,
+        if (missing.isEmpty()) {
+            approvalGap(flow, trail, digest)?.let { return it }
+            log.info("Artifact $digest is COMPLIANT (template) for flow ${flow.id} (trail ${trail.id})")
+            return AssertResponse(
+                sha256Digest = digest,
+                flowId = flow.id,
+                status = ComplianceStatus.COMPLIANT,
+                missingAttestationTypes = emptyList(),
+                failedAttestationTypes = emptyList(),
+                missingAttestationNames = emptyList(),
+                failedAttestationNames = failedNames,
+                details = "All required attestations passed",
+                trailId = trail.id
+            )
+        }
+
+        log.info("Artifact $digest is NON_COMPLIANT (template) for flow ${flow.id} (trail ${trail.id}); missing: $missing")
+        return AssertResponse(
+            sha256Digest = digest,
+            flowId = flow.id,
             status = ComplianceStatus.NON_COMPLIANT,
             missingAttestationTypes = emptyList(),
             failedAttestationTypes = emptyList(),
             missingAttestationNames = missing,
             failedAttestationNames = failedNames,
-            details = "Missing required attestations: ${missing.joinToString(", ")}"
+            details = "Missing required attestations: ${missing.joinToString(", ")}",
+            trailId = trail.id
         )
-        emitPolicyEvent(response, trailId = bestArtifact.trailId)
-        return response
+    }
+
+    /** Returns a NON_COMPLIANT response when the flow needs an approval that has not been granted. */
+    private fun approvalGap(flow: Flow, trail: Trail, digest: String): AssertResponse? {
+        if (!flow.requiresApproval) return null
+        val approved = approvalRepository.findByTrailId(trail.id).any { it.status == ApprovalStatus.APPROVED }
+        if (approved) return null
+        return AssertResponse(
+            sha256Digest = digest,
+            flowId = flow.id,
+            status = ComplianceStatus.NON_COMPLIANT,
+            missingAttestationTypes = emptyList(),
+            failedAttestationTypes = emptyList(),
+            details = "Approval required but not yet granted",
+            trailId = trail.id
+        )
+    }
+
+    /** #158: the trail carries the verdict of the most recent evaluation made against it. */
+    private fun applyTrailStatus(trail: Trail, status: ComplianceStatus) {
+        val newStatus = when (status) {
+            ComplianceStatus.COMPLIANT -> TrailStatus.COMPLIANT
+            ComplianceStatus.NON_COMPLIANT -> TrailStatus.NON_COMPLIANT
+        }
+        if (trail.status == newStatus) return
+        trail.status = newStatus
+        trail.updatedAt = Instant.now()
+        trailRepository.save(trail)
+        log.info("Trail ${trail.id} status -> $newStatus")
     }
 
     private fun computeRequired(
@@ -273,7 +284,7 @@ class AssertService(
         return (trailRequired + artifactRequired + policyRequired).distinct()
     }
 
-    private fun emitPolicyEvent(response: AssertResponse, trailId: UUID? = null) {
+    private fun emitPolicyEvent(response: AssertResponse) {
         val eventType = if (response.status == ComplianceStatus.COMPLIANT)
             AuditEventType.GATE_ALLOWED else AuditEventType.GATE_BLOCKED
         auditService.record(
@@ -282,13 +293,13 @@ class AssertService(
             payload = mapOf(
                 "sha256Digest" to response.sha256Digest,
                 "flowId" to response.flowId.toString(),
+                "trailId" to (response.trailId?.toString() ?: ""),
                 "status" to response.status.name,
                 "missingAttestationTypes" to response.missingAttestationTypes,
                 "failedAttestationTypes" to response.failedAttestationTypes
             ),
-            trailId = trailId,
+            trailId = response.trailId,
             artifactSha256 = response.sha256Digest
         )
     }
 }
-

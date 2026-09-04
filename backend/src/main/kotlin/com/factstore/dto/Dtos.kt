@@ -258,7 +258,17 @@ data class EvidenceFileResponse(
 // Assert DTOs
 data class AssertRequest(
     val sha256Digest: String,
-    val flowId: UUID
+    val flowId: UUID,
+    /** Scopes the assertion to a single pipeline execution. When null, the most recent trail carrying the digest decides. */
+    val trailId: UUID? = null
+)
+
+/** Body of `POST /api/v1/trails/{id}/assert`; every field is optional. */
+data class TrailAssertRequest(
+    /** Defaults to the trail's own flow. */
+    val flowId: UUID? = null,
+    /** Defaults to the trail's most recently reported artifact, or none when the image does not exist yet. */
+    val sha256Digest: String? = null
 )
 
 data class AssertResponse(
@@ -269,7 +279,9 @@ data class AssertResponse(
     val failedAttestationTypes: List<String>,
     val details: String,
     val missingAttestationNames: List<String> = emptyList(),
-    val failedAttestationNames: List<String> = emptyList()
+    val failedAttestationNames: List<String> = emptyList(),
+    /** The trail the verdict was computed from; null only when no trail could be resolved. */
+    val trailId: UUID? = null
 )
 
 enum class ComplianceStatus { COMPLIANT, NON_COMPLIANT }
