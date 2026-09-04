@@ -65,6 +65,66 @@ export interface Trail {
   updatedAt: string
 }
 
+// --- Delivery metrics (#151) ------------------------------------------------
+
+/**
+ * One headline metric.
+ *
+ * `available` is false, with `basis` explaining why, when the metric cannot honestly be
+ * derived from what Factstore records. A zero on a dashboard reads as "we are doing well";
+ * an absent metric reads as "we do not know", which is the truth.
+ */
+export interface DoraMetric {
+  value: number | null
+  unit: string
+  /** Exactly what was measured, so the number cannot be read as something it is not. */
+  basis: string
+  sampleSize: number
+  available: boolean
+}
+
+export interface CountedValue {
+  value: string
+  count: number
+}
+
+export interface GateDayBucket {
+  date: string
+  allowed: number
+  blocked: number
+}
+
+export interface GateMetrics {
+  evaluations: number
+  allowed: number
+  blocked: number
+  blockRate: number
+  topBlockReasons: CountedValue[]
+  /** One bucket per day in the window, empty days included. */
+  perDay: GateDayBucket[]
+}
+
+export interface AssertionMetrics {
+  evaluations: number
+  compliant: number
+  blocked: number
+  blockRate: number
+  /** The gates most often standing between a release and compliance. */
+  topMissingAttestations: CountedValue[]
+}
+
+export interface DeliveryMetrics {
+  windowDays: number
+  from: string
+  to: string
+  deploymentFrequency: DoraMetric
+  leadTimeForChanges: DoraMetric
+  changeFailureRate: DoraMetric
+  timeToRestoreService: DoraMetric
+  gates: GateMetrics
+  assertions: AssertionMetrics
+}
+
 /** What removing a trail would take with it (#161). */
 export interface TrailCascadeCounts {
   attestations: number

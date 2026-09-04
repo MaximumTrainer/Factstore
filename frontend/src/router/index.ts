@@ -24,6 +24,7 @@ import DriftView from '../views/DriftView.vue'
 import CompliancePostureView from '../views/CompliancePostureView.vue'
 import SnapshotDiffView from '../views/SnapshotDiffView.vue'
 import AttestationTypesView from '../views/AttestationTypesView.vue'
+import MetricsView from '../views/MetricsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -52,7 +53,8 @@ const router = createRouter({
     { path: '/policies', component: PoliciesView },
     { path: '/drift', component: DriftView },
     { path: '/environments/:id/snapshot-diff', component: SnapshotDiffView },
-    { path: '/attestation-types', component: AttestationTypesView }
+    { path: '/attestation-types', component: AttestationTypesView },
+    { path: '/metrics', component: MetricsView }
   ]
 })
 

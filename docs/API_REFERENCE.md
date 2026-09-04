@@ -249,6 +249,60 @@ multi-pipeline example.
 
 ---
 
+### Metrics
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/metrics/compliance` | Compliance metric summary |
+| `GET` | `/api/v1/metrics/security` | Security scan metric summary |
+| `GET` | `/api/v1/metrics/delivery` | Delivery metrics: DORA where derivable, plus gates (query param: `days`, default 30, clamped 1-365) |
+
+**`GET /api/v1/metrics/delivery?days=30`:**
+
+```json
+{
+  "windowDays": 30,
+  "from": "2026-08-05T09:00:00Z",
+  "to": "2026-09-04T09:00:00Z",
+  "deploymentFrequency": {
+    "value": 2.4, "unit": "per day", "sampleSize": 72, "available": true,
+    "basis": "Deployments recorded to any environment, divided by the days in the window."
+  },
+  "leadTimeForChanges": { "value": 13.3, "unit": "hours", "sampleSize": 68, "available": true, "basis": "..." },
+  "changeFailureRate":  { "value": 12.5, "unit": "percent", "sampleSize": 96, "available": true, "basis": "..." },
+  "timeToRestoreService": { "value": null, "unit": "hours", "sampleSize": 0, "available": false, "basis": "..." },
+  "gates": {
+    "evaluations": 96, "allowed": 84, "blocked": 12, "blockRate": 12.5,
+    "topBlockReasons": [{ "value": "missing attestation: snyk", "count": 7 }],
+    "perDay": [{ "date": "2026-08-06", "allowed": 4, "blocked": 1 }]
+  },
+  "assertions": {
+    "evaluations": 210, "compliant": 188, "blocked": 22, "blockRate": 10.48,
+    "topMissingAttestations": [{ "value": "snyk", "count": 14 }]
+  }
+}
+```
+
+Every headline metric carries `available` and `basis`. **A metric that cannot honestly be derived
+from what Factstore records reports `available: false` with `basis` explaining why**, rather than a
+zero — a zero on a dashboard reads as "we are doing well"; an absent metric reads as "we do not
+know", which is the truth. `timeToRestoreService` is the standing example: restoring service is an
+incident-management event and no incident records are kept here.
+
+Two of the four are deliberately labelled rather than assumed:
+
+- **`leadTimeForChanges`** measures trail creation → deployment. The trail is the stand-in for the
+  commit, because it is created by the pipeline run that builds the artifact. Deployments whose
+  artifact has no trail are excluded from the sample.
+- **`changeFailureRate`** is the share of *deployment gate* evaluations that **blocked** — a
+  pre-deployment gate rate, not DORA's post-release change failure rate. Factstore records the gate
+  decision, not what happened after a release shipped.
+
+`gates.perDay` has one bucket per day in the window, empty days included, so a trend line does not
+silently close the gaps where nothing shipped.
+
+---
+
 ### Flow Templates
 
 | Method | Path | Description |
