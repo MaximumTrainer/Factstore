@@ -317,12 +317,21 @@ jobs:
       - name: Compliance report
         if: always()
         run: |
+          # The read endpoints carry the credential too, so this step keeps working when
+          # `security.enforce-auth` flips rather than breaking at that point.
+          AUTH=(-H "X-API-Key: ${FACTSTORE_TOKEN}")
+
           echo "── Trail ──"
-          curl -sf "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}" | jq '{id, externalId, status, gitCommitSha}'
+          curl -sf "${AUTH[@]}" "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}"             | jq '{id, externalId, status, gitCommitSha}'
+
+          # Both of these are *paged*, under different keys: attestations come back as a
+          # PageResponse (`items`) and audit events as an AuditEventPage (`events`).
           echo "── Attestations ──"
-          curl -sf "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/attestations" | jq '[.[] | {type, name, status, details}]'
+          curl -sf "${AUTH[@]}" "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/attestations"             | jq '[.items[] | {type, name, status, details}]'
+
+          # There is no per-trail audit route; the audit log is queried by trailId.
           echo "── Audit log ──"
-          curl -sf "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/audit" | jq '[.[] | {eventType, actor, occurredAt}]'
+          curl -sf "${AUTH[@]}" "${FACTSTORE_URL}/api/v1/audit?trailId=${TRAIL_ID}&size=50"             | jq '[.events[] | {eventType, actor, occurredAt}]'
 
       - name: Dump Factstore logs (on failure)
         if: failure()

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { clearPrincipal, loadPrincipal } from '../composables/useAuth'
+import { clearPrincipal } from '../composables/useAuth'
+import { resolveNavigation } from './authGuard'
 import { configureAuthHandling } from '../api/client'
 import DashboardView from '../views/DashboardView.vue'
 import FlowsView from '../views/FlowsView.vue'
@@ -63,26 +64,8 @@ const router = createRouter({
   ]
 })
 
-/**
- * Navigation guard (#156 FR-6.3): every route except `/login` requires a session.
- *
- * The intended destination is preserved so sign-in lands where the user was going, rather
- * than dumping them on the dashboard.
- */
-router.beforeEach(async to => {
-  if (to.meta.public) return true
-
-  const principal = await loadPrincipal()
-  if (principal) return true
-
-  return {
-    path: '/login',
-    query: {
-      redirect: to.fullPath,
-      reason: 'unauthenticated',
-    },
-  }
-})
+// Navigation guard (#156 FR-6.3). The decision lives in ./authGuard, where it is tested.
+router.beforeEach(to => resolveNavigation({ fullPath: to.fullPath, meta: to.meta }))
 
 // Give the API client a way to bounce a 401 without importing the router (which imports the
 // views, which import the client).

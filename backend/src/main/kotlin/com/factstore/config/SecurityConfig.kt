@@ -90,6 +90,10 @@ class SecurityConfig(
                     // Logout must work with an expired or already-revoked session, so the
                     // cookie can always be cleared.
                     .requestMatchers("/api/v1/auth/logout").permitAll()
+                    // A client has to be able to ask whether this instance enforces
+                    // authentication *before* it has a credential, or the UI cannot know
+                    // whether to gate navigation. It discloses only that one fact.
+                    .requestMatchers("/api/v1/auth/config").permitAll()
                     // Remaining endpoints: enforce authentication when the flag is enabled.
                     // Set SECURITY_ENFORCE_AUTH=true in production to require authentication.
                 if (enforceAuth) {

@@ -9,6 +9,25 @@ async function screenshot(page: Page, filename: string) {
   await page.screenshot({ path: path.join(SCREENSHOTS_DIR, filename), fullPage: true })
 }
 
+/**
+ * These run against the dev server with no backend, so the navigation guard's one call has to
+ * be answered here.
+ *
+ * `enforceAuth: false` is the shipped default (#155 rolls enforcement out separately), and it
+ * is what the documentation screenshots below should show. The guard treats an *unreachable*
+ * config endpoint as enforcing — failing open would show a signed-out visitor a dashboard they
+ * may not be entitled to — so without this stub every route correctly bounces to `/login`.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/v1/auth/config', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ enforceAuth: false }),
+    })
+  )
+})
+
 test('Dashboard loads', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()

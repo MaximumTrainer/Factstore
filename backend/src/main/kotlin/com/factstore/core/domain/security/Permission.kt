@@ -26,7 +26,12 @@ enum class Permission(val scope: String) {
     POLICIES_READ("policies:read"),
     POLICIES_WRITE("policies:write"),
     APPROVALS_WRITE("approvals:write"),
-    /** Key management, service accounts, organisation and SSO configuration. */
+    /**
+     * Full access, including key management, service accounts, organisation and SSO
+     * configuration. It is not a narrower privilege than the rest: a holder may mint a key
+     * carrying any scope, so it expands to every permission — see
+     * [RoleModel.authoritiesForScopes].
+     */
     ADMIN("admin");
 
     /** The Spring Security authority this permission grants. */
@@ -110,9 +115,20 @@ object RoleModel {
     fun authoritiesFor(role: MemberRole): Set<String> =
         setOf("ROLE_${role.name}") + permissionsFor(role).map { it.authority }
 
-    /** Authorities for a service-account credential, derived from its scopes alone. */
-    fun authoritiesForScopes(permissions: Set<Permission>): Set<String> =
-        setOf("ROLE_${MemberRole.SERVICE_ACCOUNT.name}") + permissions.map { it.authority }
+    /**
+     * Authorities for a service-account credential, derived from its scopes alone.
+     *
+     * `admin` expands to every permission, because that is what the word already means
+     * everywhere else: [ADMIN_PERMISSIONS] is the full set, and a caller holding `admin` may
+     * mint a key carrying any scope at all. Treating it as one narrow key-management scope here
+     * made the same word mean "everything" for a user and "key management only" for a key —
+     * which left the bootstrap credential, the only credential a fresh enforced deployment has,
+     * unable to create a flow.
+     */
+    fun authoritiesForScopes(permissions: Set<Permission>): Set<String> {
+        val effective = if (permissions.contains(Permission.ADMIN)) ADMIN_PERMISSIONS else permissions
+        return setOf("ROLE_${MemberRole.SERVICE_ACCOUNT.name}") + effective.map { it.authority }
+    }
 
     /**
      * The role a first-time federated sign-in with no membership receives (#156 FR-5.3).

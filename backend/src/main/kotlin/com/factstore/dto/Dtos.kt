@@ -1407,6 +1407,16 @@ data class SsoCallbackResponse(
  * One endpoint answers for both credential types, so the same response drives the web UI and
  * `factstore login`. [type] says which kind of credential answered.
  */
+/**
+ * What a client may learn about this instance's authentication without holding a credential.
+ *
+ * Exactly one field, on purpose: the UI needs to know whether to gate navigation, and nothing
+ * else belongs on a public endpoint.
+ */
+data class AuthConfigResponse(
+    val enforceAuth: Boolean
+)
+
 data class AuthenticatedPrincipalResponse(
     val type: PrincipalType,
     val userId: UUID? = null,

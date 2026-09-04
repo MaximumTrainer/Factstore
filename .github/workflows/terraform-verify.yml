@@ -13,6 +13,13 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      # Authorisation rules are always live, so creating a flow, an environment or a policy
+      # needs a credential even with `security.enforce-auth` off. This value is seeded into the
+      # instance started below and torn down with the job: development and CI only, never
+      # production. See docs/api-authorisation.md.
+      FACTSTORE_TOKEN: fsp_c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -52,6 +59,7 @@ jobs:
           JAR=$(find build/libs -name 'factstore-*.jar' ! -name '*-plain.jar' | head -1)
           nohup java -jar "$JAR" \
             --server.port=8080 \
+            --security.bootstrap.api-key="${FACTSTORE_TOKEN}" \
             > /tmp/factstore.log 2>&1 &
           echo "FACTSTORE_PID=$!" >> "$GITHUB_ENV"
         env:
@@ -117,10 +125,10 @@ jobs:
         run: |
           terraform apply -auto-approve -no-color \
             -var="factstore_url=http://localhost:8080" \
-            -var="factstore_token="
+            -var="factstore_token=${FACTSTORE_TOKEN}"
         env:
           FACTSTORE_BASE_URL: http://localhost:8080
-          FACTSTORE_API_TOKEN: ""
+          FACTSTORE_API_TOKEN: ${{ env.FACTSTORE_TOKEN }}
 
       - name: Capture Terraform outputs
         id: tf-outputs
@@ -131,25 +139,25 @@ jobs:
 
       - name: Verify organisation was created
         run: |
-          COUNT=$(curl -sf http://localhost:8080/api/v1/organisations | jq 'length')
+          COUNT=$(curl -sf -H "X-API-Key: ${FACTSTORE_TOKEN}" http://localhost:8080/api/v1/organisations | jq 'length')
           echo "Organisations: $COUNT"
           [ "$COUNT" -ge 1 ] || (echo "Expected at least 1 organisation" && exit 1)
 
       - name: Verify environments were created
         run: |
-          COUNT=$(curl -sf http://localhost:8080/api/v1/environments | jq '.items | length')
+          COUNT=$(curl -sf -H "X-API-Key: ${FACTSTORE_TOKEN}" http://localhost:8080/api/v1/environments | jq '.items | length')
           echo "Environments: $COUNT"
           [ "$COUNT" -ge 2 ] || (echo "Expected at least 2 environments (staging + production)" && exit 1)
 
       - name: Verify flows were created
         run: |
-          COUNT=$(curl -sf http://localhost:8080/api/v1/flows | jq 'length')
+          COUNT=$(curl -sf -H "X-API-Key: ${FACTSTORE_TOKEN}" http://localhost:8080/api/v1/flows | jq 'length')
           echo "Flows: $COUNT"
           [ "$COUNT" -ge 2 ] || (echo "Expected at least 2 flows (backend-ci + frontend-ci)" && exit 1)
 
       - name: Verify policies were created
         run: |
-          COUNT=$(curl -sf http://localhost:8080/api/v1/policies | jq 'length')
+          COUNT=$(curl -sf -H "X-API-Key: ${FACTSTORE_TOKEN}" http://localhost:8080/api/v1/policies | jq 'length')
           echo "Policies: $COUNT"
           [ "$COUNT" -ge 2 ] || (echo "Expected at least 2 policies" && exit 1)
 
@@ -161,10 +169,10 @@ jobs:
         run: |
           terraform destroy -auto-approve -no-color \
             -var="factstore_url=http://localhost:8080" \
-            -var="factstore_token=" || true
+            -var="factstore_token=${FACTSTORE_TOKEN}" || true
         env:
           FACTSTORE_BASE_URL: http://localhost:8080
-          FACTSTORE_API_TOKEN: ""
+          FACTSTORE_API_TOKEN: ${{ env.FACTSTORE_TOKEN }}
 
       # ── Diagnostics on failure ────────────────────────────────────────────
 
