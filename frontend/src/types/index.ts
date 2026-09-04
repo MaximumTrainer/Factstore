@@ -4,9 +4,23 @@ export interface Flow {
   description: string
   requiredAttestationTypes: string[]
   tags: Record<string, string>
-  visibility: 'PUBLIC' | 'PRIVATE'
+  orgSlug?: string
+  /** Flow template document; template-driven flows require attestations by name. */
+  templateYaml?: string
+  requiresApproval?: boolean
+  requiredApproverRoles?: string[]
+  /** Set when the flow has been archived (soft-deleted) rather than removed. */
+  archivedAt?: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** How much existing evidence a change to a flow definition would affect. */
+export interface FlowImpact {
+  flowId: string
+  flowName: string
+  trailCount: number
+  pendingTrailCount: number
 }
 
 export interface Trail {

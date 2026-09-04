@@ -2,12 +2,24 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-gray-900">Flows</h1>
-      <button
-        class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
-        @click="showModal = true"
-      >
-        + New Flow
-      </button>
+      <div class="flex items-center gap-4">
+        <label class="flex items-center gap-2 text-sm text-gray-600">
+          <input
+            v-model="includeArchived"
+            data-test="include-archived"
+            type="checkbox"
+            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            @change="reload"
+          />
+          Show archived
+        </label>
+        <button
+          class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
+          @click="showModal = true"
+        >
+          + New Flow
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="text-center text-gray-500 py-12">Loading...</div>
@@ -18,7 +30,7 @@
           <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visibility</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required Attestations</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tags</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -28,7 +40,12 @@
           <tr v-for="flow in flows" :key="flow.id" class="hover:bg-gray-50">
             <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ flow.name }}</td>
             <td class="px-6 py-4 text-sm text-gray-500">{{ flow.description }}</td>
-            <td class="px-6 py-4"><StatusBadge :status="flow.visibility ?? 'PRIVATE'" /></td>
+            <td class="px-6 py-4">
+              <span
+                :class="flow.archivedAt ? 'bg-gray-200 text-gray-700' : 'bg-green-100 text-green-800'"
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+              >{{ flow.archivedAt ? 'Archived' : 'Active' }}</span>
+            </td>
             <td class="px-6 py-4">
               <div class="flex flex-wrap gap-1">
                 <span
@@ -52,14 +69,35 @@
               </div>
             </td>
             <td class="px-6 py-4 text-sm">
-              <RouterLink
-                :to="`/flows/${flow.id}`"
-                class="text-indigo-600 hover:text-indigo-900 font-medium"
-              >View Trails</RouterLink>
+              <div class="flex items-center gap-3">
+                <RouterLink
+                  :to="`/flows/${flow.id}`"
+                  class="text-indigo-600 hover:text-indigo-900 font-medium"
+                >View Trails</RouterLink>
+                <button
+                  data-test="edit-flow-row"
+                  type="button"
+                  class="text-indigo-600 hover:text-indigo-900 font-medium"
+                  @click="editing = flow"
+                >Edit</button>
+                <button
+                  data-test="archive-flow-row"
+                  type="button"
+                  class="text-gray-600 hover:text-gray-900 font-medium"
+                  @click="toggleArchive(flow)"
+                >{{ flow.archivedAt ? 'Unarchive' : 'Archive' }}</button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="editing" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-full overflow-y-auto">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Edit Flow</h2>
+        <FlowEditForm :flow="editing" @saved="onFlowSaved" @cancel="editing = null" />
+      </div>
     </div>
 
     <!-- Create Flow Modal -->
@@ -127,8 +165,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getFlows, createFlow } from '../api/flows'
-import StatusBadge from '../components/StatusBadge.vue'
+import { getFlows, createFlow, archiveFlow, unarchiveFlow } from '../api/flows'
+import FlowEditForm from '../components/FlowEditForm.vue'
 import type { Flow } from '../types'
 
 const flows = ref<Flow[]>([])
@@ -138,6 +176,28 @@ const submitting = ref(false)
 const formError = ref('')
 
 const form = ref({ name: '', description: '', attestationTypes: '', tags: '' })
+const editing = ref<Flow | null>(null)
+const includeArchived = ref(false)
+
+async function reload() {
+  const res = await getFlows(includeArchived.value)
+  flows.value = res.data
+}
+
+function onFlowSaved(updated: Flow) {
+  flows.value = flows.value.map(f => (f.id === updated.id ? updated : f))
+  editing.value = null
+}
+
+async function toggleArchive(flow: Flow) {
+  const { data } = flow.archivedAt ? await unarchiveFlow(flow.id) : await archiveFlow(flow.id)
+  // An archived flow drops out of the default list, so reload rather than patch in place.
+  if (!includeArchived.value && data.archivedAt) {
+    flows.value = flows.value.filter(f => f.id !== flow.id)
+    return
+  }
+  flows.value = flows.value.map(f => (f.id === data.id ? data : f))
+}
 
 function parseTagsInput(raw: string): Record<string, string> {
   const result: Record<string, string> = {}
@@ -168,8 +228,7 @@ async function submitFlow() {
       .filter(Boolean)
     const tags = parseTagsInput(form.value.tags)
     await createFlow({ name: form.value.name, description: form.value.description, requiredAttestationTypes: types, tags })
-    const res = await getFlows()
-    flows.value = res.data
+    await reload()
     closeModal()
   } catch {
     formError.value = 'Failed to create flow. Please try again.'
@@ -180,8 +239,7 @@ async function submitFlow() {
 
 onMounted(async () => {
   try {
-    const res = await getFlows()
-    flows.value = res.data
+    await reload()
   } catch {
     // silently fail
   } finally {

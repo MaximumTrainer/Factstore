@@ -64,6 +64,16 @@ data class CreateFlowRequest(
     val requiredApproverRoles: List<String> = emptyList()
 )
 
+/** Blast radius of a change to a flow definition (#160). */
+data class FlowImpactResponse(
+    val flowId: UUID,
+    val flowName: String,
+    /** Trails attached to this flow; all of them re-evaluate against the new definition. */
+    val trailCount: Int,
+    /** Of those, the ones not yet judged - the releases most likely to be affected. */
+    val pendingTrailCount: Int
+)
+
 data class UpdateFlowRequest(
     val name: String? = null,
     val description: String? = null,

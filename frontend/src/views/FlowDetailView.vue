@@ -13,7 +13,15 @@
             <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ flow.name }}</h1>
             <p class="text-gray-500 mb-4">{{ flow.description }}</p>
             <div class="flex items-center gap-2 mb-3">
-              <StatusBadge :status="flow.visibility ?? 'PRIVATE'" />
+              <span
+                v-if="flow.archivedAt"
+                data-test="flow-archived-badge"
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700"
+              >Archived</span>
+              <span
+                v-if="flow.requiresApproval"
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+              >Approval required</span>
             </div>
             <div class="flex flex-wrap gap-2 mb-3">
               <span
@@ -30,16 +38,38 @@
               >{{ key }}: {{ value }}</span>
             </div>
           </div>
-          <button
-            class="ml-4 flex-shrink-0 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
-            :disabled="exportingReport"
-            @click="exportComplianceReport"
-          >
-            <span v-if="exportingReport">Exporting…</span>
-            <span v-else>⬇ Export Compliance Report</span>
-          </button>
+          <div class="ml-4 flex-shrink-0 flex items-center gap-2">
+            <button
+              data-test="edit-flow"
+              class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50"
+              @click="showEditModal = true"
+            >Edit Flow</button>
+            <button
+              data-test="toggle-archive"
+              class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50"
+              :disabled="archiving"
+              @click="toggleArchive"
+            >{{ flow.archivedAt ? 'Unarchive' : 'Archive' }}</button>
+            <button
+              class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
+              :disabled="exportingReport"
+              @click="exportComplianceReport"
+            >
+              <span v-if="exportingReport">Exporting…</span>
+              <span v-else>⬇ Export Compliance Report</span>
+            </button>
+          </div>
         </div>
         <p v-if="exportError" class="mt-3 text-sm text-red-600">{{ exportError }}</p>
+        <p v-if="archiveError" class="mt-3 text-sm text-red-600">{{ archiveError }}</p>
+      </div>
+
+      <!-- Edit Flow -->
+      <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-full overflow-y-auto">
+          <h2 class="text-lg font-bold text-gray-900 mb-4">Edit Flow</h2>
+          <FlowEditForm :flow="flow" @saved="onFlowSaved" @cancel="showEditModal = false" />
+        </div>
       </div>
 
       <div class="bg-white rounded-lg shadow">
@@ -82,12 +112,38 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import StatusBadge from '../components/StatusBadge.vue'
-import { getFlow } from '../api/flows'
+import FlowEditForm from '../components/FlowEditForm.vue'
+import { getFlow, archiveFlow, unarchiveFlow } from '../api/flows'
 import { getTrails } from '../api/trails'
 import { getComplianceReport } from '../api/reports'
 import type { Flow, Trail } from '../types'
 
 const route = useRoute()
+
+const showEditModal = ref(false)
+const archiving = ref(false)
+const archiveError = ref('')
+
+function onFlowSaved(updated: Flow) {
+  flow.value = updated
+  showEditModal.value = false
+}
+
+async function toggleArchive() {
+  if (!flow.value) return
+  archiving.value = true
+  archiveError.value = ''
+  try {
+    const { data } = flow.value.archivedAt
+      ? await unarchiveFlow(flow.value.id)
+      : await archiveFlow(flow.value.id)
+    flow.value = data
+  } catch {
+    archiveError.value = 'Failed to change the archive state of this flow.'
+  } finally {
+    archiving.value = false
+  }
+}
 const flow = ref<Flow | null>(null)
 const trails = ref<Trail[]>([])
 const loading = ref(true)
