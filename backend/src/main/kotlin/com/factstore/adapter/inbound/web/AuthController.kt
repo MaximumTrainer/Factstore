@@ -8,6 +8,7 @@ import com.factstore.core.domain.security.Permission
 import com.factstore.core.domain.security.RoleModel
 import com.factstore.core.port.inbound.IApiKeyService
 import com.factstore.core.port.outbound.IOrganisationMembershipRepository
+import com.factstore.dto.AuthConfigResponse
 import com.factstore.dto.AuthenticatedPrincipalResponse
 import com.factstore.dto.PrincipalOrganisation
 import com.factstore.dto.PrincipalType
@@ -22,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -41,8 +43,30 @@ import java.util.UUID
 class AuthController(
     private val sessionService: SessionService,
     private val apiKeyService: IApiKeyService,
-    private val membershipRepository: IOrganisationMembershipRepository
+    private val membershipRepository: IOrganisationMembershipRepository,
+    @Value("\${security.enforce-auth:false}") private val enforceAuth: Boolean
 ) {
+
+    /**
+     * Whether this instance enforces authentication.
+     *
+     * Public, and deliberately so: a client has to be able to ask before it has a credential,
+     * and the UI must gate exactly when the server gates — `security.enforce-auth` defaults to
+     * `false` during the #155 rollout, so a UI that assumed enforcement bounced every route to
+     * `/login` on an instance that was not asking anyone to sign in.
+     *
+     * It discloses only enforcement. That is no more than an unauthenticated request already
+     * reveals by being accepted or refused, and deliberately not the issuer, client id or
+     * bootstrap state.
+     */
+    @GetMapping("/config")
+    @Operation(
+        summary = "Whether this instance enforces authentication",
+        description = "Answered without a credential, because a client must be able to ask " +
+            "before it has one. Discloses nothing else about the deployment."
+    )
+    fun config(): ResponseEntity<AuthConfigResponse> =
+        ResponseEntity.ok(AuthConfigResponse(enforceAuth = enforceAuth))
 
     @GetMapping("/me")
     @Operation(

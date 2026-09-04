@@ -42,6 +42,19 @@ export interface SessionSummary {
   current: boolean
 }
 
+/**
+ * Whether this instance enforces authentication.
+ *
+ * Public, and deliberately so: a client has to be able to ask before it has a credential.
+ * It reveals only what an unauthenticated request already reveals by being accepted or
+ * refused.
+ */
+export interface AuthConfig {
+  enforceAuth: boolean
+}
+
+export const getAuthConfig = () => client.get<AuthConfig>('/auth/config')
+
 export const getMe = () => client.get<AuthenticatedPrincipal>('/auth/me')
 
 export const logout = () => client.post<void>('/auth/logout', {})
