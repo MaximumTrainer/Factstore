@@ -1,6 +1,7 @@
 package com.factstore.core.domain
 
 import jakarta.persistence.*
+import com.factstore.core.domain.security.Permission
 import java.time.Instant
 import java.util.UUID
 
@@ -60,5 +61,79 @@ class ApiKey(
      * Null when [ttlDays] is null (no expiry).
      */
     @Column(name = "expires_at")
-    val expiresAt: Instant? = null
-)
+    val expiresAt: Instant? = null,
+
+    /**
+     * Granted scopes as a comma-separated `resource:action` list (#155 FR-3).
+     *
+     * Stored as a string rather than a join table: the vocabulary is a fixed enum
+     * ([com.factstore.core.domain.security.Permission]) validated on the way in, so a table
+     * would add a migration and a join without making anything more correct. Use [scopes].
+     */
+    @Column(name = "scopes", columnDefinition = "TEXT")
+    var scopesRaw: String? = null,
+
+    /**
+     * The organisation this key authenticates into (#155 FR-5.1).
+     *
+     * Null means unbound — the single-tenant case, and the state of every key that existed
+     * before scopes were introduced.
+     */
+    @Column(name = "org_slug", nullable = true, length = 255)
+    var orgSlug: String? = null,
+
+    /** The key this one replaced, when it was created by rotation (#155 FR-6.1). */
+    @Column(name = "rotated_from_id", nullable = true)
+    var rotatedFromId: UUID? = null,
+
+    /** When this key was replaced by a rotation. */
+    @Column(name = "superseded_at", nullable = true)
+    var supersededAt: Instant? = null,
+
+    /**
+     * A superseded key stops working at this instant, not immediately, so a pipeline holding
+     * the old value can roll over without an outage.
+     */
+    @Column(name = "overlap_expires_at", nullable = true)
+    var overlapExpiresAt: Instant? = null
+) {
+    /** The granted permissions. Empty means the key can do nothing but authenticate. */
+    var scopes: Set<Permission>
+        get() = scopesRaw
+            ?.split(",")
+            ?.mapNotNull { Permission.fromScope(it.trim()) }
+            ?.toSet()
+            ?: emptySet()
+        set(value) {
+            scopesRaw = value.joinToString(",") { it.scope }
+        }
+
+    /** True when the key is currently accepted. */
+    fun isUsableAt(now: Instant): Boolean {
+        if (!isActive) return false
+        if (expiresAt != null && !expiresAt.isAfter(now)) return false
+        // A superseded key lives until its overlap window closes.
+        if (supersededAt != null && (overlapExpiresAt == null || !overlapExpiresAt!!.isAfter(now))) return false
+        return true
+    }
+
+    /** Why the key was refused, for the 401 problem body (#155 FR-2.4). */
+    fun refusalReason(now: Instant): AuthFailureReason? = when {
+        !isActive -> AuthFailureReason.REVOKED
+        expiresAt != null && !expiresAt.isAfter(now) -> AuthFailureReason.EXPIRED
+        supersededAt != null && (overlapExpiresAt == null || !overlapExpiresAt!!.isAfter(now)) ->
+            AuthFailureReason.EXPIRED
+        else -> null
+    }
+
+    /** Days until expiry, for the nearing-expiry warning (#155 FR-6.3). Null when no TTL. */
+    fun daysUntilExpiry(now: Instant): Long? = expiresAt?.let {
+        java.time.Duration.between(now, it).toDays()
+    }
+}
+
+/**
+ * Why a credential was refused. Distinguishes the cases a caller can act on without
+ * revealing whether a given key exists (#155 FR-2.4).
+ */
+enum class AuthFailureReason { MISSING, MALFORMED, UNKNOWN, EXPIRED, REVOKED, INSUFFICIENT_SCOPE, WRONG_ORGANISATION }

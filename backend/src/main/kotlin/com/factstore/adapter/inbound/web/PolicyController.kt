@@ -20,6 +20,7 @@ import java.util.UUID
 class PolicyController(private val policyService: IPolicyService) {
 
     @PostMapping
+    @PreAuthorize("hasAuthority('SCOPE_policies:write')")
     @Operation(summary = "Create a new policy")
     fun createPolicy(@Valid @RequestBody request: CreatePolicyRequest): ResponseEntity<PolicyResponse> =
         ResponseEntity.status(HttpStatus.CREATED).body(policyService.createPolicy(request))
@@ -35,13 +36,16 @@ class PolicyController(private val policyService: IPolicyService) {
         ResponseEntity.ok(policyService.getPolicy(id))
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('SCOPE_policies:write')")
     @Operation(summary = "Update a policy")
     fun updatePolicy(@PathVariable id: UUID, @RequestBody request: UpdatePolicyRequest): ResponseEntity<PolicyResponse> =
         ResponseEntity.ok(policyService.updatePolicy(id, request))
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a policy")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MEMBER', 'API_USER')")
+    // Was hasAnyRole('ADMIN', 'MEMBER', 'API_USER'), which let a MEMBER and *any* API key
+    // delete a policy. Policy changes are administrative in the FR-4 matrix (#155).
+    @PreAuthorize("hasAuthority('SCOPE_policies:write')")
     fun deletePolicy(@PathVariable id: UUID): ResponseEntity<Void> {
         policyService.deletePolicy(id)
         return ResponseEntity.noContent().build()

@@ -27,6 +27,24 @@ class GlobalExceptionHandler {
             .body(ErrorResponse(409, "Conflict", ex.message ?: "Conflict"))
     }
 
+    @ExceptionHandler(ForbiddenException::class)
+    fun handleForbidden(ex: ForbiddenException): ResponseEntity<ErrorResponse> {
+        log.warn("Forbidden: ${ex.message}")
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "Forbidden", ex.message ?: "Not permitted"))
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException::class)
+    fun handleAccessDenied(
+        ex: org.springframework.security.access.AccessDeniedException
+    ): ResponseEntity<ErrorResponse> {
+        // Raised by @PreAuthorize. Reported as 403 rather than 500, and without echoing the
+        // expression that failed.
+        log.warn("Access denied: ${ex.message}")
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "Forbidden", "You do not have permission to perform this action"))
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleMessageNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
         log.warn("Malformed request body: ${ex.message}")

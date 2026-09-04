@@ -80,12 +80,15 @@ class ApiKeyAuthFilterTest {
     }
 
     @Test
-    fun `request with invalid API key still reaches permitted endpoints`() {
-        // Invalid keys leave the SecurityContext unauthenticated; permitAll routes still succeed.
+    fun `an invalid API key is refused, not treated as an anonymous request`() {
+        // This used to assert the opposite: an invalid key left the context unauthenticated and
+        // permitAll routes still succeeded, so a wrong key looked exactly like no key. #155
+        // FR-2.3 makes the filter refuse it outright.
         mockMvc.get("/api/v1/flows") {
             header("X-API-Key", "fsp_invalidkeyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         }.andExpect {
-            status { isOk() }
+            status { isUnauthorized() }
+            header { string("WWW-Authenticate", "Bearer realm=\"factstore\"") }
         }
     }
 

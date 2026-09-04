@@ -8,7 +8,18 @@ import au.com.dius.pact.provider.junitsupport.State
 import au.com.dius.pact.provider.junitsupport.loader.PactFolder
 import com.factstore.adapter.outbound.persistence.FlowRepositoryJpa
 import com.factstore.adapter.outbound.persistence.TrailRepositoryJpa
+import com.factstore.adapter.inbound.web.ApiKeyAuthFilter
+import com.factstore.application.ApiKeyService
 import com.factstore.core.domain.Flow
+import com.factstore.core.domain.OwnerType
+import com.factstore.core.domain.User
+import com.factstore.core.domain.security.Permission
+import com.factstore.core.port.outbound.IUserRepository
+import com.factstore.dto.CreateApiKeyRequest
+import org.apache.hc.core5.http.HttpRequest
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContextHolder
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
@@ -33,14 +44,55 @@ class PactProviderVerificationTest {
     @Autowired
     lateinit var trailRepository: TrailRepositoryJpa
 
+    @Autowired
+    lateinit var apiKeyService: ApiKeyService
+
+    @Autowired
+    lateinit var userRepository: IUserRepository
+
+    /**
+     * A real credential for the verification run.
+     *
+     * The consumer contracts were written against an API that accepted anything, so a
+     * mutating interaction now needs a key with the right scopes. Minting one here keeps the
+     * contracts describing *behaviour* rather than being quietly weakened to describe an
+     * unauthenticated API that no longer exists.
+     */
+    private lateinit var verificationKey: String
+
     @BeforeEach
     fun setup(context: PactVerificationContext) {
         context.target = HttpTestTarget("localhost", port)
+        verificationKey = mintVerificationKey()
+    }
+
+    private fun mintVerificationKey(): String {
+        val owner = userRepository.save(
+            User(email = "pact-${System.nanoTime()}@example.com", name = "Pact Verifier")
+        )
+        // Creating a scoped key requires holding those scopes, so authorise this one call.
+        val previous = SecurityContextHolder.getContext().authentication
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken(
+            "pact", null, listOf(SimpleGrantedAuthority(Permission.ADMIN.authority))
+        )
+        return try {
+            apiKeyService.createApiKey(
+                CreateApiKeyRequest(
+                    ownerId = owner.id,
+                    label = "pact verification",
+                    ownerType = OwnerType.USER,
+                    scopes = Permission.entries.map { it.scope }
+                )
+            ).plainTextKey
+        } finally {
+            SecurityContextHolder.getContext().authentication = previous
+        }
     }
 
     @TestTemplate
     @ExtendWith(PactVerificationInvocationContextProvider::class)
-    fun pactVerificationTestTemplate(context: PactVerificationContext) {
+    fun pactVerificationTestTemplate(context: PactVerificationContext, request: HttpRequest) {
+        request.addHeader(ApiKeyAuthFilter.API_KEY_HEADER, verificationKey)
         context.verifyInteraction()
     }
 

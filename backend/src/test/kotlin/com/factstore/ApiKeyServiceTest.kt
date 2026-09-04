@@ -146,10 +146,12 @@ class ApiKeyServiceTest {
     }
 
     @Test
-    fun `api key without ttlDays has null expiresAt`() {
+    fun `api key without ttlDays gets the default TTL, not an unlimited life`() {
         val userId = createUser()
         val resp = apiKeyService.createApiKey(CreateApiKeyRequest(userId, "No-expiry", OwnerType.USER))
-        assertNull(resp.expiresAt)
-        assertNull(resp.ttlDays)
+        // #155 FR-6.2: omitting a TTL used to mean "never expires", which is how a key ends up
+        // outliving the pipeline, the project and the person who made it.
+        assertNotNull(resp.expiresAt)
+        assertNotNull(resp.ttlDays)
     }
 }
