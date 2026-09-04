@@ -5,7 +5,7 @@ variable "factstore_url" {
 }
 
 variable "factstore_token" {
-  description = "API token for authentication. Overridden by FACTSTORE_API_TOKEN env var. Leave empty when SECURITY_ENFORCE_AUTH is not set."
+  description = "API token for authentication. Overridden by FACTSTORE_API_TOKEN env var. Required: authorisation rules apply even when SECURITY_ENFORCE_AUTH is off, so creating flows, environments and policies needs a credential."
   type        = string
   sensitive   = true
   default     = ""

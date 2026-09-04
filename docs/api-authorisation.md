@@ -68,10 +68,22 @@ A key carries `resource:action` scopes, and its authorities are derived from the
 | `assert:execute` | Run compliance assertions |
 | `policies:read` / `policies:write` | Read / upload and delete policies |
 | `approvals:write` | Grant approvals |
-| `admin` | Key management, service accounts, organisation and SSO configuration |
+| `admin` | Everything, including key management, service accounts, organisation and SSO configuration |
 
 `GET /api/v1/api-keys/scopes` returns this vocabulary and the presets, so a client need not
 hard-code it.
+
+`admin` is not a narrower privilege sitting alongside the others: a key holding it **grants every
+permission**. That follows from what the word already means elsewhere — the `ADMIN` role holds
+the full set, and a caller holding `admin` may mint a key carrying any scope it likes, so any
+narrower reading is one API call from being irrelevant.
+
+> **What this replaced.** `admin` derived exactly one authority, `SCOPE_admin`. So the bootstrap
+> credential — the *only* credential a fresh enforced deployment has — could not create a flow:
+> the first thing an operator tried with the credential they had just been handed returned
+> `403`. It broke `dogfood.yml`, `verify-factstore.yml` and `terraform-verify.yml`, and no test
+> caught it because those all used `@WithMockUser`, which grants authorities directly and never
+> exercises scope derivation at all.
 
 ### Presets
 
@@ -220,8 +232,9 @@ never authenticate.
 
 This applies **whatever `enforce-auth` is set to**, and that matters more than it first appears:
 authorisation rules are always live, so creating a flow or uploading a policy needs a credential
-even in a permissive deployment. It is why `dogfood.yml` and `verify-factstore.yml` seed a key
-into their transient instances.
+even in a permissive deployment. It is why `dogfood.yml`, `verify-factstore.yml` and
+`terraform-verify.yml` seed a key into their transient instances, and why `infra`'s
+`factstore_token` is required rather than optional.
 
 A credential supplied this way is known to anyone who can read that configuration. Use it for
 development and CI; for production, prefer the generated credential and rotate it.
