@@ -1,0 +1,63 @@
+import client from './client'
+
+export type MemberRole = 'ADMIN' | 'MEMBER' | 'VIEWER' | 'SERVICE_ACCOUNT'
+
+export interface PrincipalOrganisation {
+  orgSlug: string
+  role: MemberRole
+}
+
+/**
+ * Who the caller is and what it may do.
+ *
+ * The single source of truth for navigation and control visibility: the server is the
+ * authority, and the UI asks it rather than guessing from which screen someone reached.
+ */
+export interface AuthenticatedPrincipal {
+  type: 'USER' | 'API_KEY'
+  userId?: string
+  email?: string
+  name?: string
+  apiKeyId?: string
+  ownerId?: string
+  orgSlug?: string | null
+  role?: MemberRole
+  /** `resource:action` scopes, e.g. `flows:write`. */
+  permissions: string[]
+  sessionId?: string
+  sessionExpiresAt?: string
+  organisations: PrincipalOrganisation[]
+}
+
+export interface SessionSummary {
+  sessionId: string
+  provider: 'OIDC' | 'GITHUB' | 'DEV'
+  orgSlug: string | null
+  createdAt: string
+  lastSeenAt: string
+  expiresAt: string
+  absoluteExpiresAt: string
+  sourceIp: string | null
+  userAgent: string | null
+  current: boolean
+}
+
+export const getMe = () => client.get<AuthenticatedPrincipal>('/auth/me')
+
+export const logout = () => client.post<void>('/auth/logout', {})
+
+export const refreshSession = () => client.post<{ expiresAt: string }>('/auth/refresh', {})
+
+export const listMySessions = () => client.get<SessionSummary[]>('/auth/sessions')
+
+export const revokeSession = (sessionId: string) => client.delete<void>(`/auth/sessions/${sessionId}`)
+
+export const switchOrganisation = (orgSlug: string) =>
+  client.post<AuthenticatedPrincipal>('/auth/organisation', { orgSlug })
+
+/** Starts an organisation's OIDC flow; the browser is redirected to the returned URL. */
+export const getSsoLoginUrl = (orgSlug: string, redirectUri: string) =>
+  client.get<{ loginUrl: string; state: string }>(
+    `/organisations/${encodeURIComponent(orgSlug)}/sso/login`,
+    { params: { redirectUri } }
+  )

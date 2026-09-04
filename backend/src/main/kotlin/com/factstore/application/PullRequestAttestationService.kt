@@ -32,7 +32,8 @@ class PullRequestAttestationService(
     private val scmIntegrationRepository: IScmIntegrationRepository,
     private val auditService: IAuditService,
     private val objectMapper: ObjectMapper,
-    private val encryptionService: ScmTokenEncryptionService
+    private val encryptionService: ScmTokenEncryptionService,
+    private val actorResolver: ActorResolver
 ) : IPullRequestAttestationService {
 
     private val log = LoggerFactory.getLogger(PullRequestAttestationService::class.java)
@@ -100,7 +101,9 @@ class PullRequestAttestationService(
 
         auditService.record(
             eventType = AuditEventType.ATTESTATION_RECORDED,
-            actor = "system",
+            // Recording evidence is an act with an owner; "system" cannot answer who
+            // vouched for it (#156 FR-7.2).
+            actor = actorResolver.current(),
             payload = mapOf(
                 "attestationId" to saved.id.toString(),
                 "trailId" to trailId.toString(),

@@ -1,5 +1,6 @@
 package com.factstore.application.command
 
+import com.factstore.application.ActorResolver
 import com.factstore.core.domain.Attestation
 import com.factstore.core.domain.AttestationStatus
 import com.factstore.core.domain.AuditEventType
@@ -33,7 +34,8 @@ class AttestationCommandHandler(
     private val organisationRepository: IOrganisationRepository,
     private val flowRepository: IFlowRepository,
     private val eventPublisher: IEventPublisher,
-    private val eventAppender: EventAppender
+    private val eventAppender: EventAppender,
+    private val actorResolver: ActorResolver
 ) : IAttestationCommandHandler {
 
     private val log = LoggerFactory.getLogger(AttestationCommandHandler::class.java)
@@ -85,7 +87,9 @@ class AttestationCommandHandler(
         }
         auditService.record(
             eventType = AuditEventType.ATTESTATION_RECORDED,
-            actor = "system",
+            // Recording evidence is an act with an owner; "system" cannot answer who
+            // vouched for it (#156 FR-7.2).
+            actor = actorResolver.current(),
             payload = mapOf(
                 "attestationId" to saved.id.toString(),
                 "trailId" to command.trailId.toString(),
