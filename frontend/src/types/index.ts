@@ -9,10 +9,31 @@ export interface Flow {
   templateYaml?: string
   requiresApproval?: boolean
   requiredApproverRoles?: string[]
+  /** The hub template this flow was created from, if any. */
+  templateId?: string | null
+  templateVersion?: string | null
   /** Set when the flow has been archived (soft-deleted) rather than removed. */
   archivedAt?: string | null
   createdAt: string
   updatedAt: string
+}
+
+/**
+ * Whether a flow still matches the template it was created from.
+ *
+ * Templates are copied into a flow at creation, never linked live, so a template update can
+ * never silently change what an in-flight release is judged against.
+ */
+export interface TemplateDrift {
+  flowId: string
+  templateId?: string | null
+  templateVersion?: string | null
+  currentTemplateVersion?: string | null
+  drifted: boolean
+  /** Gates the template requires that the flow no longer does. */
+  missingFromFlow: string[]
+  /** Gates the flow requires that the template does not - local additions. */
+  addedToFlow: string[]
 }
 
 /** How much existing evidence a change to a flow definition would affect. */

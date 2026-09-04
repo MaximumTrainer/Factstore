@@ -6,6 +6,7 @@ import com.factstore.dto.FlowImpactResponse
 import com.factstore.dto.FlowResponse
 import com.factstore.dto.FlowTemplateResponse
 import com.factstore.dto.PageResponse
+import com.factstore.dto.TemplateDriftResponse
 import com.factstore.dto.UpdateFlowRequest
 import java.util.UUID
 
@@ -16,6 +17,8 @@ interface IFlowService {
     fun getFlow(id: UUID): FlowResponse
     fun updateFlow(id: UUID, request: UpdateFlowRequest): FlowResponse
     fun getFlowImpact(id: UUID): FlowImpactResponse
+    /** Whether the flow still matches the template it was created from (#162). */
+    fun getTemplateDrift(id: UUID): TemplateDriftResponse
     /**
      * Deletes a flow. Refused when trails are still attached unless [force], since deleting a
      * flow orphans the evidence recorded against it; archiving is the reversible alternative.

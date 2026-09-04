@@ -1,0 +1,22 @@
+id: service-internal
+name: Internal Microservice
+description: >-
+  Baseline gates for a service reachable only from inside the estate. Static analysis,
+  dependency and image scanning, and a recorded peer review, without the external contract
+  testing a public API needs.
+category: service-type
+serviceType: internal
+framework: house-standard
+version: "1.0"
+trail:
+  attestations:
+    - name: unit-tests
+      type: junit
+    - name: sast
+      type: ghas
+    - name: dependency-scan
+      type: snyk
+    - name: image-scan
+      type: trivy
+    - name: peer-review
+      type: pull-request

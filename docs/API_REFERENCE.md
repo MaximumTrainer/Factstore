@@ -53,6 +53,7 @@ Interactive documentation is also available at **[http://localhost:8080/swagger-
 | `DELETE` | `/api/v1/flows/{id}` | Delete a flow |
 | `GET` | `/api/v1/flows/{id}/impact` | How much existing evidence a change to this flow would affect |
 | `GET` | `/api/v1/flows/{id}/template` | Get flow template as YAML |
+| `GET` | `/api/v1/flows/{id}/template-drift` | Whether the flow still matches the template it came from |
 | `POST` | `/api/v1/flows/{flowId}/security-thresholds` | Set security scan thresholds for a flow |
 | `GET` | `/api/v1/flows/{flowId}/security-thresholds` | Get security scan thresholds for a flow |
 
@@ -245,6 +246,29 @@ multi-pipeline example.
   "prNumber": 42
 }
 ```
+
+---
+
+### Flow Templates
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/hub/templates` | List templates (query params: `category`=`SERVICE_TYPE`\|`FRAMEWORK`, `orgSlug`) |
+| `GET` | `/api/v1/hub/templates/{id}` | Get a template by ID |
+| `POST` | `/api/v1/hub/templates/compose` | Combine several templates into one |
+| `GET` | `/api/v1/hub/templates/custom` | List an organisation's own templates |
+| `POST` | `/api/v1/hub/templates/custom` | Publish an organisation template |
+| `PUT` | `/api/v1/hub/templates/custom/{id}` | Update an organisation template |
+| `DELETE` | `/api/v1/hub/templates/custom/{id}` | Withdraw an organisation template |
+
+Two categories: `SERVICE_TYPE` templates are the baseline gates for a shape of service
+(`service-public-api`, `service-internal`, `service-batch-job`, `service-frontend`); `FRAMEWORK`
+templates are regulatory (`slsa-level-2`, `pci-dss-v4`, `sox-itgc`, `gdpr-art32`). A flow commonly
+wants one of each — `POST /api/v1/flows` accepts `templateIds` and copies the merged template onto
+the flow.
+
+Full guide, including the composition and drift semantics and how to add templates:
+**[flow-templates.md](./flow-templates.md)**.
 
 ---
 

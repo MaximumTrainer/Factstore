@@ -5,6 +5,10 @@ import com.factstore.adapter.mock.InMemoryTrailRepository
 import com.factstore.adapter.mock.RecordingAuditService
 import com.factstore.application.ActorResolver
 import com.factstore.application.FlowService
+import com.factstore.application.HubService
+import com.factstore.application.TemplateComposer
+import com.factstore.application.template.TemplateParser
+import com.factstore.adapter.mock.InMemoryOrgTemplateRepository
 import com.factstore.dto.CreateFlowRequest
 import com.factstore.dto.UpdateFlowRequest
 import com.factstore.exception.BadRequestException
@@ -31,7 +35,14 @@ class FlowServiceUnitTest {
     }
 
     private fun newFlowService(repo: InMemoryFlowRepository) =
-        FlowService(repo, InMemoryTrailRepository(), RecordingAuditService(), ActorResolver())
+        FlowService(
+            repo,
+            InMemoryTrailRepository(),
+            RecordingAuditService(),
+            ActorResolver(),
+            HubService(InMemoryOrgTemplateRepository(), TemplateComposer(TemplateParser())),
+            TemplateParser()
+        )
 
     @Test
     fun `create flow succeeds and returns response with generated id`() {

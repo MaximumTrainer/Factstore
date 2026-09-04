@@ -1,0 +1,10 @@
+id: conflicting-test-template
+name: Conflicting Test Template
+description: Test fixture - requires unit-tests with a different type, to exercise conflict detection.
+category: framework
+framework: test
+version: "1.0"
+trail:
+  attestations:
+    - name: unit-tests
+      type: pytest

@@ -5,6 +5,7 @@ import com.factstore.core.domain.ScmProvider
 import com.factstore.core.domain.ApprovalDecisionType
 import com.factstore.core.domain.ApprovalStatus
 import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.TemplateCategory
 import com.factstore.core.domain.GateDecision
 import com.factstore.core.domain.BuilderType
 import com.factstore.core.domain.OwnerType
@@ -61,7 +62,11 @@ data class CreateFlowRequest(
     val orgSlug: String? = null,
     val templateYaml: String? = null,
     val requiresApproval: Boolean = false,
-    val requiredApproverRoles: List<String> = emptyList()
+    val requiredApproverRoles: List<String> = emptyList(),
+    /** Apply a hub template at creation; its YAML is copied onto the flow (#162). */
+    val templateId: String? = null,
+    /** Apply several templates combined, e.g. a service type plus a regulatory framework. */
+    val templateIds: List<String> = emptyList()
 )
 
 /** Blast radius of a change to a flow definition (#160). */
@@ -98,6 +103,9 @@ data class FlowResponse(
     val tags: Map<String, String>,
     val orgSlug: String? = null,
     val templateYaml: String? = null,
+    /** The hub template this flow was created from, if any (#162). */
+    val templateId: String? = null,
+    val templateVersion: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
     val requiresApproval: Boolean = false,
@@ -271,6 +279,72 @@ data class EvidenceFileResponse(
     val storedAt: Instant,
     /** Non-null when the evidence binary lives at an external location rather than inline. */
     val externalUrl: String? = null
+)
+
+// Flow template DTOs (#162)
+
+data class ComposeTemplateRequest(
+    /** Applied in order; where two templates disagree on a gate's type, the first wins. */
+    val templateIds: List<String>,
+    val orgSlug: String? = null
+)
+
+data class ComposedTemplateResponse(
+    val templateIds: List<String>,
+    /** The merged flow template, ready to be saved onto a flow. */
+    val templateYaml: String,
+    /** Every attestation name the merged template requires - the preview a picker shows. */
+    val requiredAttestations: List<String>,
+    /** Gates the source templates disagree about, stated rather than silently resolved. */
+    val conflicts: List<String> = emptyList()
+)
+
+data class CreateOrgTemplateRequest(
+    val templateId: String,
+    val name: String,
+    val description: String = "",
+    val templateYaml: String,
+    val category: TemplateCategory = TemplateCategory.SERVICE_TYPE,
+    val serviceType: String? = null,
+    val framework: String = "custom",
+    val version: String = "1.0",
+    val orgSlug: String? = null
+)
+
+data class OrgTemplateResponse(
+    val id: UUID,
+    val templateId: String,
+    val name: String,
+    val description: String,
+    val category: TemplateCategory,
+    val serviceType: String?,
+    val framework: String,
+    val version: String,
+    val orgSlug: String?,
+    val templateYaml: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+/**
+ * Whether a flow still matches the template it was created from (#162).
+ *
+ * Templates are copied into a flow at creation, never linked live, so a template update can
+ * never silently change what an in-flight release is judged against. This reports the gap so a
+ * team can choose to re-apply.
+ */
+data class TemplateDriftResponse(
+    val flowId: UUID,
+    val templateId: String?,
+    /** The template version the flow was created from. */
+    val templateVersion: String?,
+    /** The version of that template shipping now. */
+    val currentTemplateVersion: String?,
+    val drifted: Boolean,
+    /** Gates the template requires that the flow no longer does. */
+    val missingFromFlow: List<String> = emptyList(),
+    /** Gates the flow requires that the template does not - local additions. */
+    val addedToFlow: List<String> = emptyList()
 )
 
 // Cleanup DTOs (#161)

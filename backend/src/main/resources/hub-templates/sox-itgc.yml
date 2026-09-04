@@ -1,6 +1,7 @@
 id: sox-itgc
 name: SOX ITGC Compliance Template
 description: Sarbanes-Oxley IT General Controls attestation requirements
+category: framework
 framework: SOX
 version: "2024"
 trail:

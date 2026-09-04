@@ -8,6 +8,7 @@ import com.factstore.dto.FlowImpactResponse
 import com.factstore.dto.FlowResponse
 import com.factstore.dto.FlowTemplateResponse
 import com.factstore.dto.RenameFlowRequest
+import com.factstore.dto.TemplateDriftResponse
 import com.factstore.dto.UpdateFlowRequest
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -88,6 +89,15 @@ class FlowController(private val flowService: IFlowService) {
     )
     fun getFlowImpact(@PathVariable id: UUID): ResponseEntity<FlowImpactResponse> =
         ResponseEntity.ok(flowService.getFlowImpact(id))
+
+    @GetMapping("/{id}/template-drift")
+    @Operation(
+        summary = "Whether this flow still matches the template it was created from",
+        description = "Templates are copied at creation, never linked live, so a template update " +
+            "can never silently change what an in-flight release is judged against."
+    )
+    fun getTemplateDrift(@PathVariable id: UUID): ResponseEntity<TemplateDriftResponse> =
+        ResponseEntity.ok(flowService.getTemplateDrift(id))
 
     @GetMapping("/{id}/template")
     @Operation(summary = "Get flow template")

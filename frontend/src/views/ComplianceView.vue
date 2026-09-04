@@ -3,7 +3,10 @@
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Compliance Frameworks</h1>
-        <p class="mt-1 text-sm text-gray-500">Browse and import compliance framework templates as flows.</p>
+        <p class="mt-1 text-sm text-gray-500">
+          Browse and import regulatory framework templates as flows. Service-type baselines are
+          offered when you create a flow.
+        </p>
       </div>
     </div>
 
@@ -43,7 +46,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { listTemplates, importTemplate } from '../api/hub'
+import { listTemplates } from '../api/hub'
+import { createFlow } from '../api/flows'
 import type { HubTemplate } from '../api/hub'
 
 const templates = ref<HubTemplate[]>([])
@@ -60,11 +64,19 @@ function frameworkBadgeClass(framework: string): string {
   return 'bg-gray-100 text-gray-800'
 }
 
+// Importing creates a flow from the template. This used to POST to
+// /hub/templates/{id}/import, which the server has never had, so it always failed.
 async function doImport(id: string) {
   importing.value = { ...importing.value, [id]: true }
   delete importStatus.value[id]
   try {
-    await importTemplate(id)
+    const template = templates.value.find(t => t.id === id)
+    await createFlow({
+      name: template?.name ?? id,
+      description: template?.description ?? '',
+      requiredAttestationTypes: [],
+      templateIds: [id],
+    })
     importStatus.value = { ...importStatus.value, [id]: 'ok' }
   } catch {
     importStatus.value = { ...importStatus.value, [id]: 'error' }
@@ -75,7 +87,9 @@ async function doImport(id: string) {
 
 onMounted(async () => {
   try {
-    const res = await listTemplates()
+    // Service-type templates are offered in the Create Flow picker; this page is the
+    // regulatory catalogue.
+    const res = await listTemplates('FRAMEWORK')
     templates.value = res.data
   } catch {
     loadError.value = 'Failed to load compliance frameworks.'
