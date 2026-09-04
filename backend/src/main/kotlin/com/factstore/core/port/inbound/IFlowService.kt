@@ -2,6 +2,7 @@ package com.factstore.core.port.inbound
 
 import com.factstore.core.domain.Flow
 import com.factstore.dto.CreateFlowRequest
+import com.factstore.dto.FlowImpactResponse
 import com.factstore.dto.FlowResponse
 import com.factstore.dto.FlowTemplateResponse
 import com.factstore.dto.PageResponse
@@ -14,6 +15,7 @@ interface IFlowService {
     fun listFlows(page: Int, size: Int): PageResponse<FlowResponse>
     fun getFlow(id: UUID): FlowResponse
     fun updateFlow(id: UUID, request: UpdateFlowRequest): FlowResponse
+    fun getFlowImpact(id: UUID): FlowImpactResponse
     fun deleteFlow(id: UUID)
     fun getFlowEntity(id: UUID): Flow
     fun listFlowsByOrg(orgSlug: String): List<FlowResponse>

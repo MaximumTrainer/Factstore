@@ -15,7 +15,13 @@ enum class AuditEventType {
     APPROVAL_GRANTED,
     APPROVAL_REJECTED,
     GATE_BLOCKED,
-    GATE_ALLOWED
+    GATE_ALLOWED,
+    // Flow definition changes are themselves compliance-relevant: they change what an
+    // existing trail will be judged against on its next assert (#160).
+    FLOW_UPDATED,
+    FLOW_ARCHIVED,
+    FLOW_UNARCHIVED,
+    FLOW_RENAMED
 }
 
 @Entity

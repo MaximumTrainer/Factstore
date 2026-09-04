@@ -44,10 +44,14 @@ Interactive documentation is also available at **[http://localhost:8080/swagger-
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/v1/flows` | Create a new flow |
-| `GET` | `/api/v1/flows` | List all flows |
+| `GET` | `/api/v1/flows` | List flows (query param: `includeArchived`, default `false`) |
 | `GET` | `/api/v1/flows/{id}` | Get flow by ID |
 | `PUT` | `/api/v1/flows/{id}` | Update a flow |
+| `POST` | `/api/v1/flows/{id}/rename` | Rename a flow, preserving the old name for forwarding |
+| `POST` | `/api/v1/flows/{id}/archive` | Archive a flow (soft delete) |
+| `POST` | `/api/v1/flows/{id}/unarchive` | Unarchive a flow |
 | `DELETE` | `/api/v1/flows/{id}` | Delete a flow |
+| `GET` | `/api/v1/flows/{id}/impact` | How much existing evidence a change to this flow would affect |
 | `GET` | `/api/v1/flows/{id}/template` | Get flow template as YAML |
 | `POST` | `/api/v1/flows/{flowId}/security-thresholds` | Set security scan thresholds for a flow |
 | `GET` | `/api/v1/flows/{flowId}/security-thresholds` | Get security scan thresholds for a flow |
@@ -57,10 +61,70 @@ Interactive documentation is also available at **[http://localhost:8080/swagger-
 {
   "name": "my-service-compliance",
   "description": "Optional description",
-  "requiredAttestations": ["junit", "snyk", "trivy"],
-  "tags": { "team": "payments", "criticality": "high" }
+  "requiredAttestationTypes": ["junit", "snyk", "trivy"],
+  "tags": { "team": "payments", "criticality": "high" },
+  "templateYaml": "version: 1\nartifacts: []\n",
+  "requiresApproval": false,
+  "requiredApproverRoles": []
 }
 ```
+
+**Update flow — `PUT /api/v1/flows/{id}`:**
+
+Every field is optional; only what is sent is changed. An absent field is left alone — so an
+omitted `templateYaml` does *not* clear an existing template.
+
+```json
+{
+  "name": "my-service-compliance",
+  "description": "Updated description",
+  "requiredAttestationTypes": ["junit", "snyk", "trivy", "ghas"],
+  "tags": { "team": "payments" },
+  "templateYaml": "version: 1\n",
+  "requiresApproval": true,
+  "requiredApproverRoles": ["release-manager"]
+}
+```
+
+**Flow definition changes are audited.** Because a change to the required attestations changes how
+every attached trail evaluates on its next assertion, each change writes an audit event carrying
+the actor and a before/after diff of exactly the fields that changed:
+
+| Event type | Written by |
+|---|---|
+| `FLOW_UPDATED` | `PUT /api/v1/flows/{id}` |
+| `FLOW_RENAMED` | `POST /api/v1/flows/{id}/rename` |
+| `FLOW_ARCHIVED` | `POST /api/v1/flows/{id}/archive` |
+| `FLOW_UNARCHIVED` | `POST /api/v1/flows/{id}/unarchive` |
+
+```json
+{
+  "flowId": "uuid",
+  "flowName": "my-service-compliance",
+  "changes": {
+    "requiredAttestationTypes": {
+      "before": ["junit", "snyk"],
+      "after": ["junit", "snyk", "ghas"]
+    }
+  }
+}
+```
+
+An update that changes nothing writes no event. A `templateYaml` change is recorded as a size
+summary rather than the whole document.
+
+**Flow impact — `GET /api/v1/flows/{id}/impact`:**
+```json
+{
+  "flowId": "uuid",
+  "flowName": "my-service-compliance",
+  "trailCount": 12,
+  "pendingTrailCount": 3
+}
+```
+
+Call this before changing a flow's required attestations: every attached trail is judged against
+the new definition on its next assertion. The web UI shows this as a warning on the edit form.
 
 ---
 

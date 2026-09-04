@@ -4,6 +4,7 @@ import com.factstore.application.DryRunContext
 import com.factstore.core.port.inbound.IFlowService
 import com.factstore.dto.CreateFlowRequest
 import com.factstore.dto.DryRunResponse
+import com.factstore.dto.FlowImpactResponse
 import com.factstore.dto.FlowResponse
 import com.factstore.dto.FlowTemplateResponse
 import com.factstore.dto.RenameFlowRequest
@@ -71,6 +72,15 @@ class FlowController(private val flowService: IFlowService) {
         flowService.deleteFlow(id)
         return ResponseEntity.noContent().build()
     }
+
+    @GetMapping("/{id}/impact")
+    @Operation(
+        summary = "How much existing evidence a change to this flow would affect",
+        description = "Changing the required attestations changes how every attached trail " +
+            "evaluates on its next assert; this reports how many that is."
+    )
+    fun getFlowImpact(@PathVariable id: UUID): ResponseEntity<FlowImpactResponse> =
+        ResponseEntity.ok(flowService.getFlowImpact(id))
 
     @GetMapping("/{id}/template")
     @Operation(summary = "Get flow template")

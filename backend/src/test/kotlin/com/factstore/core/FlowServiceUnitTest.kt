@@ -1,6 +1,9 @@
 package com.factstore.core
 
 import com.factstore.adapter.mock.InMemoryFlowRepository
+import com.factstore.adapter.mock.InMemoryTrailRepository
+import com.factstore.adapter.mock.RecordingAuditService
+import com.factstore.application.ActorResolver
 import com.factstore.application.FlowService
 import com.factstore.dto.CreateFlowRequest
 import com.factstore.dto.UpdateFlowRequest
@@ -24,8 +27,11 @@ class FlowServiceUnitTest {
 
     @BeforeEach
     fun setUp() {
-        flowService = FlowService(InMemoryFlowRepository())
+        flowService = newFlowService(InMemoryFlowRepository())
     }
+
+    private fun newFlowService(repo: InMemoryFlowRepository) =
+        FlowService(repo, InMemoryTrailRepository(), RecordingAuditService(), ActorResolver())
 
     @Test
     fun `create flow succeeds and returns response with generated id`() {
@@ -196,7 +202,7 @@ class FlowServiceUnitTest {
     @Test
     fun `renamed flow can be found by old name via repository`() {
         val repo = InMemoryFlowRepository()
-        val svc = FlowService(repo)
+        val svc = newFlowService(repo)
         val created = svc.createFlow(CreateFlowRequest("old-flow-name", "desc"))
         svc.renameFlow(created.id, "new-flow-name")
         val found = repo.findByNameOrPreviousName("old-flow-name")
