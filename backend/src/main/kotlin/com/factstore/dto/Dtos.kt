@@ -147,6 +147,8 @@ data class TrailResponse(
     val buildUrl: String? = null,
     val name: String? = null,
     val externalId: String? = null,
+    /** Set when the trail has been archived (soft-deleted). */
+    val archivedAt: Instant? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
     val tags: Map<String, String> = emptyMap()
@@ -269,6 +271,56 @@ data class EvidenceFileResponse(
     val storedAt: Instant,
     /** Non-null when the evidence binary lives at an external location rather than inline. */
     val externalUrl: String? = null
+)
+
+// Cleanup DTOs (#161)
+
+/** What removing a trail took with it. */
+data class TrailCascadeCounts(
+    val attestations: Int = 0,
+    val artifacts: Int = 0,
+    val evidenceFiles: Int = 0,
+    val approvals: Int = 0,
+    val coverageReports: Int = 0,
+    val securityScans: Int = 0,
+    val complianceAssessments: Int = 0,
+    val jiraTickets: Int = 0
+) {
+    val total: Int
+        get() = attestations + artifacts + evidenceFiles + approvals +
+            coverageReports + securityScans + complianceAssessments + jiraTickets
+}
+
+data class TrailDeletionResponse(
+    val trailId: UUID,
+    val cascade: TrailCascadeCounts
+)
+
+/** Soft delete by default; hard deletion is the deliberate exception. */
+enum class CleanupMode { ARCHIVE, DELETE }
+
+/**
+ * Bulk cleanup for evaluation and demo environments. At least one selector is required so a
+ * mistyped request cannot select every trail in the system.
+ */
+data class TrailCleanupRequest(
+    val flowId: UUID? = null,
+    val tagKey: String? = null,
+    val tagValue: String? = null,
+    /** Selects trails created strictly before this instant. */
+    val olderThan: Instant? = null,
+    val mode: CleanupMode = CleanupMode.ARCHIVE,
+    /** Defaults to a dry run: say what would happen, change nothing. */
+    val dryRun: Boolean = true
+)
+
+data class TrailCleanupResponse(
+    val dryRun: Boolean,
+    val mode: CleanupMode,
+    val trailCount: Int,
+    val trailIds: List<UUID>,
+    /** The evidence the selected trails carry - what a DELETE would take with them. */
+    val cascade: TrailCascadeCounts
 )
 
 // Assert DTOs

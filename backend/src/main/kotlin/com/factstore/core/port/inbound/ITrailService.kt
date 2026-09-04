@@ -14,10 +14,11 @@ interface ITrailService {
     fun createTrail(request: CreateTrailRequest): TrailResponse
     fun createOrGetTrail(request: CreateTrailRequest): TrailCreationResult
     fun lookupTrail(flowId: UUID, externalId: String?, name: String?, gitCommitSha: String?): TrailResponse
-    fun listTrails(flowId: UUID?): List<TrailResponse>
+    /** Archived trails are hidden unless [includeArchived] (#161). */
+    fun listTrails(flowId: UUID?, includeArchived: Boolean = false): List<TrailResponse>
     fun getTrail(id: UUID): TrailResponse
-    fun listTrailsForFlow(flowId: UUID): List<TrailResponse>
-    fun listTrailsForFlow(flowId: UUID, page: Int, size: Int): PageResponse<TrailResponse>
+    fun listTrailsForFlow(flowId: UUID, includeArchived: Boolean = false): List<TrailResponse>
+    fun listTrailsForFlow(flowId: UUID, page: Int, size: Int, includeArchived: Boolean = false): PageResponse<TrailResponse>
     fun updateTrailStatus(id: UUID, status: TrailStatus): Trail
     fun getTrailEntity(id: UUID): Trail
     fun findByName(flowId: UUID, name: String): TrailResponse

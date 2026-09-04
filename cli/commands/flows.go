@@ -152,16 +152,23 @@ var flowsUpdateCmd = &cobra.Command{
 	},
 }
 
+var flowDeleteForce bool
+
 var flowsDeleteCmd = &cobra.Command{
 	Use:   "delete <id>",
 	Short: "Delete a flow by ID",
-	Args:  cobra.ExactArgs(1),
+	Long: `Delete a flow by ID.
+
+Refused when trails are still attached, because deleting a flow orphans the evidence
+recorded against it. Archive the flow instead to retire it reversibly, or pass --force
+to delete it and its trails deliberately.`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := newClient()
 		if err != nil {
 			return err
 		}
-		if err := api.DeleteFlow(c, args[0]); err != nil {
+		if err := api.DeleteFlow(c, args[0], flowDeleteForce); err != nil {
 			return err
 		}
 		output.PrintSuccess(fmt.Sprintf("Flow %s deleted", args[0]))
@@ -177,6 +184,9 @@ func init() {
 	flowsUpdateCmd.Flags().StringVar(&flowUpdateName, "name", "", "New flow name")
 	flowsUpdateCmd.Flags().StringVar(&flowUpdateDescription, "description", "", "New description")
 	flowsUpdateCmd.Flags().StringVar(&flowUpdateAttestTypes, "attestation-types", "", "Comma-separated attestation types")
+
+	flowsDeleteCmd.Flags().BoolVar(&flowDeleteForce, "force", false,
+		"Delete the flow even though trails are attached")
 
 	flowsCmd.AddCommand(flowsListCmd, flowsGetCmd, flowsCreateCmd, flowsUpdateCmd, flowsDeleteCmd)
 }

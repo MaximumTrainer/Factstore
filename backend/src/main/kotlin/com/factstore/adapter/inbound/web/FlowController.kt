@@ -67,9 +67,16 @@ class FlowController(private val flowService: IFlowService) {
         ResponseEntity.ok(flowService.updateFlow(id, request))
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a flow")
-    fun deleteFlow(@PathVariable id: UUID): ResponseEntity<Void> {
-        flowService.deleteFlow(id)
+    @Operation(
+        summary = "Delete a flow",
+        description = "Refused with 409 when trails are still attached, unless force=true. " +
+            "Archiving retires a flow without losing its history."
+    )
+    fun deleteFlow(
+        @PathVariable id: UUID,
+        @RequestParam(defaultValue = "false") force: Boolean
+    ): ResponseEntity<Void> {
+        flowService.deleteFlow(id, force)
         return ResponseEntity.noContent().build()
     }
 

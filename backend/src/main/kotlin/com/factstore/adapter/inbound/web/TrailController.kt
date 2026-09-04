@@ -4,11 +4,16 @@ import com.factstore.application.CiContextResolver
 import com.factstore.application.DryRunContext
 import com.factstore.core.domain.TrailStatus
 import com.factstore.core.port.inbound.IAuditService
+import com.factstore.core.port.inbound.ITrailCleanupService
 import com.factstore.core.port.inbound.ITrailService
 import com.factstore.dto.AuditEventResponse
 import com.factstore.dto.CreateTrailRequest
 import com.factstore.dto.DryRunResponse
 import com.factstore.dto.PageResponse
+import com.factstore.dto.TrailCascadeCounts
+import com.factstore.dto.TrailCleanupRequest
+import com.factstore.dto.TrailCleanupResponse
+import com.factstore.dto.TrailDeletionResponse
 import com.factstore.dto.TrailResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -24,6 +29,7 @@ import java.util.UUID
 @Tag(name = "Trails", description = "Trail management")
 class TrailController(
     private val trailService: ITrailService,
+    private val trailCleanupService: ITrailCleanupService,
     private val auditService: IAuditService
 ) {
 
@@ -81,9 +87,12 @@ class TrailController(
         ResponseEntity.ok(trailService.lookupTrail(flowId, externalId, name, gitCommitSha))
 
     @GetMapping("/api/v1/trails")
-    @Operation(summary = "List trails, optionally filter by flowId")
-    fun listTrails(@RequestParam(required = false) flowId: UUID?): ResponseEntity<List<TrailResponse>> =
-        ResponseEntity.ok(trailService.listTrails(flowId))
+    @Operation(summary = "List trails, optionally filter by flowId; archived trails are hidden by default")
+    fun listTrails(
+        @RequestParam(required = false) flowId: UUID?,
+        @RequestParam(defaultValue = "false") includeArchived: Boolean
+    ): ResponseEntity<List<TrailResponse>> =
+        ResponseEntity.ok(trailService.listTrails(flowId, includeArchived))
 
     @GetMapping("/api/v1/trails/{id}")
     @Operation(summary = "Get trail by ID")
@@ -91,13 +100,52 @@ class TrailController(
         ResponseEntity.ok(trailService.getTrail(id))
 
     @GetMapping("/api/v1/flows/{flowId}/trails")
-    @Operation(summary = "List trails for a flow")
+    @Operation(summary = "List trails for a flow; archived trails are hidden by default")
     fun listTrailsForFlow(
         @PathVariable flowId: UUID,
         @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "20") size: Int
+        @RequestParam(defaultValue = "20") size: Int,
+        @RequestParam(defaultValue = "false") includeArchived: Boolean
     ): ResponseEntity<PageResponse<TrailResponse>> =
-        ResponseEntity.ok(trailService.listTrailsForFlow(flowId, page, size))
+        ResponseEntity.ok(trailService.listTrailsForFlow(flowId, page, size, includeArchived))
+
+    @PostMapping("/api/v1/trails/{id}/archive")
+    @Operation(
+        summary = "Archive a trail (soft delete)",
+        description = "Hides the trail from the default listings while retaining every piece of " +
+            "evidence recorded against it. Reversible."
+    )
+    fun archiveTrail(@PathVariable id: UUID): ResponseEntity<TrailResponse> =
+        ResponseEntity.ok(trailCleanupService.archiveTrail(id))
+
+    @PostMapping("/api/v1/trails/{id}/unarchive")
+    @Operation(summary = "Unarchive a trail")
+    fun unarchiveTrail(@PathVariable id: UUID): ResponseEntity<TrailResponse> =
+        ResponseEntity.ok(trailCleanupService.unarchiveTrail(id))
+
+    @GetMapping("/api/v1/trails/{id}/cascade")
+    @Operation(summary = "What deleting this trail would remove")
+    fun getTrailCascade(@PathVariable id: UUID): ResponseEntity<TrailCascadeCounts> =
+        ResponseEntity.ok(trailCleanupService.cascadeFor(id))
+
+    @DeleteMapping("/api/v1/trails/{id}")
+    @Operation(
+        summary = "Permanently delete a trail and the evidence it owns",
+        description = "Cascades to attestations, artifacts, evidence files, approvals, coverage " +
+            "reports, security scans, compliance assessments and Jira tickets. The audit log and " +
+            "the append-only ledger are deliberately left intact. Prefer archiving."
+    )
+    fun deleteTrail(@PathVariable id: UUID): ResponseEntity<TrailDeletionResponse> =
+        ResponseEntity.ok(trailCleanupService.deleteTrail(id))
+
+    @PostMapping("/api/v1/trails/cleanup")
+    @Operation(
+        summary = "Bulk cleanup of trails by flow, tag or age",
+        description = "Defaults to a dry run and to ARCHIVE. At least one selector is required, " +
+            "so a mistyped request cannot select every trail in the system."
+    )
+    fun cleanupTrails(@RequestBody request: TrailCleanupRequest): ResponseEntity<TrailCleanupResponse> =
+        ResponseEntity.ok(trailCleanupService.cleanup(request))
 
     @GetMapping("/api/v1/trails/{id}/audit")
     @Operation(summary = "Get audit events for a specific trail")

@@ -71,30 +71,52 @@ class TrailService(
     }
 
     @Transactional(readOnly = true)
-    override fun listTrails(flowId: UUID?): List<TrailResponse> =
-        if (flowId != null) trailRepository.findByFlowId(flowId).map { it.toResponse() }
-        else trailRepository.findAll().map { it.toResponse() }
+    override fun listTrails(flowId: UUID?, includeArchived: Boolean): List<TrailResponse> {
+        val trails = if (flowId != null) trailRepository.findByFlowId(flowId) else trailRepository.findAll()
+        return trails.filter { includeArchived || it.archivedAt == null }.map { it.toResponse() }
+    }
 
     @Transactional(readOnly = true)
     override fun getTrail(id: UUID): TrailResponse =
         (trailRepository.findById(id) ?: throw NotFoundException("Trail not found: $id")).toResponse()
 
     @Transactional(readOnly = true)
-    override fun listTrailsForFlow(flowId: UUID): List<TrailResponse> {
+    override fun listTrailsForFlow(flowId: UUID, includeArchived: Boolean): List<TrailResponse> {
         if (!flowRepository.existsById(flowId)) throw NotFoundException("Flow not found: $flowId")
-        return trailRepository.findByFlowId(flowId).map { it.toResponse() }
+        return trailRepository.findByFlowId(flowId)
+            .filter { includeArchived || it.archivedAt == null }
+            .map { it.toResponse() }
     }
 
     @Transactional(readOnly = true)
-    override fun listTrailsForFlow(flowId: UUID, page: Int, size: Int): PageResponse<TrailResponse> {
+    override fun listTrailsForFlow(
+        flowId: UUID,
+        page: Int,
+        size: Int,
+        includeArchived: Boolean
+    ): PageResponse<TrailResponse> {
         if (!flowRepository.existsById(flowId)) throw NotFoundException("Flow not found: $flowId")
-        val pageResult = trailRepository.findByFlowId(flowId, PageRequest.of(page, size))
+        if (includeArchived) {
+            val pageResult = trailRepository.findByFlowId(flowId, PageRequest.of(page, size))
+            return PageResponse(
+                items = pageResult.content.map { it.toResponse() },
+                page = pageResult.number,
+                size = pageResult.size,
+                totalItems = pageResult.totalElements,
+                totalPages = pageResult.totalPages
+            )
+        }
+        // Archived trails are filtered out before paging, so the page counts stay honest.
+        val active = trailRepository.findByFlowId(flowId).filter { it.archivedAt == null }
+        val from = (page * size).coerceAtMost(active.size)
+        val to = (from + size).coerceAtMost(active.size)
+        val totalPages = if (size == 0) 0 else ((active.size + size - 1) / size)
         return PageResponse(
-            items = pageResult.content.map { it.toResponse() },
-            page = pageResult.number,
-            size = pageResult.size,
-            totalItems = pageResult.totalElements,
-            totalPages = pageResult.totalPages
+            items = active.subList(from, to).map { it.toResponse() },
+            page = page,
+            size = size,
+            totalItems = active.size.toLong(),
+            totalPages = totalPages
         )
     }
 
@@ -156,6 +178,7 @@ fun Trail.toResponse() = TrailResponse(
     buildUrl = buildUrl,
     name = name,
     externalId = externalId,
+    archivedAt = archivedAt,
     createdAt = createdAt,
     updatedAt = updatedAt,
     tags = tags.toMap()

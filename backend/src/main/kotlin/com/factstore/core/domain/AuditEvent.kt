@@ -21,7 +21,12 @@ enum class AuditEventType {
     FLOW_UPDATED,
     FLOW_ARCHIVED,
     FLOW_UNARCHIVED,
-    FLOW_RENAMED
+    FLOW_RENAMED,
+    FLOW_DELETED,
+    // Removing evidence is itself compliance-relevant, so the removal goes on the record (#161).
+    TRAIL_ARCHIVED,
+    TRAIL_UNARCHIVED,
+    TRAIL_DELETED
 }
 
 @Entity

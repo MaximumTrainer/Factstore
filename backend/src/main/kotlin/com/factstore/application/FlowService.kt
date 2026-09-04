@@ -173,10 +173,22 @@ class FlowService(
         )
     }
 
-    override fun deleteFlow(id: UUID) {
-        if (!flowRepository.existsById(id)) throw NotFoundException("Flow not found: $id")
+    override fun deleteFlow(id: UUID, force: Boolean) {
+        val flow = flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
+        val trailCount = trailRepository.findByFlowId(id).size
+        if (trailCount > 0 && !force) {
+            throw ConflictException(
+                "Flow '${flow.name}' still has $trailCount trail(s). Archive it to retire it without " +
+                    "losing history, or pass force=true to delete it and its trails deliberately."
+            )
+        }
+        recordFlowChange(
+            AuditEventType.FLOW_DELETED,
+            flow,
+            mapOf("trailCount" to mapOf("before" to trailCount, "after" to 0))
+        )
         flowRepository.deleteById(id)
-        log.info("Deleted flow: $id")
+        log.info("Deleted flow: $id (force=$force, trails=$trailCount)")
     }
 
     override fun archiveFlow(id: UUID): FlowResponse {

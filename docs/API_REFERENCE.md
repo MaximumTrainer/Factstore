@@ -139,6 +139,11 @@ the new definition on its next assertion. The web UI shows this as a warning on 
 | `GET` | `/api/v1/flows/{flowId}/trails` | List trails for a specific flow |
 | `GET` | `/api/v1/trails/{id}/audit` | Get audit events for a trail |
 | `POST` | `/api/v1/trails/{id}/assert` | Assert this pipeline execution — see [Compliance Assertion](#compliance-assertion) |
+| `POST` | `/api/v1/trails/{id}/archive` | Archive a trail (soft delete, reversible) |
+| `POST` | `/api/v1/trails/{id}/unarchive` | Restore an archived trail |
+| `GET` | `/api/v1/trails/{id}/cascade` | What deleting this trail would remove |
+| `DELETE` | `/api/v1/trails/{id}` | Permanently delete a trail and the evidence it owns |
+| `POST` | `/api/v1/trails/cleanup` | Bulk cleanup by flow, tag or age (dry run by default) |
 
 **Create trail — request body:**
 ```json
@@ -240,6 +245,72 @@ multi-pipeline example.
   "prNumber": 42
 }
 ```
+
+---
+
+### Retiring trails and flows
+
+Trails are compliance evidence, so **archiving is the default way to retire one**: the record and
+everything attached to it survive, the trail simply leaves the listings, and it is reversible.
+`GET /api/v1/trails` and `GET /api/v1/flows/{flowId}/trails` hide archived trails unless
+`includeArchived=true`.
+
+**Deleting a trail** (`DELETE /api/v1/trails/{id}`) is permanent and cascades, in this order:
+
+| Removed | Note |
+|---|---|
+| evidence files | deleted first: `evidence_files` has a foreign key onto `attestations` |
+| security scans, compliance assessments | no foreign key onto `trails`; would otherwise be orphaned |
+| Jira tickets, coverage reports, approvals | |
+| attestations | |
+| artifacts | build provenance cascades from these |
+| the trail itself | |
+
+Deliberately **not** removed:
+
+- **the audit log** — `audit_events` has no foreign key onto `trails` by design, so the record that
+  the evidence existed outlives the evidence. The deletion event is written *before* the rows go.
+- **the append-only ledger** — entries are immutable.
+
+The response reports exactly what was removed:
+
+```json
+{
+  "trailId": "uuid",
+  "cascade": {
+    "attestations": 3, "artifacts": 1, "evidenceFiles": 2, "approvals": 0,
+    "coverageReports": 0, "securityScans": 0, "complianceAssessments": 0,
+    "jiraTickets": 0, "total": 6
+  }
+}
+```
+
+`GET /api/v1/trails/{id}/cascade` returns the same counts without removing anything, so a UI can
+state the blast radius before asking for confirmation.
+
+**Bulk cleanup** (`POST /api/v1/trails/cleanup`) is for tearing down evaluation and demo data:
+
+```json
+{
+  "flowId": "uuid",
+  "tagKey": "env",
+  "tagValue": "demo",
+  "olderThan": "2026-01-01T00:00:00Z",
+  "mode": "ARCHIVE",
+  "dryRun": true
+}
+```
+
+At least one of `flowId`, `tagKey` or `olderThan` is **required** — a mistyped request cannot select
+every trail in the system. `mode` defaults to `ARCHIVE` and `dryRun` to `true`, so the safe thing
+happens when a field is forgotten. A dry run returns the same shape with `dryRun: true` and changes
+nothing. Every archive and every deletion is written to the audit log as `TRAIL_ARCHIVED`,
+`TRAIL_UNARCHIVED` or `TRAIL_DELETED`, with the actor and the cascade counts.
+
+**Deleting a flow** (`DELETE /api/v1/flows/{id}`, and `/api/v2/flows/{id}`) is refused with `409`
+while trails are still attached, because it would orphan the evidence recorded against it. Archive
+the flow to retire it reversibly, or pass `?force=true` to delete it deliberately. The deletion is
+audited as `FLOW_DELETED`.
 
 ---
 

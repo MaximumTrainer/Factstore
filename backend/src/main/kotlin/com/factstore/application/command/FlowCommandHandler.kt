@@ -4,6 +4,7 @@ import com.factstore.core.domain.Flow
 import com.factstore.core.domain.event.DomainEvent
 import com.factstore.core.port.inbound.command.IFlowCommandHandler
 import com.factstore.core.port.outbound.IFlowRepository
+import com.factstore.core.port.outbound.ITrailRepository
 import com.factstore.dto.command.CommandResult
 import com.factstore.dto.command.CreateFlowCommand
 import com.factstore.dto.command.DeleteFlowCommand
@@ -30,6 +31,7 @@ import java.time.Instant
 @Transactional
 class FlowCommandHandler(
     private val flowRepository: IFlowRepository,
+    private val trailRepository: ITrailRepository,
     private val eventAppender: EventAppender
 ) : IFlowCommandHandler {
 
@@ -100,10 +102,18 @@ class FlowCommandHandler(
     }
 
     override fun deleteFlow(command: DeleteFlowCommand) {
-        if (!flowRepository.existsById(command.id)) throw NotFoundException("Flow not found: ${command.id}")
+        val flow = flowRepository.findById(command.id)
+            ?: throw NotFoundException("Flow not found: ${command.id}")
+        val trailCount = trailRepository.findByFlowId(command.id).size
+        if (trailCount > 0 && !command.force) {
+            throw ConflictException(
+                "Flow '${flow.name}' still has $trailCount trail(s). Archive it to retire it without " +
+                    "losing history, or pass force=true to delete it and its trails deliberately."
+            )
+        }
         flowRepository.deleteById(command.id)
         eventAppender.append(DomainEvent.FlowDeleted(aggregateId = command.id))
-        log.info("Deleted flow: ${command.id}")
+        log.info("Deleted flow: ${command.id} (force=${command.force}, trails=$trailCount)")
     }
 
     private fun validateTags(tags: Map<String, String>) {

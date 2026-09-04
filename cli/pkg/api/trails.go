@@ -25,6 +25,8 @@ type TrailResponse struct {
 	// ExternalID is the stable release identifier a downstream pipeline can address
 	// the trail by, without knowing its UUID.
 	ExternalID string `json:"externalId,omitempty"`
+	// ArchivedAt is set when the trail has been soft-deleted.
+	ArchivedAt string `json:"archivedAt,omitempty"`
 	CreatedAt  string `json:"createdAt"`
 	UpdatedAt  string `json:"updatedAt"`
 }

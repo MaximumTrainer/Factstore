@@ -110,7 +110,7 @@ func TestDeleteFlow(t *testing.T) {
 	defer server.Close()
 
 	c := mustNewClient(t, server.URL, "tok")
-	if err := api.DeleteFlow(c, "flow-1"); err != nil {
+	if err := api.DeleteFlow(c, "flow-1", false); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -60,6 +60,10 @@ class Trail(
     @Column(name = "external_id", nullable = true, length = 255)
     var externalId: String? = null,
 
+    /** Set when the trail has been archived (soft-deleted); the evidence is retained (#161). */
+    @Column(name = "archived_at", nullable = true)
+    var archivedAt: Instant? = null,
+
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 
