@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
 
@@ -24,6 +25,7 @@ data class CreateServiceAccountApiKeyRequest(
 class ServiceAccountController(private val serviceAccountService: IServiceAccountService) {
 
     @PostMapping
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Create a new service account")
     fun createServiceAccount(
         @RequestBody request: CreateServiceAccountRequest
@@ -41,6 +43,7 @@ class ServiceAccountController(private val serviceAccountService: IServiceAccoun
         ResponseEntity.ok(serviceAccountService.getServiceAccount(id))
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Update a service account")
     fun updateServiceAccount(
         @PathVariable id: UUID,
@@ -49,6 +52,7 @@ class ServiceAccountController(private val serviceAccountService: IServiceAccoun
         ResponseEntity.ok(serviceAccountService.updateServiceAccount(id, request))
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(
         summary = "Delete a service account",
         description = "Deletes the service account and all its API keys."
@@ -61,6 +65,7 @@ class ServiceAccountController(private val serviceAccountService: IServiceAccoun
     // --- API key sub-resource ---
 
     @PostMapping("/{id}/api-keys")
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(
         summary = "Generate a new API key for a service account",
         description = "The plain-text key is returned **once** — store it securely."
@@ -81,6 +86,7 @@ class ServiceAccountController(private val serviceAccountService: IServiceAccoun
         ResponseEntity.ok(serviceAccountService.listApiKeys(id))
 
     @DeleteMapping("/{id}/api-keys/{keyId}")
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Revoke an API key for a service account")
     fun revokeApiKey(
         @PathVariable id: UUID,

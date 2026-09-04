@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
@@ -21,6 +22,10 @@ import org.springframework.transaction.annotation.Transactional
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+// Method security is unconditional (#155 FR-1.5), so a test driving a guarded
+// endpoint authenticates as a principal holding the scopes rather than switching
+// security off.
+@WithMockUser(authorities = ["SCOPE_flows:write", "SCOPE_trails:write", "SCOPE_attestations:write", "SCOPE_artifacts:write", "SCOPE_evidence:write", "SCOPE_assert:execute", "SCOPE_policies:write", "SCOPE_admin"])
 class DogfoodPipelineTest {
 
     @Autowired lateinit var mockMvc: MockMvc

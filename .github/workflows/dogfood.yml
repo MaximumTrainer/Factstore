@@ -47,6 +47,10 @@ jobs:
       # The release identifier every gate in this run attests against. Stable for the run and
       # derivable by any other workflow, which is what makes cross-pipeline evidence possible.
       RELEASE_ID: ${{ github.repository }}@${{ github.run_id }}
+      # Authorisation rules are always live, so creating a flow needs a credential even with
+      # enforcement off. Seeded into this transient instance by configuration (#155 FR-7.1);
+      # it grants nothing outside the container that is torn down with this job.
+      FACTSTORE_TOKEN: fsp_c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1
 
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +95,7 @@ jobs:
             --spring.datasource.username=factstore \
             --spring.datasource.password=factstore \
             --security.enforce-auth=false \
+            --security.bootstrap.api-key="${FACTSTORE_TOKEN}" \
             --vault.enabled=false \
             > /tmp/factstore.log 2>&1 &
 
@@ -128,6 +133,7 @@ jobs:
           # produced is worthless. Closing the gap is sequenced in docs/dogfooding.md.
           FLOW=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/flows" \
             -H 'Content-Type: application/json' \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$(jq -n \
               --arg name "openfactstore-release-${RUN_ID}" \
               '{
@@ -152,6 +158,7 @@ jobs:
           # rather than forking the evidence for one release.
           TRAIL=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails" \
             -H 'Content-Type: application/json' \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -H 'X-Factstore-CI-Context: github-actions' \
             -d "$(jq -n \
               --arg flowId "$FLOW_ID" \
@@ -254,6 +261,7 @@ jobs:
 
           curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/artifacts" \
             -H 'Content-Type: application/json' \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$(jq -n \
               --arg name "openfactstore-backend" \
               --arg tag "$GIT_SHA" \
@@ -271,7 +279,8 @@ jobs:
           # Scoped to this execution's trail, so the verdict is about this run's evidence and
           # cannot be satisfied by a previous run that happened to build the same bytes.
           RESULT=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/assert" \
-            -H 'Content-Type: application/json' -d '{}')
+            -H 'Content-Type: application/json' \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" -d '{}')
 
           STATUS=$(echo "$RESULT" | jq -r '.status')
           DETAILS=$(echo "$RESULT" | jq -r '.details')

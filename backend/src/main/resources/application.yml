@@ -127,3 +127,41 @@ cosign:
 # Set SECURITY_ENFORCE_AUTH=true in production to enforce authentication
 security:
   enforce-auth: ${SECURITY_ENFORCE_AUTH:false}
+  # Log what would have been rejected, without rejecting it. The way to find every
+  # unauthenticated caller before turning enforcement on (#155 rollout step 2).
+  warn-mode: ${SECURITY_WARN_MODE:false}
+
+  api-key:
+    # A key that never expires outlives the pipeline, the project and the person who made it.
+    max-ttl-days: ${API_KEY_MAX_TTL_DAYS:90}
+    default-ttl-days: ${API_KEY_DEFAULT_TTL_DAYS:90}
+    allow-non-expiring: ${API_KEY_ALLOW_NON_EXPIRING:false}
+    # How long a rotated key keeps working, so a pipeline can roll over without an outage.
+    rotation-overlap-hours: ${API_KEY_ROTATION_OVERLAP_HOURS:24}
+    expiry-warning-days: ${API_KEY_EXPIRY_WARNING_DAYS:7}
+    # Bounds how long a revocation can go unnoticed; revoking invalidates immediately anyway.
+    cache-ttl-seconds: ${API_KEY_CACHE_TTL_SECONDS:60}
+    rate-limit:
+      enabled: ${API_KEY_RATE_LIMIT_ENABLED:true}
+      max-failures: ${API_KEY_RATE_LIMIT_MAX_FAILURES:5}
+      base-backoff-seconds: 2
+      max-backoff-seconds: 300
+
+  session:
+    lifetime-seconds: ${SESSION_LIFETIME_SECONDS:3600}
+    absolute-lifetime-seconds: ${SESSION_ABSOLUTE_LIFETIME_SECONDS:43200}
+    idle-timeout-seconds: ${SESSION_IDLE_TIMEOUT_SECONDS:1800}
+
+  bootstrap:
+    # A fresh deployment with enforcement on must be administrable; see docs/api-authorisation.md.
+    enabled: ${SECURITY_BOOTSTRAP_ENABLED:true}
+    admin-email: ${SECURITY_BOOTSTRAP_ADMIN_EMAIL:admin@localhost}
+    # An admin credential supplied by configuration, for CI and local development. Empty means
+    # generate one on first start instead (only when enforcement is on).
+    api-key: ${SECURITY_BOOTSTRAP_API_KEY:}
+    ttl-days: ${SECURITY_BOOTSTRAP_TTL_DAYS:7}
+
+  cors:
+    # Deny by default. A wildcard is refused outright when enforcement is on.
+    allowed-origins: ${SECURITY_CORS_ALLOWED_ORIGINS:}
+

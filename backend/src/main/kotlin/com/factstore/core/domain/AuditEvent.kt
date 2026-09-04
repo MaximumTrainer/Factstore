@@ -33,6 +33,10 @@ enum class AuditEventType {
     // Authorisation outcomes (#155 FR-8.1).
     AUTH_FAILED,
     AUTH_DENIED,
+    // Credential lifecycle (#155 FR-8.2).
+    API_KEY_CREATED,
+    API_KEY_ROTATED,
+    API_KEY_REVOKED,
     // Removing evidence is itself compliance-relevant, so the removal goes on the record (#161).
     TRAIL_ARCHIVED,
     TRAIL_UNARCHIVED,

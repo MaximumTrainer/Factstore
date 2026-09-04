@@ -6,6 +6,10 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
@@ -38,26 +42,49 @@ class SecurityConfig(
     @Value("\${spring.security.oauth2.client.registration.github.client-id:}")
     private val githubClientId: String,
     @Value("\${security.enforce-auth:false}")
-    private val enforceAuth: Boolean
+    private val enforceAuth: Boolean,
+    /**
+     * Comma-separated origins permitted to call the API. Empty means none, which is the
+     * correct default for an API the browser reaches through the same origin.
+     */
+    @Value("\${security.cors.allowed-origins:}")
+    private val allowedOrigins: String
 ) {
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { csrf -> csrf.ignoringRequestMatchers("/api/v1/**", "/api/v2/**") }
-            // Allow H2 console frames (dev only)
-            .headers { headers -> headers.frameOptions { it.sameOrigin() } }
+            .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
+            .headers { headers ->
+                // The H2 console needs same-origin frames; nothing else does.
+                headers.frameOptions { it.sameOrigin() }
+                headers.contentTypeOptions { }
+                headers.referrerPolicy { it.policy(ReferrerPolicy.SAME_ORIGIN) }
+                if (enforceAuth) {
+                    // Only meaningful once traffic is expected to be HTTPS.
+                    headers.httpStrictTransportSecurity { hsts ->
+                        hsts.includeSubDomains(true).maxAgeInSeconds(HSTS_MAX_AGE_SECONDS)
+                    }
+                }
+            }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED) }
             .authorizeHttpRequests { auth ->
                 auth
-                    // H2 console (dev)
-                    .requestMatchers("/h2-console/**").permitAll()
-                    // OpenAPI / Swagger
-                    .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                if (!enforceAuth) {
+                    // Development conveniences. With enforcement on they require a credential
+                    // like anything else, rather than being a permanent open door (#155 FR-1.3).
+                    auth.requestMatchers("/h2-console/**").permitAll()
+                    auth.requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                }
+                auth
                     // OAuth2 login endpoints
                     .requestMatchers("/login/**", "/oauth2/**").permitAll()
-                    // Actuator / health endpoints are always public
-                    .requestMatchers("/actuator/**", "/health").permitAll()
+                    // Only liveness and readiness are public. /actuator/env, /metrics and
+                    // /loggers expose configuration, traffic shape and log control, so they
+                    // are not something to hand out unauthenticated (#155 FR-1.4).
+                    .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/health")
+                    .permitAll()
                     // Sign-in itself cannot require being signed in.
                     .requestMatchers("/api/v1/organisations/*/sso/login", "/api/v1/organisations/*/sso/callback").permitAll()
                     // Logout must work with an expired or already-revoked session, so the
@@ -82,5 +109,43 @@ class SecurityConfig(
         }
 
         return http.build()
+    }
+
+    /**
+     * Deny by default (#155 FR-10.3). No allowlist configured means no cross-origin request
+     * is permitted; a wildcard origin is refused outright when enforcement is on, because
+     * `*` with credentials is exactly the combination that makes an ambient session cookie
+     * readable by any site.
+     */
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource {
+        val configuration = CorsConfiguration()
+        val origins = allowedOrigins.split(",").map { it.trim() }.filter { it.isNotBlank() }
+
+        if (origins.contains("*")) {
+            require(!enforceAuth) {
+                "security.cors.allowed-origins must not be '*' when authentication is enforced; " +
+                    "list the origins that may call this API."
+            }
+            configuration.addAllowedOriginPattern("*")
+        } else {
+            configuration.allowedOrigins = origins
+        }
+
+        configuration.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        configuration.allowedHeaders = listOf(
+            "Authorization", "Content-Type", "X-API-Key", "X-Factstore-Client",
+            "X-Factstore-CI-Context", "X-Factstore-Dry-Run"
+        )
+        configuration.exposedHeaders = listOf("X-Factstore-Credential-Warning", "Retry-After")
+        configuration.allowCredentials = origins.isNotEmpty() && !origins.contains("*")
+
+        val source = UrlBasedCorsConfigurationSource()
+        source.registerCorsConfiguration("/api/**", configuration)
+        return source
+    }
+
+    private companion object {
+        const val HSTS_MAX_AGE_SECONDS = 31_536_000L
     }
 }

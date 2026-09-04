@@ -59,8 +59,8 @@ func NewWithQueryHost(baseURL, queryBaseURL, token string) (*Client, error) {
 		}
 	}
 	c := &Client{
-		BaseURL:      strings.TrimRight(baseURL, "/"),
-		Token:        token,
+		BaseURL: strings.TrimRight(baseURL, "/"),
+		Token:   token,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -221,19 +221,82 @@ func (c *Client) PostMultipart(path, fieldName, filePath string) ([]byte, int, e
 }
 
 // ParseError extracts a user-friendly error from an API response body.
+// APIError is a response the server rejected. Typed so callers can tell an authentication
+// problem from an authorisation one and say something useful about it (#155 FR-11.1).
+type APIError struct {
+	StatusCode int
+	Message    string
+	// Reason is the server's machine-readable cause for a 401: MISSING, MALFORMED, UNKNOWN,
+	// EXPIRED or REVOKED. Empty for other statuses.
+	Reason string
+	// CredentialPrefix identifies which credential failed. Never the credential itself.
+	CredentialPrefix string
+}
+
+func (e *APIError) Error() string { return fmt.Sprintf("API error %d: %s", e.StatusCode, e.Message) }
+
+// IsUnauthenticated reports a credential problem: missing, wrong, expired or revoked.
+func (e *APIError) IsUnauthenticated() bool { return e.StatusCode == http.StatusUnauthorized }
+
+// IsForbidden reports that the credential is fine but lacks the scope for this operation.
+func (e *APIError) IsForbidden() bool { return e.StatusCode == http.StatusForbidden }
+
+// IsRateLimited reports that too many authentication attempts have failed.
+func (e *APIError) IsRateLimited() bool { return e.StatusCode == http.StatusTooManyRequests }
+
+// Guidance is a one-line, actionable next step. The point is that "401" and "403" are
+// different problems with different fixes, and telling a user "authentication or connectivity
+// failed" for both helps nobody.
+func (e *APIError) Guidance() string {
+	switch {
+	case e.IsUnauthenticated():
+		switch e.Reason {
+		case "EXPIRED":
+			return "Your API key has expired. Create or rotate one, then run 'factstore configure'."
+		case "REVOKED":
+			return "Your API key has been revoked. Obtain a new one, then run 'factstore configure'."
+		case "MALFORMED":
+			return "The configured token is not a valid API key. Check it with 'factstore configure'."
+		default:
+			return "The server did not accept your credential. Check FACTSTORE_TOKEN, or run 'factstore configure'."
+		}
+	case e.IsForbidden():
+		return "Your credential is valid but lacks the required scope. " +
+			"See the scopes for this operation with 'factstore login' or ask an administrator " +
+			"for a key with the right scopes (GET /api/v1/api-keys/scopes lists them)."
+	case e.IsRateLimited():
+		// The server's message carries the retry delay; the transport does not surface
+		// response headers, so there is nothing to add here beyond the next step.
+		return "Too many failed authentication attempts. Wait for the period the server " +
+			"gave before retrying, and check the credential is correct."
+	}
+	return ""
+}
+
 func ParseError(statusCode int, body []byte) error {
 	var apiErr struct {
-		Message string `json:"message"`
-		Error   string `json:"error"`
+		Message          string `json:"message"`
+		Error            string `json:"error"`
+		Reason           string `json:"reason"`
+		CredentialPrefix string `json:"credentialPrefix"`
 	}
-	if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
-		return fmt.Errorf("API error %d: %s", statusCode, apiErr.Message)
+	_ = json.Unmarshal(body, &apiErr)
+
+	message := apiErr.Message
+	if message == "" {
+		message = apiErr.Error
 	}
-	if json.Unmarshal(body, &apiErr) == nil && apiErr.Error != "" {
-		return fmt.Errorf("API error %d: %s", statusCode, apiErr.Error)
+	if message == "" && len(body) > 0 {
+		message = string(body)
 	}
-	if len(body) > 0 {
-		return fmt.Errorf("API error %d: %s", statusCode, string(body))
+	if message == "" {
+		message = http.StatusText(statusCode)
 	}
-	return fmt.Errorf("API error %d", statusCode)
+
+	return &APIError{
+		StatusCode:       statusCode,
+		Message:          message,
+		Reason:           apiErr.Reason,
+		CredentialPrefix: apiErr.CredentialPrefix,
+	}
 }

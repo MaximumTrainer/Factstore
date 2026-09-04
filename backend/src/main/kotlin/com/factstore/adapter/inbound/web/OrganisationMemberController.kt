@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
 
@@ -22,6 +23,7 @@ class OrganisationMemberController(private val memberService: IOrganisationMembe
         ResponseEntity.ok(memberService.listMembers(slug))
 
     @PostMapping
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Invite a user to an organisation by email and assign a role")
     fun inviteMember(
         @PathVariable slug: String,
@@ -38,6 +40,7 @@ class OrganisationMemberController(private val memberService: IOrganisationMembe
         ResponseEntity.ok(memberService.getMember(slug, userId))
 
     @PutMapping("/{userId}")
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Update the role of a member in an organisation")
     fun updateMemberRole(
         @PathVariable slug: String,
@@ -47,6 +50,7 @@ class OrganisationMemberController(private val memberService: IOrganisationMembe
         ResponseEntity.ok(memberService.updateMemberRole(slug, userId, request))
 
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Remove a member from an organisation")
     fun removeMember(
         @PathVariable slug: String,

@@ -10,6 +10,7 @@ import com.factstore.core.domain.GateDecision
 import com.factstore.core.domain.BuilderType
 import com.factstore.core.domain.OwnerType
 import com.factstore.core.domain.AuditEventType
+import com.factstore.core.domain.AuthFailureReason
 import com.factstore.core.domain.ChannelType
 import com.factstore.core.domain.DeliveryStatus
 import com.factstore.core.domain.EnvironmentType
@@ -1000,8 +1001,47 @@ data class CreateApiKeyRequest(
     /** Human-readable label for this key. */
     val label: String,
     val ownerType: OwnerType,
-    /** Optional TTL in days. Null means the key never expires. */
-    val ttlDays: Int? = null
+    /**
+     * TTL in days. Capped by `security.api-key.max-ttl-days`; omitting it uses the default
+     * rather than creating a key that never expires (#155 FR-6.2).
+     */
+    val ttlDays: Int? = null,
+    /**
+     * `resource:action` scopes. Omitted means the documented minimal read-only set, never
+     * full access (#155 FR-3.1).
+     */
+    val scopes: List<String>? = null,
+    /** Shorthand for the CI-pipeline scope set, so the common case needs no scope expertise. */
+    val preset: ApiKeyPreset? = null,
+    /** The organisation this key authenticates into (#155 FR-5.1). */
+    val orgSlug: String? = null,
+    /**
+     * Explicitly create a key with no expiry. Audited, and refused unless
+     * `security.api-key.allow-non-expiring=true`.
+     */
+    val neverExpires: Boolean = false
+)
+
+enum class ApiKeyPreset { CI_PIPELINE, READ_ONLY }
+
+data class RotateApiKeyRequest(
+    /**
+     * How long the replaced key keeps working, so a pipeline can roll over without an
+     * outage. Defaults to `security.api-key.rotation-overlap-hours`.
+     */
+    val overlapHours: Long? = null
+)
+
+/** A problem body for a refused credential (#155 FR-2.4). */
+data class AuthProblemResponse(
+    val error: String,
+    val reason: AuthFailureReason,
+    val message: String,
+    /**
+     * The credential's prefix only — never the credential. Present so an operator can tell
+     * *which* key failed without the log becoming a source of working credentials.
+     */
+    val credentialPrefix: String? = null
 )
 
 data class ApiKeyResponse(
@@ -1009,6 +1049,17 @@ data class ApiKeyResponse(
     val ownerId: UUID,
     val ownerType: OwnerType,
     val label: String,
+    /** The granted `resource:action` scopes. */
+    val scopes: List<String> = emptyList(),
+    val orgSlug: String? = null,
+    /** Set when this key replaced another by rotation. */
+    val rotatedFromId: UUID? = null,
+    /** Set when this key has been replaced; it stops working at [overlapExpiresAt]. */
+    val supersededAt: Instant? = null,
+    val overlapExpiresAt: Instant? = null,
+    /** Days until expiry, so a client can warn before a pipeline breaks (#155 FR-6.3). */
+    val daysUntilExpiry: Long? = null,
+    val expiringSoon: Boolean = false,
     /** First 12 characters of the key (safe to display for identification). */
     val keyPrefix: String,
     val isActive: Boolean,
@@ -1027,6 +1078,17 @@ data class ApiKeyCreatedResponse(
     val ownerId: UUID,
     val ownerType: OwnerType,
     val label: String,
+    /** The granted `resource:action` scopes. */
+    val scopes: List<String> = emptyList(),
+    val orgSlug: String? = null,
+    /** Set when this key replaced another by rotation. */
+    val rotatedFromId: UUID? = null,
+    /** Set when this key has been replaced; it stops working at [overlapExpiresAt]. */
+    val supersededAt: Instant? = null,
+    val overlapExpiresAt: Instant? = null,
+    /** Days until expiry, so a client can warn before a pipeline breaks (#155 FR-6.3). */
+    val daysUntilExpiry: Long? = null,
+    val expiringSoon: Boolean = false,
     val keyPrefix: String,
     val isActive: Boolean,
     val createdAt: Instant,

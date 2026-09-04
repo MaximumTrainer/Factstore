@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 import java.time.Instant
 import java.util.UUID
@@ -25,6 +26,7 @@ import java.util.UUID
 class FlowController(private val flowService: IFlowService) {
 
     @PostMapping
+    @PreAuthorize("hasAuthority('SCOPE_flows:write')")
     @Operation(summary = "Create a new flow")
     fun createFlow(
         @RequestBody request: CreateFlowRequest,
@@ -63,11 +65,13 @@ class FlowController(private val flowService: IFlowService) {
         ResponseEntity.ok(flowService.getFlow(id))
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('SCOPE_flows:write')")
     @Operation(summary = "Update a flow")
     fun updateFlow(@PathVariable id: UUID, @RequestBody request: UpdateFlowRequest): ResponseEntity<FlowResponse> =
         ResponseEntity.ok(flowService.updateFlow(id, request))
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('SCOPE_flows:write')")
     @Operation(
         summary = "Delete a flow",
         description = "Refused with 409 when trails are still attached, unless force=true. " +
@@ -105,16 +109,19 @@ class FlowController(private val flowService: IFlowService) {
         ResponseEntity.ok(flowService.getFlowTemplate(id))
 
     @PostMapping("/{id}/archive")
+    @PreAuthorize("hasAuthority('SCOPE_flows:write')")
     @Operation(summary = "Archive a flow (soft delete)")
     fun archiveFlow(@PathVariable id: UUID): ResponseEntity<FlowResponse> =
         ResponseEntity.ok(flowService.archiveFlow(id))
 
     @PostMapping("/{id}/unarchive")
+    @PreAuthorize("hasAuthority('SCOPE_flows:write')")
     @Operation(summary = "Unarchive a flow")
     fun unarchiveFlow(@PathVariable id: UUID): ResponseEntity<FlowResponse> =
         ResponseEntity.ok(flowService.unarchiveFlow(id))
 
     @PostMapping("/{id}/rename")
+    @PreAuthorize("hasAuthority('SCOPE_flows:write')")
     @Operation(summary = "Rename a flow, preserving the old name for forwarding")
     fun renameFlow(
         @PathVariable id: UUID,

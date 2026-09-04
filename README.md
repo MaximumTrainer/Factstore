@@ -36,6 +36,7 @@ docker compose up --build
 | **[CONTRIBUTING.md](./CONTRIBUTING.md)** | Development setup, testing, and PR guidelines |
 | **[SECURITY.md](./SECURITY.md)** | Vulnerability reporting and production hardening |
 | **[docs/authentication.md](./docs/authentication.md)** | Sign-in, roles, sessions and the identity model |
+| **[docs/api-authorisation.md](./docs/api-authorisation.md)** | API keys, scopes, rotation and enforcement rollout |
 | **[docs/getting-started/](./docs/getting-started/)** | Step-by-step getting started series |
 
 ---

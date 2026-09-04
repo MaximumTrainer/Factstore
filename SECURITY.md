@@ -35,15 +35,47 @@ If you prefer email, send details to the repository maintainers. You can find co
 
 ## Known Limitations
 
-### No built-in authentication enforcement (current version)
+### Authentication is not yet enforced *by default*
 
-> ⚠️ The API currently trusts all inbound requests. The API key and service account infrastructure is implemented (`POST /api/v1/api-keys`, `POST /api/v1/service-accounts`), but key enforcement is not mandated by default in the current release.
+The API has a complete authentication and authorisation model — scoped API keys, per-organisation
+sessions, and a role model both resolve into — but `SECURITY_ENFORCE_AUTH` still defaults to
+`false`, so a default deployment accepts unauthenticated requests.
 
-**Mitigation for production deployments:**
+This is the last step of a deliberate rollout, not an oversight: flipping the default is a
+breaking change for every existing deployment, so the model ships first and the default flips in
+a clearly marked release.
 
-- Place OpenFactstore behind an API gateway or reverse proxy that enforces authentication.
-- Restrict network access using firewall rules, security groups, or Kubernetes NetworkPolicy so only CI/CD systems and approved clients can reach the API.
-- Use the service account + API key feature and validate `X-Api-Key` at the proxy layer.
+**For production, turn it on:**
+
+```yaml
+security:
+  enforce-auth: true
+```
+
+Before you do, run in **warn mode** to find every unauthenticated caller without breaking them:
+
+```yaml
+security:
+  warn-mode: true
+```
+
+Warn mode authenticates and authorises as normal but logs what *would* have been rejected and
+allows the request through. That is how you discover a forgotten pipeline before it becomes an
+outage rather than after.
+
+With enforcement on:
+
+- unauthenticated requests get `401` with `WWW-Authenticate: Bearer`;
+- `/actuator/**` is restricted to health and info — metrics, env and loggers need a credential;
+- Swagger UI, `/api-docs` and the H2 console are no longer served unauthenticated;
+- HSTS is set and a wildcard CORS origin is refused outright;
+- a first-run **bootstrap admin credential** is created so the deployment is administrable.
+
+A reverse proxy is still good practice for TLS and network isolation, but it is **no longer the
+only thing standing between the internet and your data**.
+
+See **[docs/api-authorisation.md](./docs/api-authorisation.md)** and
+**[docs/authentication.md](./docs/authentication.md)**.
 
 ### SCM tokens stored Base64-encoded (without Vault)
 
@@ -71,9 +103,20 @@ Use this checklist before deploying OpenFactstore to a production environment.
 
 ### Authentication & Authorisation
 
-- [ ] API key enforcement is applied at the reverse proxy or application layer.
-- [ ] Unique service accounts and API keys are created per CI pipeline.
-- [ ] API keys are rotated at least every 90 days.
+- [ ] `SECURITY_ENFORCE_AUTH=true` — the application refuses unauthenticated requests itself,
+      not only at a proxy.
+- [ ] Warn mode was run first, and its log shows no unauthenticated callers remaining.
+- [ ] `SSO_JWT_SECRET` is set to a real random secret (≥32 bytes). The application refuses to
+      start with a placeholder, but check it is not a value from a shared example.
+- [ ] Unique service accounts and API keys are created **per CI pipeline**, each scoped with the
+      `CI_PIPELINE` preset rather than `admin`.
+- [ ] Every API key has a TTL; `security.api-key.allow-non-expiring` is `false`.
+- [ ] Keys are rotated at least every 90 days, using `POST /api/v1/api-keys/{id}/rotate` so the
+      overlap window avoids an outage.
+- [ ] Keys are bound to an organisation (`orgSlug`) where the deployment is multi-tenant.
+- [ ] The bootstrap credential has been used, revoked, and `security.bootstrap.enabled` set to
+      `false`.
+- [ ] `security.cors.allowed-origins` lists the real origins; it is not `*`.
 - [ ] Default Grafana password (`changeme`) has been changed.
 
 ### Secrets Management

@@ -34,6 +34,10 @@ jobs:
 
     env:
       FACTSTORE_URL: http://localhost:8080
+      # Authorisation rules are always live (#155 FR-1.5), so the persona steps that create a
+      # flow need a credential even though enforcement is off here. Seeded by configuration
+      # into an instance that is torn down with the job.
+      FACTSTORE_TOKEN: fsp_c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1
 
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +71,7 @@ jobs:
             --spring.datasource.username=factstore \
             --spring.datasource.password=factstore \
             --security.enforce-auth=false \
+            --security.bootstrap.api-key="${FACTSTORE_TOKEN}" \
             --vault.enabled=false \
             > /tmp/factstore.log 2>&1 &
           echo "FACTSTORE_PID=$!" >> "$GITHUB_ENV"
@@ -106,6 +111,7 @@ jobs:
 
           FLOW=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/flows" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$FLOW_PAYLOAD")
 
           FLOW_ID=$(echo "$FLOW" | jq -r '.id')
@@ -137,6 +143,7 @@ jobs:
 
           TRAIL=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -H "X-Factstore-CI-Context: github-actions" \
             -d "$TRAIL_PAYLOAD")
 
@@ -169,6 +176,7 @@ jobs:
 
           curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/artifacts" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$ARTIFACT_PAYLOAD"
 
           echo "✅ [DevOps Engineer] Container artifact reported: $ARTIFACT_SHA"
@@ -190,6 +198,7 @@ jobs:
 
           curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/attestations" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$PAYLOAD"
 
           echo "✅ [Security Engineer] Unit-test attestation recorded"
@@ -206,6 +215,7 @@ jobs:
 
           curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/attestations" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$PAYLOAD"
 
           echo "✅ [Security Engineer] Security-scan attestation recorded"
@@ -222,6 +232,7 @@ jobs:
 
           curl -sf -X POST "${FACTSTORE_URL}/api/v1/trails/${TRAIL_ID}/attestations" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$PAYLOAD"
 
           echo "✅ [Security Engineer] Compliance-check attestation recorded"
@@ -243,6 +254,7 @@ jobs:
 
           RESULT=$(curl -sf -X POST "${FACTSTORE_URL}/api/v1/assert" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: ${FACTSTORE_TOKEN}" \
             -d "$ASSERT_PAYLOAD")
 
           echo "$RESULT" | jq .

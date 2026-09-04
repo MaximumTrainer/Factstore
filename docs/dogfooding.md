@@ -23,9 +23,14 @@ build the JAR  →  start it against Postgres  →  create a flow
 ```
 
 The instance is transient and torn down with the job. That is a deliberate choice: dogfooding this
-way needs **no hosted deployment, no credentials, and no network egress**, so it runs on a fork and
-on a pull request from a fork, where secrets are unavailable. The cost is that the evidence does not
+way needs **no hosted deployment, no secrets, and no network egress**, so it runs on a fork and on
+a pull request from a fork, where secrets are unavailable. The cost is that the evidence does not
 outlive the run — see *Running against a persistent instance* below for when that matters.
+
+The workflow does seed a fixed admin API key into that instance
+(`security.bootstrap.api-key`). Authorisation rules are always live, so creating a flow needs a
+credential even with enforcement off. The key is in the workflow in plain sight on purpose: it
+grants nothing outside the container that is destroyed with the job.
 
 ### The gates it attests
 

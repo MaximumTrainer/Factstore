@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*
 class SsoController(private val ssoService: ISsoConfigService) {
 
     @PostMapping
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Create SSO configuration for an organisation")
     fun createSsoConfig(
         @PathVariable slug: String,
@@ -35,6 +37,7 @@ class SsoController(private val ssoService: ISsoConfigService) {
         ResponseEntity.ok(ssoService.getSsoConfig(slug))
 
     @PutMapping
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Update SSO configuration for an organisation")
     fun updateSsoConfig(
         @PathVariable slug: String,
@@ -43,6 +46,7 @@ class SsoController(private val ssoService: ISsoConfigService) {
         ResponseEntity.ok(ssoService.updateSsoConfig(slug, request))
 
     @DeleteMapping
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Delete SSO configuration for an organisation")
     fun deleteSsoConfig(@PathVariable slug: String): ResponseEntity<Void> {
         ssoService.deleteSsoConfig(slug)
@@ -50,6 +54,7 @@ class SsoController(private val ssoService: ISsoConfigService) {
     }
 
     @PostMapping("/test")
+    @PreAuthorize("hasAuthority('SCOPE_admin')")
     @Operation(summary = "Test the OIDC connection for an organisation's SSO configuration")
     fun testSsoConnection(@PathVariable slug: String): ResponseEntity<SsoTestConnectionResponse> =
         ResponseEntity.ok(ssoService.testSsoConnection(slug))
