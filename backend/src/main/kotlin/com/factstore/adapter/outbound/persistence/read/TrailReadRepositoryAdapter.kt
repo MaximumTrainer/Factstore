@@ -32,6 +32,8 @@ fun Trail.toView() = TrailView(
     orgSlug = orgSlug,
     templateYaml = templateYaml,
     buildUrl = buildUrl,
+    name = name,
+    externalId = externalId,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

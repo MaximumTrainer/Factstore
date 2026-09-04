@@ -61,7 +61,10 @@ data class CreateTrailCommand(
     val deploymentActor: String? = null,
     val orgSlug: String? = null,
     val templateYaml: String? = null,
-    val buildUrl: String? = null
+    val buildUrl: String? = null,
+    val name: String? = null,
+    /** Stable release identifier; makes trail creation idempotent per flow (#164). */
+    val externalId: String? = null
 )
 
 // ── Artifact Commands ──────────────────────────────────────────────────────────

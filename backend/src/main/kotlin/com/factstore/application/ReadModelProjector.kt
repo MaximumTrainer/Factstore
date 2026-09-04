@@ -138,6 +138,8 @@ class ReadModelProjector(
             orgSlug = event.orgSlug,
             templateYaml = event.templateYaml,
             buildUrl = event.buildUrl,
+            name = event.name,
+            externalId = event.externalId,
             createdAt = event.occurredAt,
             updatedAt = event.occurredAt
         )

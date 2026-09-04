@@ -49,6 +49,8 @@ data class TrailView(
     val orgSlug: String? = null,
     val templateYaml: String? = null,
     val buildUrl: String? = null,
+    val name: String? = null,
+    val externalId: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )

@@ -58,8 +58,27 @@ class TrailController(
             )
             return ResponseEntity.ok(DryRunResponse(wouldCreate = wouldBe))
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(trailService.createTrail(enrichedRequest))
+        // Get-or-create on (flowId, externalId): 201 for a new trail, 200 when an existing one
+        // was reused, so a pipeline can tell whether it started the run or joined it (#164).
+        val result = trailService.createOrGetTrail(enrichedRequest)
+        val status = if (result.created) HttpStatus.CREATED else HttpStatus.OK
+        return ResponseEntity.status(status).body(result.trail)
     }
+
+    @GetMapping("/api/v1/trails/lookup")
+    @Operation(
+        summary = "Resolve a trail without knowing its UUID",
+        description = "Addresses a trail within a flow by externalId, name, or gitCommitSha " +
+            "(most recent run for that commit). Lets a secondary pipeline attest against the " +
+            "trail the primary pipeline created."
+    )
+    fun lookupTrail(
+        @RequestParam flowId: UUID,
+        @RequestParam(required = false) externalId: String?,
+        @RequestParam(required = false) name: String?,
+        @RequestParam(required = false) gitCommitSha: String?
+    ): ResponseEntity<TrailResponse> =
+        ResponseEntity.ok(trailService.lookupTrail(flowId, externalId, name, gitCommitSha))
 
     @GetMapping("/api/v1/trails")
     @Operation(summary = "List trails, optionally filter by flowId")

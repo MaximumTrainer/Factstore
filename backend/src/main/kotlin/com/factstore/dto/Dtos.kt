@@ -113,6 +113,11 @@ data class CreateTrailRequest(
     val templateYaml: String? = null,
     val buildUrl: String? = null,
     val name: String? = null,
+    /**
+     * Stable release identifier (build number, run id, release tag). Supplying it makes trail
+     * creation idempotent for that release and lets other pipelines address the trail by it.
+     */
+    val externalId: String? = null,
     val tags: Map<String, String> = emptyMap()
 )
 
@@ -131,6 +136,7 @@ data class TrailResponse(
     val templateYaml: String? = null,
     val buildUrl: String? = null,
     val name: String? = null,
+    val externalId: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
     val tags: Map<String, String> = emptyMap()

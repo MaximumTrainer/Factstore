@@ -87,6 +87,158 @@ jobs:
 
 ---
 
+---
+
+## Evidence from several pipelines on one trail
+
+A Trail represents one release. In most organisations the gates for that release do not all run
+in the same pipeline: the primary CI/CD pipeline owns build provenance, unit tests, SAST/GHAS and
+image scanning, while **integration tests, API tests and environment-specific testing** run from
+separate pipelines owned by other teams.
+
+All of that evidence belongs on **one** trail, otherwise there is no end-to-end compliance view for
+the release. The mechanism is a **release identifier** (`externalId`): a stable string that every
+pipeline working on the same release already knows.
+
+### 1. The primary pipeline creates the trail with a release identifier
+
+Trail creation is **idempotent** on `(flowId, externalId)`. Posting the same release identifier
+twice returns the existing trail (`200`, `status: "exists"`) instead of creating a second one
+(`201`, `status: "created"`), so a re-run of the primary pipeline cannot fork the evidence for a
+release.
+
+```yaml
+      - name: Create (or join) the release trail
+        run: |
+          factstore trails create \
+            --flow-id "${{ vars.FACTSTORE_FLOW_ID }}" \
+            --external-id "${{ github.repository }}@${{ github.run_id }}" \
+            --commit "${{ github.sha }}" \
+            --branch "${{ github.ref_name }}" \
+            --author "${{ github.actor }}" \
+            --author-email "${{ github.actor }}@users.noreply.github.com"
+```
+
+Pick an identifier that is stable for the release and known to every pipeline — a run id, a build
+number, a release tag, or `repo@version`. Do **not** use the commit SHA alone if a commit can be
+released more than once.
+
+### 2. Gates that run before the image exists still count
+
+Unit tests and SAST finish long before a container image is pushed, so there is no digest to key
+them on. Attest them against the trail instead:
+
+```yaml
+      - name: Attest unit tests
+        run: |
+          factstore attest junit \
+            --flow-id "${{ vars.FACTSTORE_FLOW_ID }}" \
+            --trail-external-id "${{ github.repository }}@${{ github.run_id }}" \
+            --test-results-file build/test-results/test/TEST-*.xml
+```
+
+### 3. A downstream pipeline resolves the same trail by that identifier
+
+The secondary pipeline needs no UUID. Pass it the release identifier as a workflow input and let
+it resolve the trail:
+
+```yaml
+name: Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      release-id:
+        required: true
+        type: string
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./actions/setup-factstore
+        with:
+          base-url: ${{ vars.FACTSTORE_BASE_URL }}
+          api-token: ${{ secrets.FACTSTORE_API_TOKEN }}
+
+      - name: Run integration tests
+        id: tests
+        run: ./gradlew integrationTest
+
+      - name: Attest integration tests to the release trail
+        if: always()
+        run: |
+          factstore attest generic \
+            --flow-id "${{ vars.FACTSTORE_FLOW_ID }}" \
+            --trail-external-id "${{ inputs.release-id }}" \
+            --type integration-tests \
+            --name integration-tests \
+            --status ${{ steps.tests.outcome == 'success' && 'PASSED' || 'FAILED' }} \
+            --evidence-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+```
+
+The primary pipeline invokes it with the identifier it used:
+
+```yaml
+  integration-tests:
+    needs: [build]
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      release-id: ${{ github.repository }}@${{ github.run_id }}
+    secrets: inherit
+```
+
+`factstore trails lookup` resolves a trail on its own if a job needs the UUID for something else:
+
+```bash
+factstore trails lookup --flow-id "$FLOW_ID" --external-id "$RELEASE_ID" --json
+factstore trails lookup --flow-id "$FLOW_ID" --name nightly-release
+factstore trails lookup --flow-id "$FLOW_ID" --commit "$GITHUB_SHA"   # most recent run
+```
+
+### 4. The release gate waits for every pipeline
+
+Define the flow to require the gates from *all* the pipelines:
+
+```yaml
+requiredAttestationTypes:
+  - unit-tests          # primary pipeline
+  - ghas                # primary pipeline
+  - image-scan          # primary pipeline
+  - integration-tests   # integration pipeline
+  - api-tests           # API test pipeline
+```
+
+The trail stays `PENDING` until the downstream pipelines have reported, which is exactly the
+behaviour you want — a release cannot pass its gate on the primary pipeline's evidence alone.
+
+The gate itself asserts the **trail**, never a bare digest, so it is judged on the evidence for
+*this* release:
+
+```yaml
+      - name: Release gate
+        run: |
+          factstore assert \
+            --flow-id "${{ vars.FACTSTORE_FLOW_ID }}" \
+            --trail-id "$(factstore trails lookup \
+                --flow-id "${{ vars.FACTSTORE_FLOW_ID }}" \
+                --external-id "${{ github.repository }}@${{ github.run_id }}" \
+                --json | jq -r .id)"
+```
+
+> Asserting on a digest alone is judged against the most recent trail carrying that digest. Always
+> scope a CI gate to its own trail — see [API_REFERENCE.md](./API_REFERENCE.md#compliance-assertion).
+
+### Ordering
+
+Pipelines may run in any order and attest concurrently. Whichever pipeline reaches
+`trails create` first creates the trail; the others join it. If a downstream pipeline can start
+before the primary one, give it the same `factstore trails create --external-id` call rather than
+`lookup`, so it creates the trail if it is first and joins it if it is not.
+
+---
+
 ## GitLab CI/CD
 
 Add a job to your `.gitlab-ci.yml` that uses `curl` with the `X-Factstore-CI-Context: gitlab-ci` header. GitLab exposes `CI_COMMIT_SHA`, `CI_COMMIT_REF_NAME`, and `CI_JOB_URL` automatically.

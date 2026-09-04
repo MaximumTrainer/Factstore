@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/MaximumTrainer/Factstore/cli/internal/client"
 	"github.com/MaximumTrainer/Factstore/cli/internal/output"
 	"github.com/MaximumTrainer/Factstore/cli/pkg/api"
 	"github.com/spf13/cobra"
@@ -12,6 +13,21 @@ import (
 var attestCmd = &cobra.Command{
 	Use:   "attest",
 	Short: "Record typed attestations",
+}
+
+// Shared across every attest subcommand: a downstream pipeline that was handed only the
+// release identifier can address the trail without plumbing a UUID (#164).
+var (
+	attestFlowID          string
+	attestTrailExternalID string
+	attestTrailName       string
+)
+
+func resolveAttestTrailID(c *client.Client, trailID string) (string, error) {
+	return api.ResolveTrailID(c, trailID, attestFlowID, api.TrailSelector{
+		ExternalID: attestTrailExternalID,
+		Name:       attestTrailName,
+	})
 }
 
 var (
@@ -46,7 +62,11 @@ var attestJunitCmd = &cobra.Command{
 			}
 			req.AttestationData = string(data)
 		}
-		result, err := api.RecordTypedAttestation(c, attestJunitTrailID, req)
+		trailID, err := resolveAttestTrailID(c, attestJunitTrailID)
+		if err != nil {
+			return err
+		}
+		result, err := api.RecordTypedAttestation(c, trailID, req)
 		if err != nil {
 			return err
 		}
@@ -90,7 +110,11 @@ var attestSnykCmd = &cobra.Command{
 			}
 			req.AttestationData = string(data)
 		}
-		result, err := api.RecordTypedAttestation(c, attestSnykTrailID, req)
+		trailID, err := resolveAttestTrailID(c, attestSnykTrailID)
+		if err != nil {
+			return err
+		}
+		result, err := api.RecordTypedAttestation(c, trailID, req)
 		if err != nil {
 			return err
 		}
@@ -122,7 +146,11 @@ var attestGenericCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		result, err := api.RecordTypedAttestation(c, attestGenericTrailID, api.TypedAttestRequest{
+		trailID, err := resolveAttestTrailID(c, attestGenericTrailID)
+		if err != nil {
+			return err
+		}
+		result, err := api.RecordTypedAttestation(c, trailID, api.TypedAttestRequest{
 			Type:         attestGenericType,
 			Status:       attestGenericStatus,
 			Name:         attestGenericName,
@@ -144,23 +172,21 @@ var attestGenericCmd = &cobra.Command{
 }
 
 func init() {
-	attestJunitCmd.Flags().StringVar(&attestJunitTrailID, "trail-id", "", "Trail ID (required)")
+	attestJunitCmd.Flags().StringVar(&attestJunitTrailID, "trail-id", "", "Trail ID (or resolve one with --flow-id and --trail-external-id/--trail-name)")
 	attestJunitCmd.Flags().StringVar(&attestJunitName, "name", "junit", "Attestation name")
 	attestJunitCmd.Flags().StringVar(&attestJunitTestResultsFile, "test-results-file", "", "Path to JUnit XML results file")
 	attestJunitCmd.Flags().StringVar(&attestJunitGitCommitSha, "git-commit-sha", "", "Git commit SHA")
 	attestJunitCmd.Flags().StringVar(&attestJunitGitBranch, "git-branch", "", "Git branch name")
 	attestJunitCmd.Flags().StringVar(&attestJunitDetails, "details", "", "Additional details")
-	_ = attestJunitCmd.MarkFlagRequired("trail-id")
 
-	attestSnykCmd.Flags().StringVar(&attestSnykTrailID, "trail-id", "", "Trail ID (required)")
+	attestSnykCmd.Flags().StringVar(&attestSnykTrailID, "trail-id", "", "Trail ID (or resolve one with --flow-id and --trail-external-id/--trail-name)")
 	attestSnykCmd.Flags().StringVar(&attestSnykName, "name", "snyk", "Attestation name")
 	attestSnykCmd.Flags().StringVar(&attestSnykScanFile, "scan-results-file", "", "Path to Snyk scan results file")
 	attestSnykCmd.Flags().StringVar(&attestSnykGitCommitSha, "git-commit-sha", "", "Git commit SHA")
 	attestSnykCmd.Flags().StringVar(&attestSnykGitBranch, "git-branch", "", "Git branch name")
 	attestSnykCmd.Flags().StringVar(&attestSnykStatus, "status", "PASSED", "Attestation status (PASSED/FAILED/PENDING)")
-	_ = attestSnykCmd.MarkFlagRequired("trail-id")
 
-	attestGenericCmd.Flags().StringVar(&attestGenericTrailID, "trail-id", "", "Trail ID (required)")
+	attestGenericCmd.Flags().StringVar(&attestGenericTrailID, "trail-id", "", "Trail ID (or resolve one with --flow-id and --trail-external-id/--trail-name)")
 	attestGenericCmd.Flags().StringVar(&attestGenericType, "type", "", "Attestation type (required)")
 	attestGenericCmd.Flags().StringVar(&attestGenericStatus, "status", "", "Attestation status: PASSED, FAILED, or PENDING (required)")
 	attestGenericCmd.Flags().StringVar(&attestGenericName, "name", "", "Attestation name")
@@ -168,9 +194,15 @@ func init() {
 	attestGenericCmd.Flags().StringVar(&attestGenericEvidenceURL, "evidence-url", "", "URL to external evidence")
 	attestGenericCmd.Flags().StringVar(&attestGenericGitCommitSha, "git-commit-sha", "", "Git commit SHA")
 	attestGenericCmd.Flags().StringVar(&attestGenericGitBranch, "git-branch", "", "Git branch name")
-	_ = attestGenericCmd.MarkFlagRequired("trail-id")
 	_ = attestGenericCmd.MarkFlagRequired("type")
 	_ = attestGenericCmd.MarkFlagRequired("status")
+
+	attestCmd.PersistentFlags().StringVar(&attestFlowID, "flow-id", "",
+		"Flow the trail belongs to; required when resolving by --trail-external-id or --trail-name")
+	attestCmd.PersistentFlags().StringVar(&attestTrailExternalID, "trail-external-id", "",
+		"Release identifier of the trail to attest against, instead of --trail-id")
+	attestCmd.PersistentFlags().StringVar(&attestTrailName, "trail-name", "",
+		"Name of the trail to attest against, instead of --trail-id")
 
 	attestCmd.AddCommand(attestJunitCmd, attestSnykCmd, attestGenericCmd)
 }

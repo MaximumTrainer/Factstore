@@ -25,7 +25,9 @@ interface TrailRepositoryJpa : JpaRepository<Trail, UUID> {
     fun findByCreatedAtLessThanEqual(to: Instant): List<Trail>
     fun countByStatus(status: TrailStatus): Long
     fun findByFlowIdAndName(flowId: UUID, name: String): Trail?
+    fun findByFlowIdAndExternalId(flowId: UUID, externalId: String): Trail?
     fun findByGitCommitSha(gitCommitSha: String): List<Trail>
+    fun findByFlowIdAndGitCommitSha(flowId: UUID, gitCommitSha: String): List<Trail>
 
     @Query("""
         SELECT t FROM Trail t WHERE
@@ -62,5 +64,9 @@ class TrailRepositoryAdapter(private val jpa: TrailRepositoryJpa) : ITrailReposi
     override fun countByStatus(status: TrailStatus): Long = jpa.countByStatus(status)
     override fun findByFlowIdAndName(flowId: UUID, name: String): Trail? =
         jpa.findByFlowIdAndName(flowId, name)
+    override fun findByFlowIdAndExternalId(flowId: UUID, externalId: String): Trail? =
+        jpa.findByFlowIdAndExternalId(flowId, externalId)
     override fun findByGitCommitSha(sha: String): List<Trail> = jpa.findByGitCommitSha(sha)
+    override fun findByFlowIdAndGitCommitSha(flowId: UUID, sha: String): List<Trail> =
+        jpa.findByFlowIdAndGitCommitSha(flowId, sha)
 }

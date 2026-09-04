@@ -24,5 +24,7 @@ interface ITrailRepository {
     fun countAll(): Long
     fun countByStatus(status: TrailStatus): Long
     fun findByFlowIdAndName(flowId: UUID, name: String): Trail?
+    fun findByFlowIdAndExternalId(flowId: UUID, externalId: String): Trail?
     fun findByGitCommitSha(sha: String): List<Trail>
+    fun findByFlowIdAndGitCommitSha(flowId: UUID, sha: String): List<Trail>
 }

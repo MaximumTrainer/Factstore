@@ -114,7 +114,9 @@ class EnvironmentServiceUnitTest {
             override fun countAll() = 0L
             override fun countByStatus(status: com.factstore.core.domain.TrailStatus) = 0L
             override fun findByFlowIdAndName(flowId: UUID, name: String): Trail? = null
+            override fun findByFlowIdAndExternalId(flowId: UUID, externalId: String): Trail? = null
             override fun findByGitCommitSha(sha: String) = emptyList<Trail>()
+            override fun findByFlowIdAndGitCommitSha(flowId: UUID, sha: String) = emptyList<Trail>()
         }
 
         environmentService = EnvironmentService(
