@@ -1,72 +1,67 @@
 package com.factstore
 
-import com.factstore.application.ArtifactService
-import com.factstore.application.AttestationService
+import com.factstore.adapter.mock.InMemoryArtifactRepository
+import com.factstore.adapter.mock.InMemoryAuditEventRepository
+import com.factstore.adapter.mock.InMemoryDeploymentGateResultRepository
+import com.factstore.adapter.mock.InMemoryDeploymentRepository
+import com.factstore.adapter.mock.InMemoryTrailRepository
 import com.factstore.application.DeliveryMetricsService
-import com.factstore.application.FlowService
-import com.factstore.core.domain.AttestationStatus
+import com.factstore.core.domain.Artifact
+import com.factstore.core.domain.AuditEvent
+import com.factstore.core.domain.AuditEventType
 import com.factstore.core.domain.Deployment
-import com.factstore.core.domain.GateDecision
 import com.factstore.core.domain.DeploymentGateResult
-import com.factstore.core.port.inbound.IAssertService
-import com.factstore.core.port.inbound.ITrailService
-import com.factstore.core.port.outbound.IDeploymentGateResultRepository
-import com.factstore.core.port.outbound.IDeploymentRepository
+import com.factstore.core.domain.GateDecision
 import com.factstore.core.domain.Trail
-import com.factstore.core.port.outbound.ITrailRepository
-import com.factstore.dto.AssertRequest
-import com.factstore.dto.CreateArtifactRequest
-import com.factstore.dto.CreateAttestationRequest
-import com.factstore.dto.CreateFlowRequest
-import com.factstore.dto.CreateTrailRequest
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
- * #151: a delivery metrics dashboard - DORA where the data supports it, gates throughout.
+ * #151: a delivery metrics dashboard — DORA where the data supports it, gates throughout.
  *
- * The point of these tests is as much about honesty as arithmetic: a metric Factstore cannot
+ * These run without a Spring context, over in-memory repositories. The service reads
+ * *globally* — every deployment, gate result and audit event in the window — so on a shared
+ * database totals and top-N rankings depend on whatever the rest of the suite left behind.
+ * That is a property of the service, not a bug, but it means these assertions are only
+ * meaningful when the test owns its input.
+ *
+ * The point of the tests is as much about honesty as arithmetic: a metric Factstore cannot
  * derive from what it records must say so rather than return a plausible-looking zero.
  */
-@SpringBootTest
-@Transactional
 class DeliveryMetricsServiceTest {
 
-    @Autowired lateinit var metricsService: DeliveryMetricsService
-    @Autowired lateinit var flowService: FlowService
-    @Autowired lateinit var trailService: ITrailService
-    @Autowired lateinit var attestationService: AttestationService
-    @Autowired lateinit var artifactService: ArtifactService
-    @Autowired lateinit var assertService: IAssertService
-    @Autowired lateinit var deploymentRepository: IDeploymentRepository
-    @Autowired lateinit var gateResultRepository: IDeploymentGateResultRepository
-    @Autowired lateinit var trailRepository: ITrailRepository
+    private lateinit var deployments: InMemoryDeploymentRepository
+    private lateinit var gateResults: InMemoryDeploymentGateResultRepository
+    private lateinit var artifacts: InMemoryArtifactRepository
+    private lateinit var trails: InMemoryTrailRepository
+    private lateinit var auditEvents: InMemoryAuditEventRepository
+    private lateinit var metricsService: DeliveryMetricsService
 
-    private fun newFlowId(vararg required: String): UUID =
-        flowService.createFlow(CreateFlowRequest("flow-${System.nanoTime()}", "d", required.toList())).id
+    private val objectMapper = ObjectMapper()
 
-    private fun newTrail(flowId: UUID) = trailService.createTrail(
-        CreateTrailRequest(
-            flowId = flowId,
-            gitCommitSha = "sha-${System.nanoTime()}",
-            gitBranch = "main",
-            gitAuthor = "a",
-            gitAuthorEmail = "a@example.com"
+    @BeforeEach
+    fun setUp() {
+        deployments = InMemoryDeploymentRepository()
+        gateResults = InMemoryDeploymentGateResultRepository()
+        artifacts = InMemoryArtifactRepository()
+        trails = InMemoryTrailRepository()
+        auditEvents = InMemoryAuditEventRepository()
+        metricsService = DeliveryMetricsService(
+            deployments, gateResults, artifacts, trails, auditEvents, objectMapper
         )
-    )
+    }
 
     private fun deploy(sha: String, at: Instant) {
-        deploymentRepository.save(
+        deployments.save(
             Deployment(
                 artifactSha256 = sha,
                 environmentId = UUID.randomUUID(),
@@ -77,12 +72,43 @@ class DeliveryMetricsServiceTest {
     }
 
     private fun gate(sha: String, decision: GateDecision, at: Instant, reasons: List<String> = emptyList()) {
-        gateResultRepository.save(
-            DeploymentGateResult(
-                artifactSha256 = sha,
-                decision = decision,
-                evaluatedAt = at
-            ).also { it.blockReasons = reasons }
+        gateResults.save(
+            DeploymentGateResult(artifactSha256 = sha, decision = decision, evaluatedAt = at)
+                .also { it.blockReasons = reasons }
+        )
+    }
+
+    /** A trail that produced [sha], created [hoursAgo] hours ago. */
+    private fun trailProducing(sha: String, hoursAgo: Long) {
+        val trail = trails.save(
+            Trail(
+                flowId = UUID.randomUUID(),
+                gitCommitSha = "sha-${System.nanoTime()}",
+                gitBranch = "main",
+                gitAuthor = "a",
+                gitAuthorEmail = "a@example.com",
+                createdAt = Instant.now().minus(hoursAgo, ChronoUnit.HOURS)
+            )
+        )
+        artifacts.save(
+            Artifact(
+                trailId = trail.id,
+                imageName = "img",
+                imageTag = "1",
+                sha256Digest = sha,
+                reportedBy = "ci"
+            )
+        )
+    }
+
+    private fun blockedAssertion(missing: List<String>, at: Instant = Instant.now()) {
+        auditEvents.save(
+            AuditEvent(
+                eventType = AuditEventType.GATE_BLOCKED,
+                actor = "system",
+                payload = objectMapper.writeValueAsString(mapOf("missingAttestationTypes" to missing)),
+                occurredAt = at
+            )
         )
     }
 
@@ -107,9 +133,7 @@ class DeliveryMetricsServiceTest {
         deploy("sha256:inside", now.minus(1, ChronoUnit.DAYS))
         deploy("sha256:outside", now.minus(90, ChronoUnit.DAYS))
 
-        val metrics = metricsService.getDeliveryMetrics(days = 7)
-
-        assertEquals(1, metrics.deploymentFrequency.sampleSize)
+        assertEquals(1, metricsService.getDeliveryMetrics(days = 7).deploymentFrequency.sampleSize)
     }
 
     @Test
@@ -125,37 +149,35 @@ class DeliveryMetricsServiceTest {
 
     @Test
     fun `lead time is measured from the trail that produced the artifact to its deployment`() {
-        val flowId = newFlowId("junit")
-        // Backdate the trail by 3 hours so both it and the deployment sit inside the window.
-        val trail = trailRepository.save(
-            Trail(
-                flowId = flowId,
-                gitCommitSha = "sha-lt-${System.nanoTime()}",
-                gitBranch = "main",
-                gitAuthor = "a",
-                gitAuthorEmail = "a@example.com",
-                createdAt = Instant.now().minus(3, ChronoUnit.HOURS)
-            )
-        )
-        val digest = "sha256:lt${System.nanoTime()}"
-        artifactService.reportArtifact(trail.id, CreateArtifactRequest("img", "1", digest, reportedBy = "ci"))
-
+        val digest = "sha256:lt"
+        trailProducing(digest, hoursAgo = 3)
         deploy(digest, Instant.now())
 
         val metrics = metricsService.getDeliveryMetrics(days = 7)
 
         assertTrue(metrics.leadTimeForChanges.available)
         assertEquals(1, metrics.leadTimeForChanges.sampleSize)
-        assertEquals(3.0, metrics.leadTimeForChanges.value!!, 0.2)
+        assertEquals(3.0, metrics.leadTimeForChanges.value!!, 0.1)
         assertEquals("hours", metrics.leadTimeForChanges.unit)
     }
 
     @Test
+    fun `lead time is the median, so one slow release does not dominate`() {
+        listOf(1L, 2L, 30L).forEachIndexed { i, hours ->
+            val digest = "sha256:median$i"
+            trailProducing(digest, hoursAgo = hours)
+            deploy(digest, Instant.now())
+        }
+
+        val metrics = metricsService.getDeliveryMetrics(days = 7)
+
+        assertEquals(3, metrics.leadTimeForChanges.sampleSize)
+        assertEquals(2.0, metrics.leadTimeForChanges.value!!, 0.1)
+    }
+
+    @Test
     fun `a deployment whose artifact has no trail contributes no lead time`() {
-        // An hour inside the window rather than exactly on its upper bound: a deployment
-        // recorded in the same instant the window ends is an artificial case, and pinning
-        // the test to that boundary made it sensitive to ordering under the full suite.
-        deploy("sha256:orphan${System.nanoTime()}", Instant.now().minus(1, ChronoUnit.HOURS))
+        deploy("sha256:orphan", Instant.now().minus(1, ChronoUnit.HOURS))
 
         val metrics = metricsService.getDeliveryMetrics(days = 7)
 
@@ -191,6 +213,15 @@ class DeliveryMetricsServiceTest {
         // It is a pre-deployment gate rate, not DORA's post-release failure rate; the basis
         // has to be explicit or the number will be read as something it is not.
         assertTrue(basis.contains("gate"), "basis should name the gate: $basis")
+        assertTrue(basis.contains("not dora"), "basis should disclaim the DORA reading: $basis")
+    }
+
+    @Test
+    fun `with no gate evaluations the failure rate is unavailable, not zero percent`() {
+        val metric = metricsService.getDeliveryMetrics(days = 7).changeFailureRate
+
+        assertFalse(metric.available)
+        assertNull(metric.value)
     }
 
     // --- Time to restore --------------------------------------------------
@@ -202,6 +233,7 @@ class DeliveryMetricsServiceTest {
         assertFalse(metric.available)
         assertNull(metric.value)
         assertTrue(metric.basis.isNotBlank(), "an unavailable metric must explain itself")
+        assertTrue(metric.basis.lowercase().contains("incident"))
     }
 
     // --- Gates ------------------------------------------------------------
@@ -252,23 +284,42 @@ class DeliveryMetricsServiceTest {
 
     @Test
     fun `assertion outcomes and the attestations that block them are reported`() {
-        val flowId = newFlowId("junit", "snyk")
-        val trail = newTrail(flowId)
-        attestationService.recordAttestation(
-            trail.id,
-            CreateAttestationRequest(type = "junit", status = AttestationStatus.PASSED)
+        blockedAssertion(listOf("snyk", "junit"))
+        blockedAssertion(listOf("snyk"))
+        auditEvents.save(
+            AuditEvent(
+                eventType = AuditEventType.GATE_ALLOWED,
+                actor = "system",
+                payload = "{}",
+                occurredAt = Instant.now()
+            )
         )
-        val digest = "sha256:as${System.nanoTime()}"
-        artifactService.reportArtifact(trail.id, CreateArtifactRequest("img", "1", digest, reportedBy = "ci"))
-        assertService.assertCompliance(AssertRequest(digest, flowId))
 
         val assertions = metricsService.getDeliveryMetrics(days = 7).assertions
 
-        assertTrue(assertions.blocked >= 1)
-        assertTrue(
-            assertions.topMissingAttestations.any { it.value == "snyk" },
-            "expected snyk to be reported as blocking, got ${assertions.topMissingAttestations}"
+        assertEquals(3, assertions.evaluations)
+        assertEquals(1, assertions.compliant)
+        assertEquals(2, assertions.blocked)
+        assertEquals("snyk", assertions.topMissingAttestations.first().value)
+        assertEquals(2, assertions.topMissingAttestations.first().count)
+    }
+
+    @Test
+    fun `an unreadable audit payload does not break the ranking`() {
+        auditEvents.save(
+            AuditEvent(
+                eventType = AuditEventType.GATE_BLOCKED,
+                actor = "system",
+                payload = "not-json",
+                occurredAt = Instant.now()
+            )
         )
+        blockedAssertion(listOf("snyk"))
+
+        val assertions = metricsService.getDeliveryMetrics(days = 7).assertions
+
+        assertEquals(2, assertions.blocked)
+        assertEquals("snyk", assertions.topMissingAttestations.single().value)
     }
 
     // --- Window -----------------------------------------------------------

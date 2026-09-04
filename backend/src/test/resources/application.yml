@@ -26,4 +26,14 @@ audit:
 
 security:
   enforce-auth: false
+  session:
+    lifetime-seconds: 3600
+    absolute-lifetime-seconds: 43200
+    idle-timeout-seconds: 1800
 
+# A real (test-only) signing secret: the service refuses to issue sessions without one,
+# which is the point of #156 FR-3.1.
+sso:
+  jwt:
+    secret: test-only-session-signing-secret-long-enough-for-hs256
+    issuer: openfactstore-test

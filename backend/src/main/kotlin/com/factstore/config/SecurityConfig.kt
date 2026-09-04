@@ -1,7 +1,7 @@
 package com.factstore.config
 
 import com.factstore.adapter.inbound.web.ApiKeyAuthFilter
-import com.factstore.adapter.inbound.web.SsoJwtAuthFilter
+import com.factstore.adapter.inbound.web.SessionAuthFilter
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -16,8 +16,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *
  * Access model:
  *  - REST API callers authenticate via API keys (header `X-API-Key` or `Authorization: ApiKey <key>`).
- *  - SSO users authenticate via the JWT returned by the `/sso/callback` endpoint
- *    (`Authorization: Bearer <jwt>`).
+ *  - People authenticate with a session issued by `/sso/callback`, presented as the
+ *    `fs_session` HttpOnly cookie (web UI) or `Authorization: Bearer <token>` (API clients).
+ *    See [SessionAuthFilter] and `docs/authentication.md`.
  *  - Web UI users authenticate via GitHub OAuth 2.0 / SSO (enabled when
  *    `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` environment variables are set).
  *  - Public paths (Swagger UI, H2 console, OpenAPI docs) are permitted without authentication.
@@ -33,7 +34,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 class SecurityConfig(
     private val apiKeyAuthFilter: ApiKeyAuthFilter,
-    private val ssoJwtAuthFilter: SsoJwtAuthFilter,
+    private val sessionAuthFilter: SessionAuthFilter,
     @Value("\${spring.security.oauth2.client.registration.github.client-id:}")
     private val githubClientId: String,
     @Value("\${security.enforce-auth:false}")
@@ -57,8 +58,11 @@ class SecurityConfig(
                     .requestMatchers("/login/**", "/oauth2/**").permitAll()
                     // Actuator / health endpoints are always public
                     .requestMatchers("/actuator/**", "/health").permitAll()
-                    // SSO login/callback do not require prior authentication.
+                    // Sign-in itself cannot require being signed in.
                     .requestMatchers("/api/v1/organisations/*/sso/login", "/api/v1/organisations/*/sso/callback").permitAll()
+                    // Logout must work with an expired or already-revoked session, so the
+                    // cookie can always be cleared.
+                    .requestMatchers("/api/v1/auth/logout").permitAll()
                     // Remaining endpoints: enforce authentication when the flag is enabled.
                     // Set SECURITY_ENFORCE_AUTH=true in production to require authentication.
                 if (enforceAuth) {
@@ -67,10 +71,10 @@ class SecurityConfig(
                     auth.anyRequest().permitAll()
                 }
             }
-            // SSO JWT filter runs first so that JWT-authenticated users are recognised
-            // before the API key filter tries to treat the Bearer token as an API key.
-            .addFilterBefore(ssoJwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
-            .addFilterAfter(apiKeyAuthFilter, SsoJwtAuthFilter::class.java)
+            // The session filter runs first so a signed-in person is recognised before the
+            // API key filter tries to read their Bearer token as an API key.
+            .addFilterBefore(sessionAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterAfter(apiKeyAuthFilter, SessionAuthFilter::class.java)
 
         // Enable GitHub OAuth2 login only when credentials are configured
         if (githubClientId.isNotBlank()) {

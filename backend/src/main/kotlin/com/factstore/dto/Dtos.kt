@@ -14,6 +14,7 @@ import com.factstore.core.domain.ChannelType
 import com.factstore.core.domain.DeliveryStatus
 import com.factstore.core.domain.EnvironmentType
 import com.factstore.core.domain.DriftPolicy
+import com.factstore.core.domain.AuthProvider
 import com.factstore.core.domain.MemberRole
 import com.factstore.core.domain.NotificationDeliveryStatus
 import com.factstore.core.domain.NotificationSeverity
@@ -1330,8 +1331,61 @@ data class SsoCallbackResponse(
     val token: String,
     val userId: UUID,
     val email: String,
-    val name: String
+    val name: String,
+    val orgSlug: String? = null,
+    val role: MemberRole? = null,
+    val expiresAt: Instant? = null
 )
+
+// Authentication DTOs (#156)
+
+/**
+ * Who the caller is and what it may do (#156 FR-4).
+ *
+ * One endpoint answers for both credential types, so the same response drives the web UI and
+ * `factstore login`. [type] says which kind of credential answered.
+ */
+data class AuthenticatedPrincipalResponse(
+    val type: PrincipalType,
+    val userId: UUID? = null,
+    val email: String? = null,
+    val name: String? = null,
+    /** For an API key: the key's id and owner. */
+    val apiKeyId: UUID? = null,
+    val ownerId: UUID? = null,
+    val orgSlug: String? = null,
+    val role: MemberRole? = null,
+    /** The `resource:action` scopes this credential carries. */
+    val permissions: List<String> = emptyList(),
+    val sessionId: String? = null,
+    val sessionExpiresAt: Instant? = null,
+    /** Every organisation the user belongs to, for the active-organisation switcher. */
+    val organisations: List<PrincipalOrganisation> = emptyList()
+)
+
+enum class PrincipalType { USER, API_KEY }
+
+data class PrincipalOrganisation(val orgSlug: String, val role: MemberRole)
+
+data class SessionResponse(
+    val sessionId: String,
+    val provider: AuthProvider,
+    val orgSlug: String?,
+    val createdAt: Instant,
+    val lastSeenAt: Instant,
+    val expiresAt: Instant,
+    val absoluteExpiresAt: Instant,
+    val sourceIp: String?,
+    val userAgent: String?,
+    /** True for the session making this request, so a UI can mark "this device". */
+    val current: Boolean = false
+)
+
+data class SwitchOrganisationRequest(val orgSlug: String)
+
+data class RefreshedSessionResponse(val expiresAt: Instant)
+
+
 
 // PolicyAttachment DTOs
 data class CreatePolicyAttachmentRequest(

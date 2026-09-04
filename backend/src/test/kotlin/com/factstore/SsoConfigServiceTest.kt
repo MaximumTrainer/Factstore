@@ -192,13 +192,19 @@ class SsoConfigServiceTest {
     }
 
     // ---------------------------------------------------------------
+    // Session token issuing is no longer here: it moved to SessionTokenService, which uses
+    // Nimbus rather than hand-rolled HMAC, and is covered by
+    // com.factstore.security.SessionTokenServiceTest.
+
     // resolveRole (internal method — tested directly)
     // ---------------------------------------------------------------
 
     @Test
-    fun `resolveRole returns MEMBER when groups list is empty`() {
+    fun `resolveRole returns VIEWER when groups list is empty`() {
+        // #156 FR-5.3: a federated user in no mapped group must not get write access just for
+        // having signed in. The fallback used to be MEMBER.
         val role = ssoService.resolveRole(emptyList(), """{"admins":"ADMIN"}""")
-        assertEquals(MemberRole.MEMBER, role)
+        assertEquals(MemberRole.VIEWER, role)
     }
 
     @Test
@@ -208,9 +214,9 @@ class SsoConfigServiceTest {
     }
 
     @Test
-    fun `resolveRole returns MEMBER when no group matches`() {
+    fun `resolveRole returns VIEWER when no group matches`() {
         val role = ssoService.resolveRole(listOf("unknown-group"), """{"admins":"ADMIN"}""")
-        assertEquals(MemberRole.MEMBER, role)
+        assertEquals(MemberRole.VIEWER, role)
     }
 
     @Test
@@ -239,15 +245,16 @@ class SsoConfigServiceTest {
     }
 
     @Test
-    fun `resolveRole falls back to MEMBER on invalid JSON mappings`() {
+    fun `resolveRole falls back to VIEWER on invalid JSON mappings`() {
+        // A broken mapping must fail closed, not open.
         val role = ssoService.resolveRole(listOf("admins"), "not-valid-json")
-        assertEquals(MemberRole.MEMBER, role)
+        assertEquals(MemberRole.VIEWER, role)
     }
 
     @Test
-    fun `resolveRole falls back to MEMBER when role name is unknown`() {
+    fun `resolveRole falls back to VIEWER when role name is unknown`() {
         val role = ssoService.resolveRole(listOf("admins"), """{"admins":"SUPER_ADMIN"}""")
-        assertEquals(MemberRole.MEMBER, role)
+        assertEquals(MemberRole.VIEWER, role)
     }
 
     @Test
@@ -299,40 +306,7 @@ class SsoConfigServiceTest {
     // generateJwt
     // ---------------------------------------------------------------
 
-    @Test
-    fun `generate JWT contains expected claims`() {
-        val userId = UUID.randomUUID()
-        val jwt = ssoService.generateJwt(userId, "test@example.com", "my-org")
-        val parts = jwt.split(".")
-        assertEquals(3, parts.size, "JWT should have 3 parts: header.payload.signature")
 
-        val payloadJson = String(
-            java.util.Base64.getUrlDecoder().decode(
-                parts[1].let { s -> s + "=".repeat((4 - s.length % 4) % 4) }
-            )
-        )
-        assertTrue(payloadJson.contains("\"sub\":\"$userId\""))
-        assertTrue(payloadJson.contains("\"email\":\"test@example.com\""))
-        assertTrue(payloadJson.contains("\"org\":\"my-org\""))
-        assertTrue(payloadJson.contains("\"iat\""))
-        assertTrue(payloadJson.contains("\"exp\""))
-    }
-
-    @Test
-    fun `generate JWT with special characters in email produces valid JSON`() {
-        val jwt = ssoService.generateJwt(UUID.randomUUID(), "user+tag@example.com", "org/slug")
-        val parts = jwt.split(".")
-        assertEquals(3, parts.size)
-        // Payload must be parseable JSON — ObjectMapper serialization ensures this.
-        val payloadJson = String(
-            java.util.Base64.getUrlDecoder().decode(
-                parts[1].let { s -> s + "=".repeat((4 - s.length % 4) % 4) }
-            )
-        )
-        val map = objectMapper.readValue(payloadJson, Map::class.java)
-        assertEquals("user+tag@example.com", map["email"])
-        assertEquals("org/slug", map["org"])
-    }
 
     @Test
     fun `client secret is not exposed in SSO config response`() {

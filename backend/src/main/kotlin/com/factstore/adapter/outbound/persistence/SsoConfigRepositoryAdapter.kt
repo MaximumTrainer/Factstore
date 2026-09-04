@@ -17,6 +17,7 @@ interface SsoConfigRepositoryJpa : JpaRepository<SsoConfig, UUID> {
 class SsoConfigRepositoryAdapter(private val jpa: SsoConfigRepositoryJpa) : ISsoConfigRepository {
     override fun save(ssoConfig: SsoConfig): SsoConfig = jpa.save(ssoConfig)
     override fun findByOrgSlug(orgSlug: String): SsoConfig? = jpa.findByOrgSlug(orgSlug)
+    override fun findAll(): List<SsoConfig> = jpa.findAll()
     override fun existsByOrgSlug(orgSlug: String): Boolean = jpa.existsByOrgSlug(orgSlug)
     override fun delete(ssoConfig: SsoConfig) = jpa.delete(ssoConfig)
 }
