@@ -8,10 +8,12 @@ import com.factstore.core.port.inbound.IFlowService
 import com.factstore.core.port.outbound.IFlowRepository
 import com.factstore.core.port.outbound.ITrailRepository
 import com.factstore.dto.CreateFlowRequest
+import com.factstore.dto.ComposeTemplateRequest
 import com.factstore.dto.FlowImpactResponse
 import com.factstore.dto.FlowResponse
 import com.factstore.dto.FlowTemplateResponse
 import com.factstore.dto.PageResponse
+import com.factstore.dto.TemplateDriftResponse
 import com.factstore.dto.UpdateFlowRequest
 import com.factstore.exception.BadRequestException
 import com.factstore.exception.ConflictException
@@ -30,7 +32,9 @@ class FlowService(
     private val flowRepository: IFlowRepository,
     private val trailRepository: ITrailRepository,
     private val auditService: IAuditService,
-    private val actorResolver: ActorResolver
+    private val actorResolver: ActorResolver,
+    private val hubService: HubService,
+    private val templateParser: com.factstore.application.template.TemplateParser
 ) : IFlowService {
 
     private val log = LoggerFactory.getLogger(FlowService::class.java)
@@ -40,6 +44,13 @@ class FlowService(
             throw ConflictException("Flow with name '${request.name}' already exists")
         }
         validateTags(request.tags)
+        // A template is copied onto the flow at creation, never linked live, so a later template
+        // change can never silently alter what an in-flight release is judged against (#162).
+        val templateIds = (listOfNotNull(request.templateId) + request.templateIds).distinct()
+        val applied = templateIds.takeIf { it.isNotEmpty() }?.let {
+            hubService.compose(ComposeTemplateRequest(templateIds = it, orgSlug = request.orgSlug))
+        }
+
         val flow = Flow(
             name = request.name,
             description = request.description,
@@ -47,9 +58,14 @@ class FlowService(
         ).also {
             it.requiredAttestationTypes = request.requiredAttestationTypes
             it.tags = request.tags.toMutableMap()
-            it.templateYaml = request.templateYaml
+            it.templateYaml = request.templateYaml ?: applied?.templateYaml
             it.requiresApproval = request.requiresApproval
             it.requiredApproverRoles = request.requiredApproverRoles
+            if (applied != null) {
+                it.templateId = templateIds.joinToString("+")
+                it.templateVersion = templateIds
+                    .joinToString("+") { id -> hubService.getTemplate(id, request.orgSlug).version }
+            }
         }
         val saved = flowRepository.save(flow)
         log.info("Created flow: ${saved.id} - ${saved.name}")
@@ -149,6 +165,52 @@ class FlowService(
             flowName = flow.name,
             trailCount = trails.size,
             pendingTrailCount = trails.count { it.status == TrailStatus.PENDING }
+        )
+    }
+
+    /**
+     * Whether the flow still matches the template it was created from (#162).
+     *
+     * Reports the gap rather than closing it: re-applying a template is a decision a team makes,
+     * because it changes how existing trails will evaluate.
+     */
+    @Transactional(readOnly = true)
+    override fun getTemplateDrift(id: UUID): TemplateDriftResponse {
+        val flow = flowRepository.findById(id) ?: throw NotFoundException("Flow not found: $id")
+        val templateIds = flow.templateId?.split("+")?.filter { it.isNotBlank() } ?: emptyList()
+        if (templateIds.isEmpty()) {
+            return TemplateDriftResponse(
+                flowId = flow.id,
+                templateId = null,
+                templateVersion = null,
+                currentTemplateVersion = null,
+                drifted = false
+            )
+        }
+
+        val current = runCatching {
+            hubService.compose(ComposeTemplateRequest(templateIds = templateIds, orgSlug = flow.orgSlug))
+        }.getOrNull()
+        val currentVersion = runCatching {
+            templateIds.joinToString("+") { hubService.getTemplate(it, flow.orgSlug).version }
+        }.getOrNull()
+
+        val templateRequires = current?.requiredAttestations.orEmpty().toSet()
+        val flowRequires = (templateParser.parse(flow.templateYaml ?: "")
+            ?.let { parsed ->
+                parsed.trailAttestations.map { it.name } + parsed.artifacts.flatMap { a -> a.attestations.map { it.name } }
+            } ?: flow.requiredAttestationTypes).toSet()
+
+        val missing = (templateRequires - flowRequires).sorted()
+        val added = (flowRequires - templateRequires).sorted()
+        return TemplateDriftResponse(
+            flowId = flow.id,
+            templateId = flow.templateId,
+            templateVersion = flow.templateVersion,
+            currentTemplateVersion = currentVersion,
+            drifted = missing.isNotEmpty() || added.isNotEmpty() || currentVersion != flow.templateVersion,
+            missingFromFlow = missing,
+            addedToFlow = added
         )
     }
 
@@ -272,6 +334,8 @@ fun Flow.toResponse() = FlowResponse(
     tags = tags.toMap(),
     orgSlug = orgSlug,
     templateYaml = templateYaml,
+    templateId = templateId,
+    templateVersion = templateVersion,
     createdAt = createdAt,
     updatedAt = updatedAt,
     requiresApproval = requiresApproval,

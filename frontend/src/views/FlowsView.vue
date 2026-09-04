@@ -102,8 +102,9 @@
 
     <!-- Create Flow Modal -->
     <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg max-h-full overflow-y-auto">
         <h2 class="text-lg font-bold text-gray-900 mb-4">Create New Flow</h2>
+        <FlowTemplatePicker class="mb-4" @change="onTemplateChange" />
         <form @submit.prevent="submitFlow">
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -167,6 +168,7 @@
 import { ref, onMounted } from 'vue'
 import { getFlows, createFlow, archiveFlow, unarchiveFlow } from '../api/flows'
 import FlowEditForm from '../components/FlowEditForm.vue'
+import FlowTemplatePicker from '../components/FlowTemplatePicker.vue'
 import type { Flow } from '../types'
 
 const flows = ref<Flow[]>([])
@@ -176,6 +178,15 @@ const submitting = ref(false)
 const formError = ref('')
 
 const form = ref({ name: '', description: '', attestationTypes: '', tags: '' })
+
+// A template pre-populates the gates but never locks them: whatever ends up in the
+// attestation-types field is what gets saved, so it stays editable before creation (#162).
+const chosenTemplateIds = ref<string[]>([])
+
+function onTemplateChange(selection: { templateIds: string[]; requiredAttestations: string[] }) {
+  chosenTemplateIds.value = selection.templateIds
+  form.value.attestationTypes = selection.requiredAttestations.join(', ')
+}
 const editing = ref<Flow | null>(null)
 const includeArchived = ref(false)
 
@@ -215,6 +226,7 @@ function parseTagsInput(raw: string): Record<string, string> {
 function closeModal() {
   showModal.value = false
   form.value = { name: '', description: '', attestationTypes: '', tags: '' }
+  chosenTemplateIds.value = []
   formError.value = ''
 }
 
@@ -227,7 +239,13 @@ async function submitFlow() {
       .map(s => s.trim())
       .filter(Boolean)
     const tags = parseTagsInput(form.value.tags)
-    await createFlow({ name: form.value.name, description: form.value.description, requiredAttestationTypes: types, tags })
+    await createFlow({
+      name: form.value.name,
+      description: form.value.description,
+      requiredAttestationTypes: types,
+      tags,
+      ...(chosenTemplateIds.value.length ? { templateIds: chosenTemplateIds.value } : {}),
+    })
     await reload()
     closeModal()
   } catch {

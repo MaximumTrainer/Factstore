@@ -1,0 +1,19 @@
+id: service-batch-job
+name: Batch Job
+description: >-
+  Baseline gates for a scheduled or triggered batch job. No inbound API surface, so the
+  emphasis is on what ships: tested code, scanned dependencies and a scanned image.
+category: service-type
+serviceType: batch-job
+framework: house-standard
+version: "1.0"
+trail:
+  attestations:
+    - name: unit-tests
+      type: junit
+    - name: sast
+      type: ghas
+    - name: dependency-scan
+      type: snyk
+    - name: image-scan
+      type: trivy

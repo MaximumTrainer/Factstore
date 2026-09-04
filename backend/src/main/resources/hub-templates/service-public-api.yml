@@ -1,0 +1,26 @@
+id: service-public-api
+name: Public API Service
+description: >-
+  Baseline gates for a service exposed outside the organisation. The widest blast radius,
+  so it carries the full set: the internal baseline plus contract, integration and API
+  testing, container image scanning and a recorded peer review.
+category: service-type
+serviceType: public-api
+framework: house-standard
+version: "1.0"
+trail:
+  attestations:
+    - name: unit-tests
+      type: junit
+    - name: sast
+      type: ghas
+    - name: dependency-scan
+      type: snyk
+    - name: image-scan
+      type: trivy
+    - name: api-tests
+      type: api-test
+    - name: integration-tests
+      type: integration-test
+    - name: peer-review
+      type: pull-request

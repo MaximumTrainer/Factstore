@@ -60,6 +60,29 @@
             </button>
           </div>
         </div>
+        <!-- Templates are copied at creation, so a template update never changes an
+             in-flight release silently; this reports the gap so a team can re-apply. -->
+        <div
+          v-if="drift?.drifted"
+          data-test="template-drift"
+          class="mt-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800"
+        >
+          <p class="font-medium">
+            This flow no longer matches the <span class="font-mono">{{ drift.templateId }}</span>
+            template it was created from<span
+              v-if="drift.currentTemplateVersion && drift.currentTemplateVersion !== drift.templateVersion"
+            >
+              (created from {{ drift.templateVersion }}, now {{ drift.currentTemplateVersion }})</span
+            >.
+          </p>
+          <p v-if="drift.missingFromFlow.length" class="mt-1">
+            Required by the template but not by this flow: {{ drift.missingFromFlow.join(', ') }}
+          </p>
+          <p v-if="drift.addedToFlow.length" class="mt-1">
+            Added locally: {{ drift.addedToFlow.join(', ') }}
+          </p>
+        </div>
+
         <p v-if="exportError" class="mt-3 text-sm text-red-600">{{ exportError }}</p>
         <p v-if="archiveError" class="mt-3 text-sm text-red-600">{{ archiveError }}</p>
       </div>
@@ -131,14 +154,24 @@ import { useRoute } from 'vue-router'
 import StatusBadge from '../components/StatusBadge.vue'
 import FlowEditForm from '../components/FlowEditForm.vue'
 import DeleteTrailDialog from '../components/DeleteTrailDialog.vue'
-import { getFlow, archiveFlow, unarchiveFlow } from '../api/flows'
+import { getFlow, archiveFlow, unarchiveFlow, getFlowTemplateDrift } from '../api/flows'
 import { getTrails } from '../api/trails'
 import { getComplianceReport } from '../api/reports'
-import type { Flow, Trail } from '../types'
+import type { Flow, TemplateDrift, Trail } from '../types'
 
 const route = useRoute()
 
 const showEditModal = ref(false)
+const drift = ref<TemplateDrift | null>(null)
+
+async function loadDrift(flowId: string) {
+  try {
+    const { data } = await getFlowTemplateDrift(flowId)
+    drift.value = data
+  } catch {
+    // Drift is advisory; the page is useful without it.
+  }
+}
 const removingTrail = ref<Trail | null>(null)
 
 function onTrailRemoved() {
@@ -153,6 +186,7 @@ const archiveError = ref('')
 function onFlowSaved(updated: Flow) {
   flow.value = updated
   showEditModal.value = false
+  loadDrift(updated.id)
 }
 
 async function toggleArchive() {
@@ -222,5 +256,6 @@ onMounted(async () => {
   } finally {
     trailsLoading.value = false
   }
+  await loadDrift(id)
 })
 </script>

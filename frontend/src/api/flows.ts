@@ -1,5 +1,5 @@
 import client from './client'
-import type { Flow, FlowImpact } from '../types'
+import type { Flow, FlowImpact, TemplateDrift } from '../types'
 
 export const getFlows = (includeArchived = false) =>
   client.get<Flow[]>(`/flows?includeArchived=${includeArchived}`)
@@ -14,6 +14,8 @@ export const createFlow = (data: {
   templateYaml?: string
   requiresApproval?: boolean
   requiredApproverRoles?: string[]
+  /** Apply hub templates at creation; their YAML is copied onto the flow. */
+  templateIds?: string[]
 }) => client.post<Flow>('/flows', data)
 
 /**
@@ -38,6 +40,10 @@ export const updateFlow = (id: string, data: UpdateFlowPayload) =>
 
 /** How much existing evidence a change to this flow would affect. */
 export const getFlowImpact = (id: string) => client.get<FlowImpact>(`/flows/${id}/impact`)
+
+/** Whether the flow still matches the template it was created from. */
+export const getFlowTemplateDrift = (id: string) =>
+  client.get<TemplateDrift>(`/flows/${id}/template-drift`)
 
 export const renameFlow = (id: string, newName: string) =>
   client.post<Flow>(`/flows/${id}/rename`, { newName })

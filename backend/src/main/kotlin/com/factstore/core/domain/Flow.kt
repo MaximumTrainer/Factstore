@@ -23,6 +23,14 @@ class Flow(
     @Column(name = "org_slug", nullable = true, length = 255)
     var orgSlug: String? = null,
 
+    /** The hub template this flow was created from, if any (#162). */
+    @Column(name = "template_id", nullable = true, length = 128)
+    var templateId: String? = null,
+
+    /** The version of that template at the time it was applied. */
+    @Column(name = "template_version", nullable = true, length = 32)
+    var templateVersion: String? = null,
+
     @Column(name = "template_yaml", columnDefinition = "TEXT")
     var templateYaml: String? = null,
 

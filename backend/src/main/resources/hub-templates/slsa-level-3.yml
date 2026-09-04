@@ -1,6 +1,7 @@
 id: slsa-level-3
 name: SLSA Level 3 Template
 description: Supply-chain Levels for Software Artifacts - Level 3
+category: framework
 framework: SLSA
 version: "1.0"
 trail:

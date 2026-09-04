@@ -1,6 +1,7 @@
 id: pci-dss-v4
 name: PCI-DSS v4 Compliance Template
 description: Payment Card Industry Data Security Standard v4 attestation requirements
+category: framework
 framework: PCI-DSS
 version: "4.0"
 trail:
