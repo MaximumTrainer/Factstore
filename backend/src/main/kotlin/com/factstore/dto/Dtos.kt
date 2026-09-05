@@ -123,7 +123,23 @@ data class CreateTrailRequest(
     val gitBranch: String? = null,
     @field:NotBlank(message = "gitAuthor is required")
     val gitAuthor: String,
-    @field:Email
+    /**
+     * The author email **as git reports it**.
+     *
+     * Validated with a deliberately wide rule rather than `@Email`, which rejects square
+     * brackets in the local part and so refused `dependabot[bot]@users.noreply.github.com` —
+     * the real address GitHub puts on a Dependabot commit. No trail could be opened for any
+     * bot-authored change at all.
+     *
+     * That is the wrong trade for a fact store: automated dependency updates are among the
+     * changes a supply-chain record most needs to cover, and losing the fact is worse than
+     * accepting an address the RFC would quote. Still one whitespace-free `local@domain.tld`,
+     * and still length-bounded.
+     */
+    @field:Pattern(
+        regexp = "^[^\\s@]+@[^\\s@]+\\.[^\\s@.]+$",
+        message = "gitAuthorEmail must be an address of the form local@domain.tld"
+    )
     @field:Size(max = 255)
     val gitAuthorEmail: String,
     val pullRequestId: String? = null,
