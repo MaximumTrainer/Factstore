@@ -156,6 +156,13 @@ jobs:
         run: npm ci
       - name: Run consumer Pact tests
         run: npm run test:pact
+      # The provider test is annotated @PactFolder("../pacts"), so `./gradlew contractTest`
+      # verifies against the *committed* file while this job verifies against the freshly
+      # generated one. When they drift, local verification silently checks a weaker contract
+      # than CI -- which is exactly how a `tags` field went missing from both files unnoticed.
+      - name: Check the committed contract is up to date
+        working-directory: .
+        run: node scripts/check-pact-drift.mjs pacts/factstore-frontend-factstore-backend.json
       - name: Upload frontend pact files
         uses: actions/upload-artifact@v4
         with:
@@ -183,6 +190,13 @@ jobs:
         run: npm ci
       - name: Run consumer Pact tests
         run: npm run test:pact
+      # The provider test is annotated @PactFolder("../pacts"), so `./gradlew contractTest`
+      # verifies against the *committed* file while this job verifies against the freshly
+      # generated one. When they drift, local verification silently checks a weaker contract
+      # than CI -- which is exactly how a `tags` field went missing from both files unnoticed.
+      - name: Check the committed contract is up to date
+        working-directory: .
+        run: node scripts/check-pact-drift.mjs pacts/factstore-cli-factstore-backend.json
       - name: Upload CLI pact files
         uses: actions/upload-artifact@v4
         with:

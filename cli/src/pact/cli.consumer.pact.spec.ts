@@ -11,16 +11,30 @@ const { like, eachLike } = MatchersV3
 
 const PACT_DIR = resolve(__dirname, '../../../pacts')
 
-const provider = new PactV3({
-  consumer: 'factstore-cli',
-  provider: 'factstore-backend',
-  dir: PACT_DIR,
-  spec: SpecificationVersion.SPECIFICATION_VERSION_V3,
-})
+/**
+ * A **fresh** provider per test.
+ *
+ * One shared `PactV3` was reused across every test in this file, and interactions accumulate
+ * on the instance: if two tests overlap at all, one test's mock server ends up expecting the
+ * other's request and fails with "the following request was expected but not received" --
+ * naming an endpoint that test never calls.
+ *
+ * It usually passed, because the tests usually ran strictly one after another. That made it an
+ * intermittent contract failure on CI, which is the worst kind: the signal a contract test
+ * exists to give is only worth anything if a red run means the contract actually broke.
+ * Running this file with `--sequence.concurrent` reproduces the CI failure exactly.
+ */
+const newProvider = () =>
+  new PactV3({
+    consumer: 'factstore-cli',
+    provider: 'factstore-backend',
+    dir: PACT_DIR,
+    spec: SpecificationVersion.SPECIFICATION_VERSION_V3,
+  })
 
 describe('Factstore CLI API Contract – Flows', () => {
   test('GET /api/v1/flows returns available flows for selection', async () => {
-    await provider
+    await newProvider()
       .given('flows exist')
       .uponReceiving('a CLI GET request for all flows')
       .withRequest({ method: 'GET', path: '/api/v1/flows' })
@@ -55,7 +69,7 @@ describe('Factstore CLI API Contract – Assert', () => {
       flowId: '7f3f2b99-0000-0000-0000-000000000001',
     }
 
-    await provider
+    await newProvider()
       .given('a flow with id 7f3f2b99-0000-0000-0000-000000000001 exists')
       .uponReceiving('a CLI POST request to assert compliance')
       .withRequest({
@@ -96,7 +110,7 @@ describe('Factstore CLI API Contract – Assert', () => {
       gitAuthorEmail: 'dev@example.com',
     }
 
-    await provider
+    await newProvider()
       .given('a flow with id 7f3f2b99-0000-0000-0000-000000000001 exists')
       .uponReceiving('a CLI POST request to create a trail')
       .withRequest({
