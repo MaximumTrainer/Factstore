@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
@@ -71,6 +72,25 @@ class GlobalExceptionHandler {
         log.warn("Pull request not found: ${ex.message}")
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
             .body(ErrorResponse(422, "Unprocessable Entity", ex.message ?: "No pull request found for commit"))
+    }
+
+    /**
+     * Bean-validation failures on a `@Valid @RequestBody`.
+     *
+     * Without this, they fell through to the catch-all below and every one came back as a
+     * **500** — so a client that sent a bad field could not tell its own mistake from the
+     * server breaking, and a CI pipeline retried a request that would never succeed. The
+     * offending fields are named, because "Bad Request" with nothing else is barely better
+     * than the 500 it replaces.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
+        val details = ex.bindingResult.fieldErrors.joinToString("; ") {
+            "${it.field}: ${it.defaultMessage ?: "is invalid"}"
+        }.ifBlank { "Request validation failed" }
+        log.warn("Validation failed: $details")
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, "Bad Request", details))
     }
 
     @ExceptionHandler(Exception::class)
